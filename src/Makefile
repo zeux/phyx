@@ -1,3 +1,3 @@
 all:
-	c++ -O3 -DNDEBUG main.cpp -lsfml-window -lsfml-graphics -lsfml-system -o main
+	c++ -O3 -DNDEBUG -mavx2 -ffast-math main.cpp -lsfml-window -lsfml-graphics -lsfml-system -o main
 	./main
