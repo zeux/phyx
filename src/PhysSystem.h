@@ -1,4 +1,7 @@
 #pragma once
+
+#include <math.h>
+
 #include "RigidBody.h"
 #include "Collider.h"
 #include "Solver.h"

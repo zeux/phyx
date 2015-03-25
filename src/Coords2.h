@@ -1,4 +1,5 @@
 #pragma once
+
 template<typename T>
 class Coords2
 {
@@ -66,6 +67,7 @@ public:
 
   void SetRotation(const T &angle)
   {
+    float pi = 3.141592f;
     xVector = Vector2<T>(cos(angle), sin(angle));
     yVector = Vector2<T>(cos(angle + pi / 2.0), sin(angle + pi / 2.0));
   }
