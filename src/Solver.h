@@ -131,7 +131,7 @@ struct Solver
 
     for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
     {
-      SolveJointsImpulsesSoA(0, groupOffset);
+      SolveJointsImpulsesSoA_AVX2(0, groupOffset);
       SolveJointsImpulsesSoA(groupOffset, contactJoints.size() - groupOffset);
     }
 
@@ -361,142 +361,218 @@ struct Solver
 
   NOINLINE void SolveJointsImpulsesAoS()
   {
-      for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
+    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
+    {
+      ContactJoint& joint = contactJoints[jointIndex];
+
+      SolveBody* body1 = &solveBodies[joint.body1Index];
+      SolveBody* body2 = &solveBodies[joint.body2Index];
+
       {
-        ContactJoint& joint = contactJoints[jointIndex];
+        float dV = 0;
+        dV -= joint.normalLimiter.normalProjector1 * body1->velocity;
+        dV -= joint.normalLimiter.angularProjector1 * body1->angularVelocity;
+        dV -= joint.normalLimiter.normalProjector2 * body2->velocity;
+        dV -= joint.normalLimiter.angularProjector2 * body2->angularVelocity;
+        dV += joint.normalLimiter.dstVelocity;
 
-        SolveBody* body1 = &solveBodies[joint.body1Index];
-        SolveBody* body2 = &solveBodies[joint.body2Index];
+        float deltaImpulse = dV * joint.normalLimiter.compInvMass;
 
-        {
-          float dV = 0;
-          dV -= joint.normalLimiter.normalProjector1 * body1->velocity;
-          dV -= joint.normalLimiter.angularProjector1 * body1->angularVelocity;
-          dV -= joint.normalLimiter.normalProjector2 * body2->velocity;
-          dV -= joint.normalLimiter.angularProjector2 * body2->angularVelocity;
-          dV += joint.normalLimiter.dstVelocity;
+        if (deltaImpulse + joint.normalLimiter.accumulatedImpulse < 0.0f)
+          deltaImpulse = -joint.normalLimiter.accumulatedImpulse;
 
-          float deltaImpulse = dV * joint.normalLimiter.compInvMass;
+        body1->velocity += joint.normalLimiter.compMass1_linear * deltaImpulse;
+        body1->angularVelocity += joint.normalLimiter.compMass1_angular * deltaImpulse;
+        body2->velocity += joint.normalLimiter.compMass2_linear * deltaImpulse;
+        body2->angularVelocity += joint.normalLimiter.compMass2_angular * deltaImpulse;
 
-          if (deltaImpulse + joint.normalLimiter.accumulatedImpulse < 0.0f)
-            deltaImpulse = -joint.normalLimiter.accumulatedImpulse;
-
-          body1->velocity += joint.normalLimiter.compMass1_linear * deltaImpulse;
-          body1->angularVelocity += joint.normalLimiter.compMass1_angular * deltaImpulse;
-          body2->velocity += joint.normalLimiter.compMass2_linear * deltaImpulse;
-          body2->angularVelocity += joint.normalLimiter.compMass2_angular * deltaImpulse;
-
-          joint.normalLimiter.accumulatedImpulse += deltaImpulse;
-        }
-
-        float deltaImpulse;
-
-        {
-          float dV = 0;
-
-          dV -= joint.frictionLimiter.normalProjector1 * body1->velocity;
-          dV -= joint.frictionLimiter.angularProjector1 * body1->angularVelocity;
-          dV -= joint.frictionLimiter.normalProjector2 * body2->velocity;
-          dV -= joint.frictionLimiter.angularProjector2 * body2->angularVelocity;
-
-          deltaImpulse = dV * joint.frictionLimiter.compInvMass;
-        }
-
-        float reactionForce = joint.normalLimiter.accumulatedImpulse;
-        float accumulatedImpulse = joint.frictionLimiter.accumulatedImpulse;
-
-        float frictionForce = accumulatedImpulse + deltaImpulse;
-        float frictionCoefficient = 0.3f;
-
-        if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
-        {
-          float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
-          frictionForce = dir * reactionForce * frictionCoefficient;
-          deltaImpulse = frictionForce - accumulatedImpulse;
-        }
-
-        joint.frictionLimiter.accumulatedImpulse += deltaImpulse;
-
-        body1->velocity += joint.frictionLimiter.compMass1_linear * deltaImpulse;
-        body1->angularVelocity += joint.frictionLimiter.compMass1_angular * deltaImpulse;
-        
-        body2->velocity += joint.frictionLimiter.compMass2_linear * deltaImpulse;
-        body2->angularVelocity += joint.frictionLimiter.compMass2_angular * deltaImpulse;
+        joint.normalLimiter.accumulatedImpulse += deltaImpulse;
       }
+
+      float deltaImpulse;
+
+      {
+        float dV = 0;
+
+        dV -= joint.frictionLimiter.normalProjector1 * body1->velocity;
+        dV -= joint.frictionLimiter.angularProjector1 * body1->angularVelocity;
+        dV -= joint.frictionLimiter.normalProjector2 * body2->velocity;
+        dV -= joint.frictionLimiter.angularProjector2 * body2->angularVelocity;
+
+        deltaImpulse = dV * joint.frictionLimiter.compInvMass;
+      }
+
+      float reactionForce = joint.normalLimiter.accumulatedImpulse;
+      float accumulatedImpulse = joint.frictionLimiter.accumulatedImpulse;
+
+      float frictionForce = accumulatedImpulse + deltaImpulse;
+      float frictionCoefficient = 0.3f;
+
+      if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
+      {
+        float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
+        frictionForce = dir * reactionForce * frictionCoefficient;
+        deltaImpulse = frictionForce - accumulatedImpulse;
+      }
+
+      joint.frictionLimiter.accumulatedImpulse += deltaImpulse;
+
+      body1->velocity += joint.frictionLimiter.compMass1_linear * deltaImpulse;
+      body1->angularVelocity += joint.frictionLimiter.compMass1_angular * deltaImpulse;
+
+      body2->velocity += joint.frictionLimiter.compMass2_linear * deltaImpulse;
+      body2->angularVelocity += joint.frictionLimiter.compMass2_angular * deltaImpulse;
+    }
   }
 
   NOINLINE void SolveJointsImpulsesSoA(int jointStart, int jointCount)
   {
-      for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
+    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
+    {
+      int i = jointIndex;
+
+      SolveBody* body1 = &solveBodies[joint_body1Index[i]];
+      SolveBody* body2 = &solveBodies[joint_body2Index[i]];
+
       {
-        int i = jointIndex;
+        float dV = 0;
+        dV -= joint_normalLimiter_normalProjector1X[i] * body1->velocity.x;
+        dV -= joint_normalLimiter_normalProjector1Y[i] * body1->velocity.y;
+        dV -= joint_normalLimiter_angularProjector1[i] * body1->angularVelocity;
+        dV -= joint_normalLimiter_normalProjector2X[i] * body2->velocity.x;
+        dV -= joint_normalLimiter_normalProjector2Y[i] * body2->velocity.y;
+        dV -= joint_normalLimiter_angularProjector2[i] * body2->angularVelocity;
+        dV += joint_normalLimiter_dstVelocity[i];
 
-        SolveBody* body1 = &solveBodies[joint_body1Index[i]];
-        SolveBody* body2 = &solveBodies[joint_body2Index[i]];
+        float deltaImpulse = dV * joint_normalLimiter_compInvMass[i];
 
-        {
-          float dV = 0;
-          dV -= joint_normalLimiter_normalProjector1X[i] * body1->velocity.x;
-          dV -= joint_normalLimiter_normalProjector1Y[i] * body1->velocity.y;
-          dV -= joint_normalLimiter_angularProjector1[i] * body1->angularVelocity;
-          dV -= joint_normalLimiter_normalProjector2X[i] * body2->velocity.x;
-          dV -= joint_normalLimiter_normalProjector2Y[i] * body2->velocity.y;
-          dV -= joint_normalLimiter_angularProjector2[i] * body2->angularVelocity;
-          dV += joint_normalLimiter_dstVelocity[i];
+        if (deltaImpulse + joint_normalLimiter_accumulatedImpulse[i] < 0.0f)
+          deltaImpulse = -joint_normalLimiter_accumulatedImpulse[i];
 
-          float deltaImpulse = dV * joint_normalLimiter_compInvMass[i];
+        body1->velocity.x += joint_normalLimiter_compMass1_linearX[i] * deltaImpulse;
+        body1->velocity.y += joint_normalLimiter_compMass1_linearY[i] * deltaImpulse;
+        body1->angularVelocity += joint_normalLimiter_compMass1_angular[i] * deltaImpulse;
+        body2->velocity.x += joint_normalLimiter_compMass2_linearX[i] * deltaImpulse;
+        body2->velocity.y += joint_normalLimiter_compMass2_linearY[i] * deltaImpulse;
+        body2->angularVelocity += joint_normalLimiter_compMass2_angular[i] * deltaImpulse;
 
-          if (deltaImpulse + joint_normalLimiter_accumulatedImpulse[i] < 0.0f)
-            deltaImpulse = -joint_normalLimiter_accumulatedImpulse[i];
-
-          body1->velocity.x += joint_normalLimiter_compMass1_linearX[i] * deltaImpulse;
-          body1->velocity.y += joint_normalLimiter_compMass1_linearY[i] * deltaImpulse;
-          body1->angularVelocity += joint_normalLimiter_compMass1_angular[i] * deltaImpulse;
-          body2->velocity.x += joint_normalLimiter_compMass2_linearX[i] * deltaImpulse;
-          body2->velocity.y += joint_normalLimiter_compMass2_linearY[i] * deltaImpulse;
-          body2->angularVelocity += joint_normalLimiter_compMass2_angular[i] * deltaImpulse;
-
-          joint_normalLimiter_accumulatedImpulse[i] += deltaImpulse;
-        }
-
-        float deltaImpulse;
-
-        {
-          float dV = 0;
-
-          dV -= joint_frictionLimiter_normalProjector1X[i] * body1->velocity.x;
-          dV -= joint_frictionLimiter_normalProjector1Y[i] * body1->velocity.y;
-          dV -= joint_frictionLimiter_angularProjector1[i] * body1->angularVelocity;
-          dV -= joint_frictionLimiter_normalProjector2X[i] * body2->velocity.x;
-          dV -= joint_frictionLimiter_normalProjector2Y[i] * body2->velocity.y;
-          dV -= joint_frictionLimiter_angularProjector2[i] * body2->angularVelocity;
-
-          deltaImpulse = dV * joint_frictionLimiter_compInvMass[i];
-        }
-
-        float reactionForce = joint_normalLimiter_accumulatedImpulse[i];
-        float accumulatedImpulse = joint_frictionLimiter_accumulatedImpulse[i];
-
-        float frictionForce = accumulatedImpulse + deltaImpulse;
-        float frictionCoefficient = 0.3f;
-
-        if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
-        {
-          float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
-          frictionForce = dir * reactionForce * frictionCoefficient;
-          deltaImpulse = frictionForce - accumulatedImpulse;
-        }
-
-        joint_frictionLimiter_accumulatedImpulse[i] += deltaImpulse;
-
-        body1->velocity.x += joint_frictionLimiter_compMass1_linearX[i] * deltaImpulse;
-        body1->velocity.y += joint_frictionLimiter_compMass1_linearY[i] * deltaImpulse;
-        body1->angularVelocity += joint_frictionLimiter_compMass1_angular[i] * deltaImpulse;
-        
-        body2->velocity.x += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
-        body2->velocity.y += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
-        body2->angularVelocity += joint_frictionLimiter_compMass2_angular[i] * deltaImpulse;
+        joint_normalLimiter_accumulatedImpulse[i] += deltaImpulse;
       }
+
+      float deltaImpulse;
+
+      {
+        float dV = 0;
+
+        dV -= joint_frictionLimiter_normalProjector1X[i] * body1->velocity.x;
+        dV -= joint_frictionLimiter_normalProjector1Y[i] * body1->velocity.y;
+        dV -= joint_frictionLimiter_angularProjector1[i] * body1->angularVelocity;
+        dV -= joint_frictionLimiter_normalProjector2X[i] * body2->velocity.x;
+        dV -= joint_frictionLimiter_normalProjector2Y[i] * body2->velocity.y;
+        dV -= joint_frictionLimiter_angularProjector2[i] * body2->angularVelocity;
+
+        deltaImpulse = dV * joint_frictionLimiter_compInvMass[i];
+      }
+
+      float reactionForce = joint_normalLimiter_accumulatedImpulse[i];
+      float accumulatedImpulse = joint_frictionLimiter_accumulatedImpulse[i];
+
+      float frictionForce = accumulatedImpulse + deltaImpulse;
+      float frictionCoefficient = 0.3f;
+
+      if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
+      {
+        float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
+        frictionForce = dir * reactionForce * frictionCoefficient;
+        deltaImpulse = frictionForce - accumulatedImpulse;
+      }
+
+      joint_frictionLimiter_accumulatedImpulse[i] += deltaImpulse;
+
+      body1->velocity.x += joint_frictionLimiter_compMass1_linearX[i] * deltaImpulse;
+      body1->velocity.y += joint_frictionLimiter_compMass1_linearY[i] * deltaImpulse;
+      body1->angularVelocity += joint_frictionLimiter_compMass1_angular[i] * deltaImpulse;
+
+      body2->velocity.x += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
+      body2->velocity.y += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
+      body2->angularVelocity += joint_frictionLimiter_compMass2_angular[i] * deltaImpulse;
+    }
+  }
+
+  NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount)
+  {
+    assert(jointStart % 8 == 0 && jointCount % 8 == 0);
+
+    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
+    {
+      int i = jointIndex;
+
+      SolveBody* body1 = &solveBodies[joint_body1Index[i]];
+      SolveBody* body2 = &solveBodies[joint_body2Index[i]];
+
+      {
+        float dV = 0;
+        dV -= joint_normalLimiter_normalProjector1X[i] * body1->velocity.x;
+        dV -= joint_normalLimiter_normalProjector1Y[i] * body1->velocity.y;
+        dV -= joint_normalLimiter_angularProjector1[i] * body1->angularVelocity;
+        dV -= joint_normalLimiter_normalProjector2X[i] * body2->velocity.x;
+        dV -= joint_normalLimiter_normalProjector2Y[i] * body2->velocity.y;
+        dV -= joint_normalLimiter_angularProjector2[i] * body2->angularVelocity;
+        dV += joint_normalLimiter_dstVelocity[i];
+
+        float deltaImpulse = dV * joint_normalLimiter_compInvMass[i];
+
+        if (deltaImpulse + joint_normalLimiter_accumulatedImpulse[i] < 0.0f)
+          deltaImpulse = -joint_normalLimiter_accumulatedImpulse[i];
+
+        body1->velocity.x += joint_normalLimiter_compMass1_linearX[i] * deltaImpulse;
+        body1->velocity.y += joint_normalLimiter_compMass1_linearY[i] * deltaImpulse;
+        body1->angularVelocity += joint_normalLimiter_compMass1_angular[i] * deltaImpulse;
+        body2->velocity.x += joint_normalLimiter_compMass2_linearX[i] * deltaImpulse;
+        body2->velocity.y += joint_normalLimiter_compMass2_linearY[i] * deltaImpulse;
+        body2->angularVelocity += joint_normalLimiter_compMass2_angular[i] * deltaImpulse;
+
+        joint_normalLimiter_accumulatedImpulse[i] += deltaImpulse;
+      }
+
+      float deltaImpulse;
+
+      {
+        float dV = 0;
+
+        dV -= joint_frictionLimiter_normalProjector1X[i] * body1->velocity.x;
+        dV -= joint_frictionLimiter_normalProjector1Y[i] * body1->velocity.y;
+        dV -= joint_frictionLimiter_angularProjector1[i] * body1->angularVelocity;
+        dV -= joint_frictionLimiter_normalProjector2X[i] * body2->velocity.x;
+        dV -= joint_frictionLimiter_normalProjector2Y[i] * body2->velocity.y;
+        dV -= joint_frictionLimiter_angularProjector2[i] * body2->angularVelocity;
+
+        deltaImpulse = dV * joint_frictionLimiter_compInvMass[i];
+      }
+
+      float reactionForce = joint_normalLimiter_accumulatedImpulse[i];
+      float accumulatedImpulse = joint_frictionLimiter_accumulatedImpulse[i];
+
+      float frictionForce = accumulatedImpulse + deltaImpulse;
+      float frictionCoefficient = 0.3f;
+
+      if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
+      {
+        float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
+        frictionForce = dir * reactionForce * frictionCoefficient;
+        deltaImpulse = frictionForce - accumulatedImpulse;
+      }
+
+      joint_frictionLimiter_accumulatedImpulse[i] += deltaImpulse;
+
+      body1->velocity.x += joint_frictionLimiter_compMass1_linearX[i] * deltaImpulse;
+      body1->velocity.y += joint_frictionLimiter_compMass1_linearY[i] * deltaImpulse;
+      body1->angularVelocity += joint_frictionLimiter_compMass1_angular[i] * deltaImpulse;
+
+      body2->velocity.x += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
+      body2->velocity.y += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
+      body2->angularVelocity += joint_frictionLimiter_compMass2_angular[i] * deltaImpulse;
+    }
   }
 
   NOINLINE void SolveJointsDisplacementAoS()
@@ -565,57 +641,57 @@ struct Solver
 
   struct SolveBody
   {
-     Vector2f velocity;
-     float angularVelocity;
+   Vector2f velocity;
+   float angularVelocity;
 
-     Vector2f displacingVelocity;
-     float displacingAngularVelocity;
-  };
+   Vector2f displacingVelocity;
+   float displacingAngularVelocity;
+ };
 
-  AlignedArray<SolveBody> solveBodies;
+ AlignedArray<SolveBody> solveBodies;
 
-  std::vector<ContactJoint> contactJoints;
+ std::vector<ContactJoint> contactJoints;
 
-  AlignedArray<int> jointGroup_bodies;
-  AlignedArray<int> jointGroup_joints;
+ AlignedArray<int> jointGroup_bodies;
+ AlignedArray<int> jointGroup_joints;
 
-  AlignedArray<int> joint_index;
-  AlignedArray<int> joint_body1Index;
-  AlignedArray<int> joint_body2Index;
+ AlignedArray<int> joint_index;
+ AlignedArray<int> joint_body1Index;
+ AlignedArray<int> joint_body2Index;
 
-  AlignedArray<float> joint_normalLimiter_normalProjector1X;
-  AlignedArray<float> joint_normalLimiter_normalProjector1Y;
-  AlignedArray<float> joint_normalLimiter_normalProjector2X;
-  AlignedArray<float> joint_normalLimiter_normalProjector2Y;
-  AlignedArray<float> joint_normalLimiter_angularProjector1;
-  AlignedArray<float> joint_normalLimiter_angularProjector2;
+ AlignedArray<float> joint_normalLimiter_normalProjector1X;
+ AlignedArray<float> joint_normalLimiter_normalProjector1Y;
+ AlignedArray<float> joint_normalLimiter_normalProjector2X;
+ AlignedArray<float> joint_normalLimiter_normalProjector2Y;
+ AlignedArray<float> joint_normalLimiter_angularProjector1;
+ AlignedArray<float> joint_normalLimiter_angularProjector2;
 
-  AlignedArray<float> joint_normalLimiter_compMass1_linearX;
-  AlignedArray<float> joint_normalLimiter_compMass1_linearY;
-  AlignedArray<float> joint_normalLimiter_compMass2_linearX;
-  AlignedArray<float> joint_normalLimiter_compMass2_linearY;
-  AlignedArray<float> joint_normalLimiter_compMass1_angular;
-  AlignedArray<float> joint_normalLimiter_compMass2_angular;
-  AlignedArray<float> joint_normalLimiter_compInvMass;
-  AlignedArray<float> joint_normalLimiter_accumulatedImpulse;
+ AlignedArray<float> joint_normalLimiter_compMass1_linearX;
+ AlignedArray<float> joint_normalLimiter_compMass1_linearY;
+ AlignedArray<float> joint_normalLimiter_compMass2_linearX;
+ AlignedArray<float> joint_normalLimiter_compMass2_linearY;
+ AlignedArray<float> joint_normalLimiter_compMass1_angular;
+ AlignedArray<float> joint_normalLimiter_compMass2_angular;
+ AlignedArray<float> joint_normalLimiter_compInvMass;
+ AlignedArray<float> joint_normalLimiter_accumulatedImpulse;
 
-  AlignedArray<float> joint_normalLimiter_dstVelocity;
-  AlignedArray<float> joint_normalLimiter_dstDisplacingVelocity;
-  AlignedArray<float> joint_normalLimiter_accumulatedDisplacingImpulse;
+ AlignedArray<float> joint_normalLimiter_dstVelocity;
+ AlignedArray<float> joint_normalLimiter_dstDisplacingVelocity;
+ AlignedArray<float> joint_normalLimiter_accumulatedDisplacingImpulse;
 
-  AlignedArray<float> joint_frictionLimiter_normalProjector1X;
-  AlignedArray<float> joint_frictionLimiter_normalProjector1Y;
-  AlignedArray<float> joint_frictionLimiter_normalProjector2X;
-  AlignedArray<float> joint_frictionLimiter_normalProjector2Y;
-  AlignedArray<float> joint_frictionLimiter_angularProjector1;
-  AlignedArray<float> joint_frictionLimiter_angularProjector2;
+ AlignedArray<float> joint_frictionLimiter_normalProjector1X;
+ AlignedArray<float> joint_frictionLimiter_normalProjector1Y;
+ AlignedArray<float> joint_frictionLimiter_normalProjector2X;
+ AlignedArray<float> joint_frictionLimiter_normalProjector2Y;
+ AlignedArray<float> joint_frictionLimiter_angularProjector1;
+ AlignedArray<float> joint_frictionLimiter_angularProjector2;
 
-  AlignedArray<float> joint_frictionLimiter_compMass1_linearX;
-  AlignedArray<float> joint_frictionLimiter_compMass1_linearY;
-  AlignedArray<float> joint_frictionLimiter_compMass2_linearX;
-  AlignedArray<float> joint_frictionLimiter_compMass2_linearY;
-  AlignedArray<float> joint_frictionLimiter_compMass1_angular;
-  AlignedArray<float> joint_frictionLimiter_compMass2_angular;
-  AlignedArray<float> joint_frictionLimiter_compInvMass;
-  AlignedArray<float> joint_frictionLimiter_accumulatedImpulse;
+ AlignedArray<float> joint_frictionLimiter_compMass1_linearX;
+ AlignedArray<float> joint_frictionLimiter_compMass1_linearY;
+ AlignedArray<float> joint_frictionLimiter_compMass2_linearX;
+ AlignedArray<float> joint_frictionLimiter_compMass2_linearY;
+ AlignedArray<float> joint_frictionLimiter_compMass1_angular;
+ AlignedArray<float> joint_frictionLimiter_compMass2_angular;
+ AlignedArray<float> joint_frictionLimiter_compInvMass;
+ AlignedArray<float> joint_frictionLimiter_accumulatedImpulse;
 };
