@@ -207,6 +207,8 @@ struct ContactJoint
     this->collision = desc.collision;
     this->body1 = desc.body1;
     this->body2 = desc.body2;
+    this->body1Index = desc.body1->index;
+    this->body2Index = desc.body2->index;
     collision->userInfo = this;
 
   }
@@ -264,6 +266,8 @@ struct ContactJoint
   }
   RigidBody *body1;
   RigidBody *body2;
+  unsigned int body1Index;
+  unsigned int body2Index;
   NormalLimiter normalLimiter;
   FrictionLimiter frictionLimiter;
   Collision *collision;

@@ -2,6 +2,14 @@
 #include <assert.h>
 #include <vector>
 
+#include <emmintrin.h>
+
+#ifdef _MSC_VER
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE __attribute__((noinline))
+#endif
+
 struct Solver
 {
   Solver()
@@ -26,20 +34,7 @@ struct Solver
       contactJoints[jointIndex].PreStep();
     }
   }
-  void SolveJoints(int contactIterationsCount, int penetrationIterationsCount)
-  {
-    for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
-    {
-      SolveJointsImpulses();
-    }
-    for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
-    {
-      for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
-      {
-        contactJoints[jointIndex].SolveDisplacement();
-      }
-    }
-  }
+
   void RefreshContactJoint(ContactJoint::Descriptor desc)
   {
     ContactJoint *joint = (ContactJoint*)(desc.collision->userInfo);
@@ -59,14 +54,57 @@ struct Solver
     joint->collision = desc.collision;
   }
 
-  void SolveJointsImpulses()
+  NOINLINE void SolveJoints(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+  {
+    SolvePrepare(bodies, bodiesCount);
+
+    for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
+    {
+      SolveJointsImpulses();
+    }
+
+    for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
+    {
+      SolveJointsDisplacement();
+    }
+
+    SolveFinish(bodies, bodiesCount);
+  }
+  
+  NOINLINE void SolvePrepare(RigidBody* bodies, int bodiesCount)
+  {
+    solveBodies.resize(bodiesCount);
+
+    for (int i = 0; i < bodiesCount; ++i)
+    {
+      solveBodies[i].velocity = bodies[i].velocity;
+      solveBodies[i].angularVelocity = bodies[i].angularVelocity;
+
+      solveBodies[i].displacingVelocity = bodies[i].displacingVelocity;
+      solveBodies[i].displacingAngularVelocity = bodies[i].displacingAngularVelocity;
+    }
+  }
+
+  NOINLINE void SolveFinish(RigidBody* bodies, int bodiesCount)
+  {
+    for (int i = 0; i < bodiesCount; ++i)
+    {
+      bodies[i].velocity = solveBodies[i].velocity;
+      bodies[i].angularVelocity = solveBodies[i].angularVelocity;
+
+      bodies[i].displacingVelocity = solveBodies[i].displacingVelocity;
+      bodies[i].displacingAngularVelocity = solveBodies[i].displacingAngularVelocity;
+    }
+  }
+
+  NOINLINE void SolveJointsImpulses()
   {
       for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
       {
         ContactJoint& joint = contactJoints[jointIndex];
 
-        RigidBody* body1 = joint.body1;
-        RigidBody* body2 = joint.body2;
+        SolveBody* body1 = &solveBodies[joint.body1Index];
+        SolveBody* body2 = &solveBodies[joint.body2Index];
 
         {
           float dV = 0;
@@ -108,7 +146,7 @@ struct Solver
         float frictionForce = accumulatedImpulse + deltaImpulse;
         float frictionCoefficient = 0.3f;
 
-        if (fabs(frictionForce) > (reactionForce * frictionCoefficient))
+        if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
         {
           float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
           frictionForce = dir * reactionForce * frictionCoefficient;
@@ -124,6 +162,47 @@ struct Solver
         body2->angularVelocity += joint.frictionLimiter.compMass2_angular * deltaImpulse;
       }
   }
+
+  NOINLINE void SolveJointsDisplacement()
+  {
+    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
+    {
+      ContactJoint& joint = contactJoints[jointIndex];
+
+      SolveBody* body1 = &solveBodies[joint.body1Index];
+      SolveBody* body2 = &solveBodies[joint.body2Index];
+
+      float dV = 0;
+      dV -= joint.normalLimiter.normalProjector1 * body1->displacingVelocity;
+      dV -= joint.normalLimiter.angularProjector1 * body1->displacingAngularVelocity;
+      dV -= joint.normalLimiter.normalProjector2 * body2->displacingVelocity;
+      dV -= joint.normalLimiter.angularProjector2 * body2->displacingAngularVelocity;
+      dV += joint.normalLimiter.dstDisplacingVelocity;
+
+      float deltaDisplacingImpulse = dV * joint.normalLimiter.compInvMass;
+
+      if (deltaDisplacingImpulse + joint.normalLimiter.accumulatedDisplacingImpulse < 0.0f)
+        deltaDisplacingImpulse = -joint.normalLimiter.accumulatedDisplacingImpulse;
+
+      body1->displacingVelocity += joint.normalLimiter.compMass1_linear * deltaDisplacingImpulse;
+      body1->displacingAngularVelocity += joint.normalLimiter.compMass1_angular * deltaDisplacingImpulse;
+      body2->displacingVelocity += joint.normalLimiter.compMass2_linear * deltaDisplacingImpulse;
+      body2->displacingAngularVelocity += joint.normalLimiter.compMass2_angular * deltaDisplacingImpulse;
+
+      joint.normalLimiter.accumulatedDisplacingImpulse += deltaDisplacingImpulse;
+    }
+  }
+
+  struct SolveBody
+  {
+     Vector2f velocity;
+     float angularVelocity;
+
+     Vector2f displacingVelocity;
+     float displacingAngularVelocity;
+  };
+
+  std::vector<SolveBody> solveBodies;
 
   std::vector<ContactJoint> contactJoints;
 };

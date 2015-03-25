@@ -13,6 +13,7 @@ struct PhysSystem
   RigidBody *AddBody(Coords2f coords, Vector2f size)
   {
     RigidBody newbie(coords, size, 1e-5f);
+    newbie.index = bodies.size();
     bodies.push_back(newbie);
     return &(bodies[bodies.size() - 1]);
   }
@@ -67,7 +68,7 @@ struct PhysSystem
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    solver.SolveJoints(500, 15);
+    solver.SolveJoints(&bodies[0], bodies.size(), 500, 15);
     solveTime += clock.getElapsedTime().asSeconds();
     clock.restart();
     for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)

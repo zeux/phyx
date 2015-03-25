@@ -58,6 +58,8 @@ struct RigidBody
     geom.RecomputeAABB();
   }
 
+  unsigned int index;
+
   Geom geom;
 
   Vector2f velocity, acceleration;
