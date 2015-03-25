@@ -9,6 +9,7 @@ struct Limiter
   {
     accumulatedImpulse = 0.0f;
   }
+  
   Vector2f normalProjector1, normalProjector2;
   float  angularProjector1, angularProjector2;
 
@@ -17,6 +18,7 @@ struct Limiter
   float  compMass1_angular;
   float  compMass2_angular;
   float compInvMass;
+  float accumulatedImpulse;
 
   inline void Refresh(const Vector2f &n1, const Vector2f &n2, const Vector2f &w1, const Vector2f &w2, RigidBody *body1, RigidBody *body2)
   {
@@ -71,7 +73,6 @@ struct Limiter
       deltaImpulse);
   }
 
-  float accumulatedImpulse;
 protected:
   inline void ApplyImpulse(
     Vector2f &body1Velocity, float &body1AngularVelocity,
