@@ -61,6 +61,16 @@ int main()
     //testBody->invInertia = 0;
     testBody->velocity = Vector2f(10.0f, 0.0f);
   }
+
+  double warmTime = 0;
+
+  for (int i = 0; i < 10; ++i)
+  {
+    physSystem.Update(1.f / 60.f);
+
+    warmTime += physSystem.solveTime;
+  }
+
   sf::Clock clock;
 
   float prevUpdateTime = 0.0f;
@@ -170,6 +180,7 @@ int main()
     debugTextStream2 << std::fixed;
     debugTextStream2.precision(2);
     debugTextStream2 << 
+      "Warm time: " << std::setw(5) << warmTime * 1000.0f << "; "
       "Physics time: " << std::setw(5) << physicsTime * 1000.0f << 
       "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << 
       "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << 

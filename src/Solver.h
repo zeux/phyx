@@ -61,23 +61,6 @@ struct Solver
 
   void SolveJointsImpulses()
   {
-  #if 1
-  SolveJointsImpulsesBaseline();
-  #else
-  SolveJointsImpulsesExplicit();
-  #endif
-  }
-
-  void SolveJointsImpulsesBaseline()
-  {
-    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
-    {
-      contactJoints[jointIndex].SolveImpulse();
-    }
-  }
-
-  void SolveJointsImpulsesExplicit()
-  {
       for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
       {
         ContactJoint& joint = contactJoints[jointIndex];
