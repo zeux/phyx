@@ -127,16 +127,18 @@ struct Solver
 
   NOINLINE void SolveJointsSoA(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
-    SolvePrepareSoA(bodies, bodiesCount);
+    int groupOffset = SolvePrepareSoA(bodies, bodiesCount);
 
     for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
     {
-      SolveJointsImpulsesSoA();
+      SolveJointsImpulsesSoA(0, groupOffset);
+      SolveJointsImpulsesSoA(groupOffset, contactJoints.size() - groupOffset);
     }
 
     for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
     {
-      SolveJointsDisplacementSoA();
+      SolveJointsDisplacementSoA(0, groupOffset);
+      SolveJointsDisplacementSoA(groupOffset, contactJoints.size() - groupOffset);
     }
 
     SolveFinishSoA(bodies, bodiesCount);
@@ -156,7 +158,67 @@ struct Solver
     }
   }
 
-  NOINLINE void SolvePrepareSoA(RigidBody* bodies, int bodiesCount)
+  NOINLINE int SolvePrepareIndicesSoA(int bodiesCount)
+  {
+    int jointCount = contactJoints.size();
+
+    jointGroup_bodies.resize(bodiesCount);
+    jointGroup_joints.resize(jointCount);
+
+    for (int i = 0; i < bodiesCount; ++i)
+      jointGroup_bodies[i] = 0;
+
+    for (int i = 0; i < jointCount; ++i)
+      jointGroup_joints[i] = i;
+
+    int tag = 0;
+
+    int groupOffset = 0;
+    int groupSizeTarget = 8;
+
+    while (jointGroup_joints.size >= groupSizeTarget)
+    {
+      // gather a group of 8 joints with non-overlapping bodies
+      int groupSize = 0;
+
+      tag++;
+
+      for (int i = 0; i < jointGroup_joints.size && groupSize < groupSizeTarget; )
+      {
+        int jointIndex = jointGroup_joints[i];
+        ContactJoint& joint = contactJoints[jointIndex];
+
+        if (jointGroup_bodies[joint.body1Index] < tag && jointGroup_bodies[joint.body2Index] < tag)
+        {
+          jointGroup_bodies[joint.body1Index] = tag;
+          jointGroup_bodies[joint.body2Index] = tag;
+
+          joint_index[groupOffset + groupSize] = jointIndex;
+          groupSize++;
+
+          jointGroup_joints[i] = jointGroup_joints[jointGroup_joints.size - 1];
+          jointGroup_joints.size--;
+        }
+        else
+        {
+          i++;
+        }
+      }
+
+      groupOffset += groupSize;
+
+      if (groupSize < groupSizeTarget)
+        break;
+    }
+
+    // fill in the rest of the joints sequentially - they don't form a group so we'll have to solve them 1 by 1
+    for (int i = 0; i < jointGroup_joints.size; ++i)
+      joint_index[groupOffset + i] = jointGroup_joints[i];
+
+    return (groupOffset / groupSizeTarget) * groupSizeTarget;
+  }
+
+  NOINLINE int SolvePrepareSoA(RigidBody* bodies, int bodiesCount)
   {
     solveBodies.resize(bodiesCount);
 
@@ -172,6 +234,7 @@ struct Solver
     int jointCount = contactJoints.size();
 
     joint_index.resize(jointCount);
+
     joint_body1Index.resize(jointCount);
     joint_body2Index.resize(jointCount);
 
@@ -211,11 +274,12 @@ struct Solver
     joint_frictionLimiter_compInvMass.resize(jointCount);
     joint_frictionLimiter_accumulatedImpulse.resize(jointCount);
 
+    int groupOffset = SolvePrepareIndicesSoA(bodiesCount);
+
     for (int i = 0; i < jointCount; ++i)
     {
-      ContactJoint& joint = contactJoints[i];
+      ContactJoint& joint = contactJoints[joint_index[i]];
 
-      joint_index[i] = i;
       joint_body1Index[i] = joint.body1Index;
       joint_body2Index[i] = joint.body2Index;
 
@@ -255,6 +319,8 @@ struct Solver
       joint_frictionLimiter_compInvMass[i] = joint.frictionLimiter.compInvMass;
       joint_frictionLimiter_accumulatedImpulse[i] = joint.frictionLimiter.accumulatedImpulse;
     }
+
+    return groupOffset;
   }
 
   NOINLINE void SolveFinishAoS(RigidBody* bodies, int bodiesCount)
@@ -284,7 +350,7 @@ struct Solver
 
     for (int i = 0; i < jointCount; ++i)
     {
-      ContactJoint& joint = contactJoints[i];
+      ContactJoint& joint = contactJoints[joint_index[i]];
 
       joint.normalLimiter.accumulatedImpulse = joint_normalLimiter_accumulatedImpulse[i];
       joint.normalLimiter.accumulatedDisplacingImpulse = joint_normalLimiter_accumulatedDisplacingImpulse[i];
@@ -359,9 +425,9 @@ struct Solver
       }
   }
 
-  NOINLINE void SolveJointsImpulsesSoA()
+  NOINLINE void SolveJointsImpulsesSoA(int jointStart, int jointCount)
   {
-      for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
+      for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
       {
         int i = jointIndex;
 
@@ -463,9 +529,9 @@ struct Solver
     }
   }
 
-  NOINLINE void SolveJointsDisplacementSoA()
+  NOINLINE void SolveJointsDisplacementSoA(int jointStart, int jointCount)
   {
-    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
+    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
     {
       int i = jointIndex;
 
@@ -509,6 +575,9 @@ struct Solver
   AlignedArray<SolveBody> solveBodies;
 
   std::vector<ContactJoint> contactJoints;
+
+  AlignedArray<int> jointGroup_bodies;
+  AlignedArray<int> jointGroup_joints;
 
   AlignedArray<int> joint_index;
   AlignedArray<int> joint_body1Index;
