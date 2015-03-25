@@ -10,6 +10,60 @@
 #define NOINLINE __attribute__((noinline))
 #endif
 
+template <typename T> struct AlignedArray
+{
+  T* data;
+  int size;
+  int capacity;
+
+  AlignedArray(): data(0), size(0), capacity(0)
+  {
+  }
+
+  ~AlignedArray()
+  {
+    aligned_free(data);
+  }
+
+  T& operator[](int i)
+  {
+    return data[i];
+  }
+
+  void resize(int newsize)
+  {
+    if (newsize > capacity)
+    {
+      aligned_free(data);
+
+      data = static_cast<T*>(aligned_alloc(newsize * sizeof(T), 16));
+      capacity = newsize;
+    }
+
+    size = newsize;
+  }
+
+  static void* aligned_alloc(size_t size, size_t align)
+  {
+  #ifdef _MSC_VER
+    return _aligned_malloc(size, align);
+  #else
+    void* result = 0;
+    posix_memalign(&result, align, size);
+    return result;
+  #endif
+  }
+
+  static void aligned_free(void* ptr)
+  {
+  #ifdef _MSC_VER
+    _aligned_free(ptr);
+  #else
+    free(ptr);
+  #endif
+  }
+};
+
 struct Solver
 {
   Solver()
@@ -83,6 +137,93 @@ struct Solver
       solveBodies[i].displacingVelocity = bodies[i].displacingVelocity;
       solveBodies[i].displacingAngularVelocity = bodies[i].displacingAngularVelocity;
     }
+
+    int jointCount = contactJoints.size();
+
+    joint_index.resize(jointCount);
+    joint_body1Index.resize(jointCount);
+    joint_body2Index.resize(jointCount);
+
+    joint_normalLimiter_normalProjector1X.resize(jointCount);
+    joint_normalLimiter_normalProjector1Y.resize(jointCount);
+    joint_normalLimiter_normalProjector2X.resize(jointCount);
+    joint_normalLimiter_normalProjector2Y.resize(jointCount);
+    joint_normalLimiter_angularProjector1.resize(jointCount);
+    joint_normalLimiter_angularProjector2.resize(jointCount);
+
+    joint_normalLimiter_compMass1_linearX.resize(jointCount);
+    joint_normalLimiter_compMass1_linearY.resize(jointCount);
+    joint_normalLimiter_compMass2_linearX.resize(jointCount);
+    joint_normalLimiter_compMass2_linearY.resize(jointCount);
+    joint_normalLimiter_compMass1_angular.resize(jointCount);
+    joint_normalLimiter_compMass2_angular.resize(jointCount);
+    joint_normalLimiter_compInvMass.resize(jointCount);
+    joint_normalLimiter_accumulatedImpulse.resize(jointCount);
+
+    joint_normalLimiter_dstVelocity.resize(jointCount);
+    joint_normalLimiter_dstDisplacingVelocity.resize(jointCount);
+    joint_normalLimiter_accumulatedDisplacingImpulse.resize(jointCount);
+
+    joint_frictionLimiter_normalProjector1X.resize(jointCount);
+    joint_frictionLimiter_normalProjector1Y.resize(jointCount);
+    joint_frictionLimiter_normalProjector2X.resize(jointCount);
+    joint_frictionLimiter_normalProjector2Y.resize(jointCount);
+    joint_frictionLimiter_angularProjector1.resize(jointCount);
+    joint_frictionLimiter_angularProjector2.resize(jointCount);
+
+    joint_frictionLimiter_compMass1_linearX.resize(jointCount);
+    joint_frictionLimiter_compMass1_linearY.resize(jointCount);
+    joint_frictionLimiter_compMass2_linearX.resize(jointCount);
+    joint_frictionLimiter_compMass2_linearY.resize(jointCount);
+    joint_frictionLimiter_compMass1_angular.resize(jointCount);
+    joint_frictionLimiter_compMass2_angular.resize(jointCount);
+    joint_frictionLimiter_compInvMass.resize(jointCount);
+    joint_frictionLimiter_accumulatedImpulse.resize(jointCount);
+
+    for (int i = 0; i < jointCount; ++i)
+    {
+      ContactJoint& joint = contactJoints[i];
+
+      joint_index[i] = i;
+      joint_body1Index[i] = joint.body1Index;
+      joint_body2Index[i] = joint.body2Index;
+
+      joint_normalLimiter_normalProjector1X[i] = joint.normalLimiter.normalProjector1.x;
+      joint_normalLimiter_normalProjector1Y[i] = joint.normalLimiter.normalProjector1.y;
+      joint_normalLimiter_normalProjector2X[i] = joint.normalLimiter.normalProjector2.x;
+      joint_normalLimiter_normalProjector2Y[i] = joint.normalLimiter.normalProjector2.y;
+      joint_normalLimiter_angularProjector1[i] = joint.normalLimiter.angularProjector1;
+      joint_normalLimiter_angularProjector2[i] = joint.normalLimiter.angularProjector2;
+
+      joint_normalLimiter_compMass1_linearX[i] = joint.normalLimiter.compMass1_linear.x;
+      joint_normalLimiter_compMass1_linearY[i] = joint.normalLimiter.compMass1_linear.y;
+      joint_normalLimiter_compMass2_linearX[i] = joint.normalLimiter.compMass2_linear.x;
+      joint_normalLimiter_compMass2_linearY[i] = joint.normalLimiter.compMass2_linear.y;
+      joint_normalLimiter_compMass1_angular[i] = joint.normalLimiter.compMass1_angular;
+      joint_normalLimiter_compMass2_angular[i] = joint.normalLimiter.compMass2_angular;
+      joint_normalLimiter_compInvMass[i] = joint.normalLimiter.compInvMass;
+      joint_normalLimiter_accumulatedImpulse[i] = joint.normalLimiter.accumulatedImpulse;
+
+      joint_normalLimiter_dstVelocity[i] = joint.normalLimiter.dstVelocity;
+      joint_normalLimiter_dstDisplacingVelocity[i] = joint.normalLimiter.dstDisplacingVelocity;
+      joint_normalLimiter_accumulatedDisplacingImpulse[i] = joint.normalLimiter.accumulatedDisplacingImpulse;
+
+      joint_frictionLimiter_normalProjector1X[i] = joint.frictionLimiter.normalProjector1.x;
+      joint_frictionLimiter_normalProjector1Y[i] = joint.frictionLimiter.normalProjector1.y;
+      joint_frictionLimiter_normalProjector2X[i] = joint.frictionLimiter.normalProjector2.x;
+      joint_frictionLimiter_normalProjector2Y[i] = joint.frictionLimiter.normalProjector2.y;
+      joint_frictionLimiter_angularProjector1[i] = joint.frictionLimiter.angularProjector1;
+      joint_frictionLimiter_angularProjector2[i] = joint.frictionLimiter.angularProjector2;
+
+      joint_frictionLimiter_compMass1_linearX[i] = joint.frictionLimiter.compMass1_linear.x;
+      joint_frictionLimiter_compMass1_linearY[i] = joint.frictionLimiter.compMass1_linear.y;
+      joint_frictionLimiter_compMass2_linearX[i] = joint.frictionLimiter.compMass2_linear.x;
+      joint_frictionLimiter_compMass2_linearY[i] = joint.frictionLimiter.compMass2_linear.y;
+      joint_frictionLimiter_compMass1_angular[i] = joint.frictionLimiter.compMass1_angular;
+      joint_frictionLimiter_compMass2_angular[i] = joint.frictionLimiter.compMass2_angular;
+      joint_frictionLimiter_compInvMass[i] = joint.frictionLimiter.compInvMass;
+      joint_frictionLimiter_accumulatedImpulse[i] = joint.frictionLimiter.accumulatedImpulse;
+    }
   }
 
   NOINLINE void SolveFinish(RigidBody* bodies, int bodiesCount)
@@ -94,6 +235,19 @@ struct Solver
 
       bodies[i].displacingVelocity = solveBodies[i].displacingVelocity;
       bodies[i].displacingAngularVelocity = solveBodies[i].displacingAngularVelocity;
+    }
+
+    int jointCount = contactJoints.size();
+    
+    for (int i = 0; i < jointCount; ++i)
+    {
+      ContactJoint& joint = contactJoints[i];
+
+    /*
+      joint.normalLimiter.accumulatedImpulse = joint_normalLimiter_accumulatedImpulse[i];
+      joint.normalLimiter.accumulatedDisplacingImpulse = joint_normalLimiter_accumulatedDisplacingImpulse[i];
+      joint.frictionLimiter.accumulatedImpulse = joint_frictionLimiter_accumulatedImpulse[i];
+    */
     }
   }
 
@@ -202,7 +356,47 @@ struct Solver
      float displacingAngularVelocity;
   };
 
-  std::vector<SolveBody> solveBodies;
+  AlignedArray<SolveBody> solveBodies;
 
   std::vector<ContactJoint> contactJoints;
+
+  AlignedArray<int> joint_index;
+  AlignedArray<int> joint_body1Index;
+  AlignedArray<int> joint_body2Index;
+
+  AlignedArray<float> joint_normalLimiter_normalProjector1X;
+  AlignedArray<float> joint_normalLimiter_normalProjector1Y;
+  AlignedArray<float> joint_normalLimiter_normalProjector2X;
+  AlignedArray<float> joint_normalLimiter_normalProjector2Y;
+  AlignedArray<float> joint_normalLimiter_angularProjector1;
+  AlignedArray<float> joint_normalLimiter_angularProjector2;
+
+  AlignedArray<float> joint_normalLimiter_compMass1_linearX;
+  AlignedArray<float> joint_normalLimiter_compMass1_linearY;
+  AlignedArray<float> joint_normalLimiter_compMass2_linearX;
+  AlignedArray<float> joint_normalLimiter_compMass2_linearY;
+  AlignedArray<float> joint_normalLimiter_compMass1_angular;
+  AlignedArray<float> joint_normalLimiter_compMass2_angular;
+  AlignedArray<float> joint_normalLimiter_compInvMass;
+  AlignedArray<float> joint_normalLimiter_accumulatedImpulse;
+
+  AlignedArray<float> joint_normalLimiter_dstVelocity;
+  AlignedArray<float> joint_normalLimiter_dstDisplacingVelocity;
+  AlignedArray<float> joint_normalLimiter_accumulatedDisplacingImpulse;
+
+  AlignedArray<float> joint_frictionLimiter_normalProjector1X;
+  AlignedArray<float> joint_frictionLimiter_normalProjector1Y;
+  AlignedArray<float> joint_frictionLimiter_normalProjector2X;
+  AlignedArray<float> joint_frictionLimiter_normalProjector2Y;
+  AlignedArray<float> joint_frictionLimiter_angularProjector1;
+  AlignedArray<float> joint_frictionLimiter_angularProjector2;
+
+  AlignedArray<float> joint_frictionLimiter_compMass1_linearX;
+  AlignedArray<float> joint_frictionLimiter_compMass1_linearY;
+  AlignedArray<float> joint_frictionLimiter_compMass2_linearX;
+  AlignedArray<float> joint_frictionLimiter_compMass2_linearY;
+  AlignedArray<float> joint_frictionLimiter_compMass1_angular;
+  AlignedArray<float> joint_frictionLimiter_compMass2_angular;
+  AlignedArray<float> joint_frictionLimiter_compInvMass;
+  AlignedArray<float> joint_frictionLimiter_accumulatedImpulse;
 };
