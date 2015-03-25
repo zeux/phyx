@@ -68,7 +68,13 @@ struct PhysSystem
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    solver.SolveJoints(&bodies[0], bodies.size(), 500, 15);
+    #if 0
+    solver.SolveJointsAoS
+    #else
+    solver.SolveJointsSoA
+    #endif
+      (&bodies[0], bodies.size(), 500, 15);
+
     solveTime += clock.getElapsedTime().asSeconds();
     clock.restart();
     for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
