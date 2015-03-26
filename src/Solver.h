@@ -499,6 +499,7 @@ struct Solver
     }
   }
 
+
   NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount)
   {
     typedef __m256 Vf;
@@ -553,13 +554,18 @@ struct Solver
       Vf j_frictionLimiter_compInvMass = _mm256_load_ps(&joint_frictionLimiter_compInvMass[i]);
       Vf j_frictionLimiter_accumulatedImpulse = _mm256_load_ps(&joint_frictionLimiter_accumulatedImpulse[i]);
 
-      Vf body1_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body1Index, sizeof(SolveBody));
-      Vf body1_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body1Index, sizeof(SolveBody));
-      Vf body1_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body1Index, sizeof(SolveBody));
+      static_assert(sizeof(SolveBody) == 32, "Need to adjust bit shift below");
 
-      Vf body2_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body2Index, sizeof(SolveBody));
-      Vf body2_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body2Index, sizeof(SolveBody));
-      Vf body2_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body2Index, sizeof(SolveBody));
+      Vi j_body1_offset = _mm256_slli_epi32(j_body1Index, 5);
+      Vi j_body2_offset = _mm256_slli_epi32(j_body2Index, 5);
+
+      Vf body1_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body1_offset, 1);
+      Vf body1_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body1_offset, 1);
+      Vf body1_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body1_offset, 1);
+
+      Vf body2_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body2_offset, 1);
+      Vf body2_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body2_offset, 1);
+      Vf body2_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body2_offset, 1);
 
       {
         Vf dV = zero;
@@ -611,7 +617,7 @@ struct Solver
       Vf frictionForce = _mm256_add_ps(accumulatedImpulse, deltaImpulse);
       Vf reactionForceScaled = _mm256_mul_ps(reactionForce, _mm256_set1_ps(0.3f));
 
-      Vf frictionForceAbs = _mm256_andnot_ps(frictionForce, sign);
+      Vf frictionForceAbs = _mm256_andnot_ps(sign, frictionForce);
       Vf reactionForceScaledSigned = _mm256_xor_ps(_mm256_and_ps(frictionForce, sign), reactionForceScaled);
       Vf deltaImpulseAdjusted = _mm256_sub_ps(reactionForceScaledSigned, accumulatedImpulse);
 
@@ -645,65 +651,65 @@ struct Solver
       __m128 body2_angularVelocity_0 = _mm256_extractf128_ps(body2_angularVelocity, 0);
       __m128 body2_angularVelocity_1 = _mm256_extractf128_ps(body2_angularVelocity, 1);
 
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(3, 3, 3, 3)));
 
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(3, 3, 3, 3)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(2, 2, 2, 2)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(1, 1, 1, 1)));
-      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(0, 0, 0, 0)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(3, 3, 3, 3)));
     }
   }
 
@@ -778,6 +784,8 @@ struct Solver
 
    Vector2f displacingVelocity;
    float displacingAngularVelocity;
+
+   float padding[2];
  };
 
  AlignedArray<SolveBody> solveBodies;
