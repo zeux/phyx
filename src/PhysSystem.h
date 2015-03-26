@@ -68,12 +68,11 @@ struct PhysSystem
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    #if 0
-    solver.SolveJointsAoS
+    #if 1
+    solver.SolveJoints(500, 15);
     #else
-    solver.SolveJointsSoA
+    solver.SolveJointsSoA(&bodies[0], bodies.size(), 500, 15);
     #endif
-      (&bodies[0], bodies.size(), 500, 15);
 
     solveTime += clock.getElapsedTime().asSeconds();
     clock.restart();
