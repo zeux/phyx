@@ -40,10 +40,17 @@ const struct { PhysSystem::SolveMode mode; const char* name; } kModes[] =
     { PhysSystem::Solve_AoS, "AoS" },
     { PhysSystem::Solve_SoA_Scalar, "SoA Scalar" },
     { PhysSystem::Solve_SoA_SSE2, "SoA SSE2" },
+
+  #ifdef __AVX2__
     { PhysSystem::Solve_SoA_AVX2, "SoA AVX2" },
+  #endif
+
     { PhysSystem::Solve_SoAPacked_Scalar, "SoA Packed Scalar" },
     { PhysSystem::Solve_SoAPacked_SSE2, "SoA Packed SSE2" },
+
+  #ifdef __AVX2__
     { PhysSystem::Solve_SoAPacked_AVX2, "SoA Packed AVX2" },
+  #endif
 };
 
 int main(int argc, char** argv)

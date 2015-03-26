@@ -97,9 +97,11 @@ struct PhysSystem
       solver.SolveJointsSoA_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
 
+  #ifdef __AVX2__
     case Solve_SoA_AVX2:
       solver.SolveJointsSoA_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
+  #endif
 
     case Solve_SoAPacked_Scalar:
       solver.SolveJointsSoAPacked_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
@@ -109,9 +111,11 @@ struct PhysSystem
       solver.SolveJointsSoAPacked_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
 
+  #ifdef __AVX2__
     case Solve_SoAPacked_AVX2:
       solver.SolveJointsSoAPacked_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
+  #endif
 
     default:
       solver.SolveJoints(contactIterationsCount, penetrationIterationsCount);

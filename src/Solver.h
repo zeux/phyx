@@ -175,6 +175,7 @@ struct Solver
     SolveFinishSoA(bodies, bodiesCount);
   }
   
+#ifdef __AVX2__
   NOINLINE void SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
     int groupOffset = SolvePrepareSoA(bodies, bodiesCount, 8);
@@ -193,6 +194,7 @@ struct Solver
 
     SolveFinishSoA(bodies, bodiesCount);
   }
+#endif
 
   NOINLINE void SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
@@ -230,6 +232,7 @@ struct Solver
     SolveFinishSoAPacked(bodies, bodiesCount);
   }
 
+#ifdef __AVX2__
   NOINLINE void SolveJointsSoAPacked_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
     int groupOffset = SolvePrepareSoAPacked(bodies, bodiesCount, 8);
@@ -248,6 +251,7 @@ struct Solver
 
     SolveFinishSoAPacked(bodies, bodiesCount);
   }
+#endif
   
   NOINLINE int SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget)
   {
@@ -848,6 +852,7 @@ struct Solver
     }
   }
 
+#ifdef __AVX2__
   static inline __m256 _mm256_combine_ps(__m128 a, __m128 b)
   {
     return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
@@ -1049,6 +1054,7 @@ struct Solver
       _mm_store_ps(&solveBodies[joint_body2Index[i + 7]].velocity.x, row7);
     }
   }
+#endif
 
   NOINLINE void SolveJointsDisplacementAoS(int jointStart, int jointCount)
   {
@@ -1232,6 +1238,7 @@ struct Solver
     }
   }
 
+#ifdef __AVX2__
   NOINLINE void SolveJointsDisplacementSoA_AVX2(int jointStart, int jointCount)
   {
     typedef __m256 Vf;
@@ -1373,6 +1380,7 @@ struct Solver
       _mm_store_ps(&solveBodies[joint_body2Index[i + 7]].displacingVelocity.x, row7);
     }
   }
+#endif
 
   NOINLINE void SolveJointsImpulsesSoAPacked(int jointStart, int jointCount)
   {
@@ -1569,9 +1577,9 @@ struct Solver
       Vf reactionForceScaledSigned = _mm_xor_ps(_mm_and_ps(frictionForce, sign), reactionForceScaled);
       Vf frictionDeltaImpulseAdjusted = _mm_sub_ps(reactionForceScaledSigned, accumulatedImpulse);
 
-      Vf frictionSelector = _mm_cmp_ps(frictionForceAbs, reactionForceScaled, _CMP_GT_OQ);
+      Vf frictionSelector = _mm_cmpgt_ps(frictionForceAbs, reactionForceScaled);
 
-      frictionDeltaImpulse = _mm_blendv_ps(frictionDeltaImpulse, frictionDeltaImpulseAdjusted, frictionSelector);
+      frictionDeltaImpulse = _mm_or_ps(_mm_andnot_ps(frictionSelector, frictionDeltaImpulse), _mm_and_ps(frictionDeltaImpulseAdjusted, frictionSelector));
 
       j_frictionLimiter_accumulatedImpulse = _mm_add_ps(j_frictionLimiter_accumulatedImpulse, frictionDeltaImpulse);
 
@@ -1615,6 +1623,7 @@ struct Solver
     }
   }
 
+#ifdef __AVX2__
   NOINLINE void SolveJointsImpulsesSoAPacked_AVX2(int jointStart, int jointCount)
   {
     typedef __m256 Vf;
@@ -1814,6 +1823,7 @@ struct Solver
       _mm_store_ps(&solveBodies[jointP.body2Index[iP + 7]].velocity.x, row7);
     }
   }
+#endif
 
   NOINLINE void SolveJointsDisplacementSoAPacked(int jointStart, int jointCount)
   {
@@ -1967,6 +1977,7 @@ struct Solver
     }
   }
 
+#ifdef __AVX2__
   NOINLINE void SolveJointsDisplacementSoAPacked_AVX2(int jointStart, int jointCount)
   {
     typedef __m256 Vf;
@@ -2111,6 +2122,7 @@ struct Solver
       _mm_store_ps(&solveBodies[jointP.body2Index[iP + 7]].displacingVelocity.x, row7);
     }
   }
+#endif
 
   struct SolveBody
   {
