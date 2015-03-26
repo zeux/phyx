@@ -407,6 +407,10 @@ struct Solver
     }
   }
 
+  static inline __m256 _mm256_combine_ps(__m128 a, __m128 b)
+  {
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
+  }
 
   NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount)
   {
@@ -462,18 +466,43 @@ struct Solver
       Vf j_frictionLimiter_compInvMass = _mm256_load_ps(&joint_frictionLimiter_compInvMass[i]);
       Vf j_frictionLimiter_accumulatedImpulse = _mm256_load_ps(&joint_frictionLimiter_accumulatedImpulse[i]);
 
-      static_assert(sizeof(SolveBody) == 32, "Need to adjust bit shift below");
+      __m128 row0, row1, row2, row3, row4, row5, row6, row7;
 
-      Vi j_body1_offset = _mm256_slli_epi32(j_body1Index, 5);
-      Vi j_body2_offset = _mm256_slli_epi32(j_body2Index, 5);
+      static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Loading assumes fixed layout");
 
-      Vf body1_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body1_offset, 1);
-      Vf body1_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body1_offset, 1);
-      Vf body1_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body1_offset, 1);
+      row0 = _mm_load_ps(&solveBodies[joint_body1Index[i + 0]].velocity.x);
+      row1 = _mm_load_ps(&solveBodies[joint_body1Index[i + 1]].velocity.x);
+      row2 = _mm_load_ps(&solveBodies[joint_body1Index[i + 2]].velocity.x);
+      row3 = _mm_load_ps(&solveBodies[joint_body1Index[i + 3]].velocity.x);
 
-      Vf body2_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body2_offset, 1);
-      Vf body2_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body2_offset, 1);
-      Vf body2_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body2_offset, 1);
+      row4 = _mm_load_ps(&solveBodies[joint_body1Index[i + 4]].velocity.x);
+      row5 = _mm_load_ps(&solveBodies[joint_body1Index[i + 5]].velocity.x);
+      row6 = _mm_load_ps(&solveBodies[joint_body1Index[i + 6]].velocity.x);
+      row7 = _mm_load_ps(&solveBodies[joint_body1Index[i + 7]].velocity.x);
+
+      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+
+      Vf body1_velocityX = _mm256_combine_ps(row0, row4);
+      Vf body1_velocityY = _mm256_combine_ps(row1, row5);
+      Vf body1_angularVelocity = _mm256_combine_ps(row2, row6);
+
+      row0 = _mm_load_ps(&solveBodies[joint_body2Index[i + 0]].velocity.x);
+      row1 = _mm_load_ps(&solveBodies[joint_body2Index[i + 1]].velocity.x);
+      row2 = _mm_load_ps(&solveBodies[joint_body2Index[i + 2]].velocity.x);
+      row3 = _mm_load_ps(&solveBodies[joint_body2Index[i + 3]].velocity.x);
+
+      row4 = _mm_load_ps(&solveBodies[joint_body2Index[i + 4]].velocity.x);
+      row5 = _mm_load_ps(&solveBodies[joint_body2Index[i + 5]].velocity.x);
+      row6 = _mm_load_ps(&solveBodies[joint_body2Index[i + 6]].velocity.x);
+      row7 = _mm_load_ps(&solveBodies[joint_body2Index[i + 7]].velocity.x);
+
+      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+
+      Vf body2_velocityX = _mm256_combine_ps(row0, row4);
+      Vf body2_velocityY = _mm256_combine_ps(row1, row5);
+      Vf body2_angularVelocity = _mm256_combine_ps(row2, row6);
 
       {
         Vf dV = zero;
@@ -545,58 +574,51 @@ struct Solver
       _mm256_store_ps(&joint_frictionLimiter_accumulatedImpulse[i], j_frictionLimiter_accumulatedImpulse);
 
       // this is a bit painful :(
-      static_assert(offsetof(SolveBody, velocity) == 0, "Store code assumes fixed layout");
-      static_assert(offsetof(SolveBody, angularVelocity) == 8, "Store code assumes fixed layout");
-
-      __m128 row0, row1, row2, row3;
+      static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Storing assumes fixed layout");
 
       row0 = _mm256_extractf128_ps(body1_velocityX, 0);
       row1 = _mm256_extractf128_ps(body1_velocityY, 0);
       row2 = _mm256_extractf128_ps(body1_angularVelocity, 0);
       row3 = _mm_setzero_ps();
 
+      row4 = _mm256_extractf128_ps(body1_velocityX, 1);
+      row5 = _mm256_extractf128_ps(body1_velocityY, 1);
+      row6 = _mm256_extractf128_ps(body1_angularVelocity, 1);
+      row7 = _mm_setzero_ps();
+
       _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
 
       _mm_store_ps(&solveBodies[joint_body1Index[i + 0]].velocity.x, row0);
       _mm_store_ps(&solveBodies[joint_body1Index[i + 1]].velocity.x, row1);
       _mm_store_ps(&solveBodies[joint_body1Index[i + 2]].velocity.x, row2);
       _mm_store_ps(&solveBodies[joint_body1Index[i + 3]].velocity.x, row3);
-
-      row0 = _mm256_extractf128_ps(body1_velocityX, 1);
-      row1 = _mm256_extractf128_ps(body1_velocityY, 1);
-      row2 = _mm256_extractf128_ps(body1_angularVelocity, 1);
-      row3 = _mm_setzero_ps();
-
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-      _mm_store_ps(&solveBodies[joint_body1Index[i + 4]].velocity.x, row0);
-      _mm_store_ps(&solveBodies[joint_body1Index[i + 5]].velocity.x, row1);
-      _mm_store_ps(&solveBodies[joint_body1Index[i + 6]].velocity.x, row2);
-      _mm_store_ps(&solveBodies[joint_body1Index[i + 7]].velocity.x, row3);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 4]].velocity.x, row4);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 5]].velocity.x, row5);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 6]].velocity.x, row6);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 7]].velocity.x, row7);
 
       row0 = _mm256_extractf128_ps(body2_velocityX, 0);
       row1 = _mm256_extractf128_ps(body2_velocityY, 0);
       row2 = _mm256_extractf128_ps(body2_angularVelocity, 0);
       row3 = _mm_setzero_ps();
 
+      row4 = _mm256_extractf128_ps(body2_velocityX, 1);
+      row5 = _mm256_extractf128_ps(body2_velocityY, 1);
+      row6 = _mm256_extractf128_ps(body2_angularVelocity, 1);
+      row7 = _mm_setzero_ps();
+
       _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
 
       _mm_store_ps(&solveBodies[joint_body2Index[i + 0]].velocity.x, row0);
       _mm_store_ps(&solveBodies[joint_body2Index[i + 1]].velocity.x, row1);
       _mm_store_ps(&solveBodies[joint_body2Index[i + 2]].velocity.x, row2);
       _mm_store_ps(&solveBodies[joint_body2Index[i + 3]].velocity.x, row3);
-
-      row0 = _mm256_extractf128_ps(body2_velocityX, 1);
-      row1 = _mm256_extractf128_ps(body2_velocityY, 1);
-      row2 = _mm256_extractf128_ps(body2_angularVelocity, 1);
-      row3 = _mm_setzero_ps();
-
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-      _mm_store_ps(&solveBodies[joint_body2Index[i + 4]].velocity.x, row0);
-      _mm_store_ps(&solveBodies[joint_body2Index[i + 5]].velocity.x, row1);
-      _mm_store_ps(&solveBodies[joint_body2Index[i + 6]].velocity.x, row2);
-      _mm_store_ps(&solveBodies[joint_body2Index[i + 7]].velocity.x, row3);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 4]].velocity.x, row4);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 5]].velocity.x, row5);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 6]].velocity.x, row6);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 7]].velocity.x, row7);
     }
   }
 
