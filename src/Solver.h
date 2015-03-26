@@ -526,7 +526,7 @@ struct Solver
       body1->angularVelocity += joint_frictionLimiter_compMass1_angular[i] * frictionDeltaImpulse;
 
       body2->velocity.x += joint_frictionLimiter_compMass2_linearX[i] * frictionDeltaImpulse;
-      body2->velocity.y += joint_frictionLimiter_compMass2_linearX[i] * frictionDeltaImpulse;
+      body2->velocity.y += joint_frictionLimiter_compMass2_linearY[i] * frictionDeltaImpulse;
       body2->angularVelocity += joint_frictionLimiter_compMass2_angular[i] * frictionDeltaImpulse;
     }
   }
