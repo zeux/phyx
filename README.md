@@ -2,7 +2,7 @@
 
 This is a 2D physics engine with SoA/SIMD optimizations.
 
-The optimization effort is focused on contact solver - all other parts can be improved.
+The optimization effort is focused on contact solver - all other parts did not receive much attention.
 For example, it uses a bruteforce broadphase to keep code simple.
 
 The engine is written by Alexander Sannikov aka Suslik &lt;i.make.physics at gmail.com&gt;
