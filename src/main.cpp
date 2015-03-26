@@ -46,44 +46,66 @@ const char* kModes[] =
   "SoA Packed AVX2",
 };
 
-int main()
+int main(int argc, char** argv)
 {
-  sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(1024, 768), "This is awesome!");
-  Vector2f windowSize(float(window->getSize().x), float(window->getSize().y));
+  int windowWidth = 1024, windowHeight = 768;
+
   PhysSystem physSystem;
-  RigidBody *groundBody = physSystem.AddBody(Coords2f(Vector2f(windowSize.x * 0.5f, windowSize.y * 0.95f), 0.0f), Vector2f(windowSize.x * 10.45f, 10.0f));
+  RigidBody *groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
   groundBody->invInertia = 0.0f;
   groundBody->invMass = 0.0f;
 
-  int mode = 5;
+  int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
 
   const float gravity = 200.0f;
   const float integrationTime = 2e-2f;
 
   float physicsTime = 0.0f;
 
-  sf::Font font;
-  font.loadFromFile("DroidSansMono.ttf");
-
   RigidBody *draggedBody = physSystem.AddBody(
-    Coords2f(Vector2f(windowSize.x * 0.1f, windowSize.y * 0.7f), 0.0f), Vector2f(30.0f, 30.0f));
+    Coords2f(Vector2f(windowWidth * 0.1f, windowHeight * 0.7f), 0.0f), Vector2f(30.0f, 30.0f));
 
   for (int bodyIndex = 0; bodyIndex < 1000; bodyIndex++)
   {
     RigidBody *testBody = physSystem.AddBody(
-      Coords2f(Vector2f(windowSize.x * 0.5f, windowSize.y * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(15.0f, 15.0f));
+      Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(15.0f, 15.0f));
     //testBody->invInertia = 0;
     testBody->velocity = Vector2f(10.0f, 0.0f);
   }
 
-  double warmTime = 0;
-
-  for (int i = 0; i < 10; ++i)
+  if (argc > 1 && strcmp(argv[1], "profile") == 0)
   {
-    physSystem.Update(1.f / 60.f, mode);
+    for (int mode = 0; mode < sizeof(kModes) / sizeof(kModes[0]); ++mode)
+    {
+      PhysSystem testSystem;
 
-    warmTime += physSystem.solveTime;
+      for (int i = 0; i < physSystem.GetBodiesCount(); ++i)
+      {
+        RigidBody* body = physSystem.GetBody(i);
+
+        RigidBody* testBody = testSystem.AddBody(body->coords, body->geom.size);
+        testBody->velocity = body->velocity;
+      }
+
+      double solveTime = 0;
+
+      for (int i = 0; i < 10; ++i)
+      {
+        testSystem.Update(1.f / 60.f, mode);
+
+        solveTime += testSystem.solveTime;
+      }
+
+      printf("%s: %.2f ms\n", kModes[mode], solveTime * 1000.f);
+    }
+
+    return 0;
   }
+
+  sf::Font font;
+  font.loadFromFile("DroidSansMono.ttf");
+
+  sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(windowWidth, windowHeight), "This is awesome!");
 
   sf::Clock clock;
 
@@ -99,7 +121,7 @@ int main()
       if (event.type == sf::Event::Closed)
         window->close();
       else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
-        mode = (mode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
+        currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
     }
     Vector2f mousePos = Vector2f(sf::Mouse::getPosition(*window).x, sf::Mouse::getPosition(*window).y);
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
@@ -131,7 +153,7 @@ int main()
         Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
         draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-        physSystem.Update(integrationTime, mode);
+        physSystem.Update(integrationTime, currentMode);
         physicsTime = physicsClock.getElapsedTime().asSeconds();
       }
     }
@@ -196,8 +218,7 @@ int main()
     debugTextStream2 << std::fixed;
     debugTextStream2.precision(2);
     debugTextStream2 << 
-      std::setw(5) << warmTime * 1000.0f << "; " <<
-      "Mode: " << kModes[mode] << "; " <<
+      "Mode: " << kModes[currentMode] << "; " <<
       "Physics time: " << std::setw(5) << physicsTime * 1000.0f << 
       "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << 
       "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << 
