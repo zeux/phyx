@@ -72,10 +72,12 @@ struct PhysSystem
     int penetrationIterationsCount = 15;
 
     if (mode == 1)
+      solver.SolveJointsAoS(contactIterationsCount, penetrationIterationsCount);
+    if (mode == 2)
       solver.SolveJointsSoA_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 2)
-      solver.SolveJointsSoA_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
     else if (mode == 3)
+      solver.SolveJointsSoA_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+    else if (mode == 4)
       solver.SolveJointsSoA_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
     else
       solver.SolveJoints(contactIterationsCount, penetrationIterationsCount);

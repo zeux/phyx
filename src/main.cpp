@@ -36,6 +36,7 @@ float random(float min, float max)
 
 const char* kModes[] =
 {
+  "Baseline",
   "AoS",
   "SoA Scalar",
   "SoA SSE2",
@@ -51,7 +52,7 @@ int main()
   groundBody->invInertia = 0.0f;
   groundBody->invMass = 0.0f;
 
-  int mode = 3;
+  int mode = 4;
 
   const float gravity = 200.0f;
   const float integrationTime = 2e-2f;
