@@ -34,16 +34,16 @@ float random(float min, float max)
   return min + (max - min) * (float(rand()) / float(RAND_MAX));
 }
 
-const char* kModes[] =
+const struct { PhysSystem::SolveMode mode; const char* name; } kModes[] =
 {
-  "Baseline",
-  "AoS",
-  "SoA Scalar",
-  "SoA SSE2",
-  "SoA AVX2",
-  "SoA Packed Scalar",
-  "SoA Packed SSE2",
-  "SoA Packed AVX2",
+    { PhysSystem::Solve_Baseline, "Baseline" },
+    { PhysSystem::Solve_AoS, "AoS" },
+    { PhysSystem::Solve_SoA_Scalar, "SoA Scalar" },
+    { PhysSystem::Solve_SoA_SSE2, "SoA SSE2" },
+    { PhysSystem::Solve_SoA_AVX2, "SoA AVX2" },
+    { PhysSystem::Solve_SoAPacked_Scalar, "SoA Packed Scalar" },
+    { PhysSystem::Solve_SoAPacked_SSE2, "SoA Packed SSE2" },
+    { PhysSystem::Solve_SoAPacked_AVX2, "SoA Packed AVX2" },
 };
 
 int main(int argc, char** argv)
@@ -91,12 +91,12 @@ int main(int argc, char** argv)
 
       for (int i = 0; i < 10; ++i)
       {
-        testSystem.Update(1.f / 60.f, mode);
+        testSystem.Update(1.f / 60.f, kModes[mode].mode);
 
         solveTime += testSystem.solveTime;
       }
 
-      printf("%s: %.2f ms\n", kModes[mode], solveTime * 1000.f);
+      printf("%s: %.2f ms\n", kModes[mode].name, solveTime * 1000.f);
     }
 
     return 0;
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
         Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
         draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-        physSystem.Update(integrationTime, currentMode);
+        physSystem.Update(integrationTime, kModes[currentMode].mode);
         physicsTime = physicsClock.getElapsedTime().asSeconds();
       }
     }
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
     debugTextStream2 << std::fixed;
     debugTextStream2.precision(2);
     debugTextStream2 << 
-      "Mode: " << kModes[currentMode] << "; " <<
+      "Mode: " << kModes[currentMode].name << "; " <<
       "Physics time: " << std::setw(5) << physicsTime * 1000.0f << 
       "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << 
       "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << 

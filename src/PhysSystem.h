@@ -10,6 +10,18 @@
 
 struct PhysSystem
 {
+  enum SolveMode
+  {
+    Solve_Baseline,
+    Solve_AoS,
+    Solve_SoA_Scalar,
+    Solve_SoA_SSE2,
+    Solve_SoA_AVX2,
+    Solve_SoAPacked_Scalar,
+    Solve_SoAPacked_SSE2,
+    Solve_SoAPacked_AVX2,
+  };
+
   RigidBody *AddBody(Coords2f coords, Vector2f size)
   {
     RigidBody newbie(coords, size, 1e-5f);
@@ -17,7 +29,7 @@ struct PhysSystem
     bodies.push_back(newbie);
     return &(bodies[bodies.size() - 1]);
   }
-  void Update(float dt, int mode)
+  void Update(float dt, SolveMode mode)
   {
     collisionTime = mergeTime = solveTime = 0;
 
@@ -71,22 +83,39 @@ struct PhysSystem
     int contactIterationsCount = 500;
     int penetrationIterationsCount = 15;
 
-    if (mode == 1)
+    switch (mode)
+    {
+    case Solve_AoS:
       solver.SolveJointsAoS(contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 2)
+      break;
+
+    case Solve_SoA_Scalar:
       solver.SolveJointsSoA_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 3)
+      break;
+
+    case Solve_SoA_SSE2:
       solver.SolveJointsSoA_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 4)
+      break;
+
+    case Solve_SoA_AVX2:
       solver.SolveJointsSoA_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 5)
+      break;
+
+    case Solve_SoAPacked_Scalar:
       solver.SolveJointsSoAPacked_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 6)
+      break;
+
+    case Solve_SoAPacked_SSE2:
       solver.SolveJointsSoAPacked_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else if (mode == 7)
+      break;
+
+    case Solve_SoAPacked_AVX2:
       solver.SolveJointsSoAPacked_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
-    else
+      break;
+
+    default:
       solver.SolveJoints(contactIterationsCount, penetrationIterationsCount);
+    }
 
     solveTime += clock.getElapsedTime().asSeconds();
     clock.restart();
