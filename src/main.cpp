@@ -40,7 +40,8 @@ const char* kModes[] =
   "AoS",
   "SoA Scalar",
   "SoA SSE2",
-  "SoA AVX2"
+  "SoA AVX2",
+  "SoA Packed AVX2"
 };
 
 int main()
@@ -52,7 +53,7 @@ int main()
   groundBody->invInertia = 0.0f;
   groundBody->invMass = 0.0f;
 
-  int mode = 4;
+  int mode = 5;
 
   const float gravity = 200.0f;
   const float integrationTime = 2e-2f;
