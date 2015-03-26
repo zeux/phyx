@@ -1,4 +1,4 @@
-# SusliX
+# SusliX Lite
 
 ## Overview
 
