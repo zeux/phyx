@@ -17,7 +17,7 @@ struct PhysSystem
     bodies.push_back(newbie);
     return &(bodies[bodies.size() - 1]);
   }
-  void Update(float dt)
+  void Update(float dt, bool soa)
   {
     collisionTime = mergeTime = solveTime = 0;
 
@@ -68,11 +68,13 @@ struct PhysSystem
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    #if 0
-    solver.SolveJoints(500, 15);
-    #else
-    solver.SolveJointsSoA(&bodies[0], bodies.size(), 500, 15);
-    #endif
+    int contactIterationsCount = 500;
+    int penetrationIterationsCount = 15;
+
+    if (soa)
+      solver.SolveJointsSoA(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+    else
+      solver.SolveJoints(contactIterationsCount, penetrationIterationsCount);
 
     solveTime += clock.getElapsedTime().asSeconds();
     clock.restart();

@@ -43,6 +43,8 @@ int main()
   groundBody->invInertia = 0.0f;
   groundBody->invMass = 0.0f;
 
+  bool soa = true;
+
   const float gravity = 200.0f;
   const float integrationTime = 2e-2f;
 
@@ -66,7 +68,7 @@ int main()
 
   for (int i = 0; i < 10; ++i)
   {
-    physSystem.Update(1.f / 60.f);
+    physSystem.Update(1.f / 60.f, soa);
 
     warmTime += physSystem.solveTime;
   }
@@ -84,6 +86,8 @@ int main()
     {
       if (event.type == sf::Event::Closed)
         window->close();
+      else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S)
+        soa = !soa;
     }
     Vector2f mousePos = Vector2f(sf::Mouse::getPosition(*window).x, sf::Mouse::getPosition(*window).y);
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
@@ -115,7 +119,7 @@ int main()
         Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
         draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-        physSystem.Update(integrationTime);
+        physSystem.Update(integrationTime, soa);
         physicsTime = physicsClock.getElapsedTime().asSeconds();
       }
     }
@@ -180,7 +184,8 @@ int main()
     debugTextStream2 << std::fixed;
     debugTextStream2.precision(2);
     debugTextStream2 << 
-      "Warm time: " << std::setw(5) << warmTime * 1000.0f << "; "
+      "Warm time: " << std::setw(5) << warmTime * 1000.0f << "; " <<
+      "Mode: " << (soa ? "SoA" : "AoS") << "; " <<
       "Physics time: " << std::setw(5) << physicsTime * 1000.0f << 
       "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << 
       "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << 
