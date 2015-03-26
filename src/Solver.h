@@ -36,7 +36,7 @@ template <typename T> struct AlignedArray
     {
       aligned_free(data);
 
-      data = static_cast<T*>(aligned_alloc(newsize * sizeof(T), 16));
+      data = static_cast<T*>(aligned_alloc(newsize * sizeof(T), 32));
       capacity = newsize;
     }
 
