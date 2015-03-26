@@ -138,7 +138,7 @@ struct Solver
 
     for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
     {
-      SolveJointsDisplacementSoA(0, groupOffset);
+      SolveJointsDisplacementSoA_AVX2(0, groupOffset);
       SolveJointsDisplacementSoA(groupOffset, contactJoints.size() - groupOffset);
     }
 
@@ -413,7 +413,6 @@ struct Solver
   NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount)
   {
     typedef __m256 Vf;
-    typedef __m256i Vi;
 
     assert(jointStart % 8 == 0 && jointCount % 8 == 0);
 
@@ -424,9 +423,6 @@ struct Solver
       int i = jointIndex;
 
       Vf zero = _mm256_setzero_ps();
-
-      Vi j_body1Index = _mm256_load_si256((__m256i*)&joint_body1Index[i]);
-      Vi j_body2Index = _mm256_load_si256((__m256i*)&joint_body2Index[i]);
 
       Vf j_normalLimiter_normalProjector1X = _mm256_load_ps(&joint_normalLimiter_normalProjector1X[i]);
       Vf j_normalLimiter_normalProjector1Y = _mm256_load_ps(&joint_normalLimiter_normalProjector1Y[i]);
@@ -443,10 +439,7 @@ struct Solver
       Vf j_normalLimiter_compMass2_angular = _mm256_load_ps(&joint_normalLimiter_compMass2_angular[i]);
       Vf j_normalLimiter_compInvMass = _mm256_load_ps(&joint_normalLimiter_compInvMass[i]);
       Vf j_normalLimiter_accumulatedImpulse = _mm256_load_ps(&joint_normalLimiter_accumulatedImpulse[i]);
-
       Vf j_normalLimiter_dstVelocity = _mm256_load_ps(&joint_normalLimiter_dstVelocity[i]);
-      Vf j_normalLimiter_dstDisplacingVelocity = _mm256_load_ps(&joint_normalLimiter_dstDisplacingVelocity[i]);
-      Vf j_normalLimiter_accumulatedDisplacingImpulse = _mm256_load_ps(&joint_normalLimiter_accumulatedDisplacingImpulse[i]);
 
       Vf j_frictionLimiter_normalProjector1X = _mm256_load_ps(&joint_frictionLimiter_normalProjector1X[i]);
       Vf j_frictionLimiter_normalProjector1Y = _mm256_load_ps(&joint_frictionLimiter_normalProjector1Y[i]);
@@ -613,6 +606,150 @@ struct Solver
       _mm_store_ps(&solveBodies[joint_body2Index[i + 5]].velocity.x, row5);
       _mm_store_ps(&solveBodies[joint_body2Index[i + 6]].velocity.x, row6);
       _mm_store_ps(&solveBodies[joint_body2Index[i + 7]].velocity.x, row7);
+    }
+  }
+
+  NOINLINE void SolveJointsDisplacementSoA_AVX2(int jointStart, int jointCount)
+  {
+    typedef __m256 Vf;
+
+    assert(jointStart % 8 == 0 && jointCount % 8 == 0);
+
+    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
+    {
+      int i = jointIndex;
+
+      Vf zero = _mm256_setzero_ps();
+
+      Vf j_normalLimiter_normalProjector1X = _mm256_load_ps(&joint_normalLimiter_normalProjector1X[i]);
+      Vf j_normalLimiter_normalProjector1Y = _mm256_load_ps(&joint_normalLimiter_normalProjector1Y[i]);
+      Vf j_normalLimiter_normalProjector2X = _mm256_load_ps(&joint_normalLimiter_normalProjector2X[i]);
+      Vf j_normalLimiter_normalProjector2Y = _mm256_load_ps(&joint_normalLimiter_normalProjector2Y[i]);
+      Vf j_normalLimiter_angularProjector1 = _mm256_load_ps(&joint_normalLimiter_angularProjector1[i]);
+      Vf j_normalLimiter_angularProjector2 = _mm256_load_ps(&joint_normalLimiter_angularProjector2[i]);
+
+      Vf j_normalLimiter_compMass1_linearX = _mm256_load_ps(&joint_normalLimiter_compMass1_linearX[i]);
+      Vf j_normalLimiter_compMass1_linearY = _mm256_load_ps(&joint_normalLimiter_compMass1_linearY[i]);
+      Vf j_normalLimiter_compMass2_linearX = _mm256_load_ps(&joint_normalLimiter_compMass2_linearX[i]);
+      Vf j_normalLimiter_compMass2_linearY = _mm256_load_ps(&joint_normalLimiter_compMass2_linearY[i]);
+      Vf j_normalLimiter_compMass1_angular = _mm256_load_ps(&joint_normalLimiter_compMass1_angular[i]);
+      Vf j_normalLimiter_compMass2_angular = _mm256_load_ps(&joint_normalLimiter_compMass2_angular[i]);
+      Vf j_normalLimiter_compInvMass = _mm256_load_ps(&joint_normalLimiter_compInvMass[i]);
+      Vf j_normalLimiter_dstDisplacingVelocity = _mm256_load_ps(&joint_normalLimiter_dstDisplacingVelocity[i]);
+      Vf j_normalLimiter_accumulatedDisplacingImpulse = _mm256_load_ps(&joint_normalLimiter_accumulatedDisplacingImpulse[i]);
+
+      __m128 row0, row1, row2, row3, row4, row5, row6, row7;
+
+      static_assert(offsetof(SolveBody, displacingVelocity) == 16 && offsetof(SolveBody, displacingAngularVelocity) == 24, "Loading assumes fixed layout");
+
+      row0 = _mm_load_ps(&solveBodies[joint_body1Index[i + 0]].displacingVelocity.x);
+      row1 = _mm_load_ps(&solveBodies[joint_body1Index[i + 1]].displacingVelocity.x);
+      row2 = _mm_load_ps(&solveBodies[joint_body1Index[i + 2]].displacingVelocity.x);
+      row3 = _mm_load_ps(&solveBodies[joint_body1Index[i + 3]].displacingVelocity.x);
+
+      row4 = _mm_load_ps(&solveBodies[joint_body1Index[i + 4]].displacingVelocity.x);
+      row5 = _mm_load_ps(&solveBodies[joint_body1Index[i + 5]].displacingVelocity.x);
+      row6 = _mm_load_ps(&solveBodies[joint_body1Index[i + 6]].displacingVelocity.x);
+      row7 = _mm_load_ps(&solveBodies[joint_body1Index[i + 7]].displacingVelocity.x);
+
+      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+
+      Vf body1_displacingVelocityX = _mm256_combine_ps(row0, row4);
+      Vf body1_displacingVelocityY = _mm256_combine_ps(row1, row5);
+      Vf body1_displacingAngularVelocity = _mm256_combine_ps(row2, row6);
+
+      row0 = _mm_load_ps(&solveBodies[joint_body2Index[i + 0]].displacingVelocity.x);
+      row1 = _mm_load_ps(&solveBodies[joint_body2Index[i + 1]].displacingVelocity.x);
+      row2 = _mm_load_ps(&solveBodies[joint_body2Index[i + 2]].displacingVelocity.x);
+      row3 = _mm_load_ps(&solveBodies[joint_body2Index[i + 3]].displacingVelocity.x);
+
+      row4 = _mm_load_ps(&solveBodies[joint_body2Index[i + 4]].displacingVelocity.x);
+      row5 = _mm_load_ps(&solveBodies[joint_body2Index[i + 5]].displacingVelocity.x);
+      row6 = _mm_load_ps(&solveBodies[joint_body2Index[i + 6]].displacingVelocity.x);
+      row7 = _mm_load_ps(&solveBodies[joint_body2Index[i + 7]].displacingVelocity.x);
+
+      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+
+      Vf body2_displacingVelocityX = _mm256_combine_ps(row0, row4);
+      Vf body2_displacingVelocityY = _mm256_combine_ps(row1, row5);
+      Vf body2_displacingAngularVelocity = _mm256_combine_ps(row2, row6);
+
+      Vf dV = zero;
+
+      dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector1X, body1_displacingVelocityX));
+      dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector1Y, body1_displacingVelocityY));
+      dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_angularProjector1, body1_displacingAngularVelocity));
+
+      dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector2X, body2_displacingVelocityX));
+      dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector2Y, body2_displacingVelocityY));
+      dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_angularProjector2, body2_displacingAngularVelocity));
+
+      dV = _mm256_add_ps(dV, j_normalLimiter_dstDisplacingVelocity);
+
+      Vf displacingDeltaImpulse = _mm256_mul_ps(dV, j_normalLimiter_compInvMass);
+
+      displacingDeltaImpulse = _mm256_max_ps(displacingDeltaImpulse, _mm256_sub_ps(zero, j_normalLimiter_accumulatedDisplacingImpulse));
+
+      body1_displacingVelocityX = _mm256_add_ps(body1_displacingVelocityX, _mm256_mul_ps(j_normalLimiter_compMass1_linearX, displacingDeltaImpulse));
+      body1_displacingVelocityY = _mm256_add_ps(body1_displacingVelocityY, _mm256_mul_ps(j_normalLimiter_compMass1_linearY, displacingDeltaImpulse));
+      body1_displacingAngularVelocity = _mm256_add_ps(body1_displacingAngularVelocity, _mm256_mul_ps(j_normalLimiter_compMass1_angular, displacingDeltaImpulse));
+
+      body2_displacingVelocityX = _mm256_add_ps(body2_displacingVelocityX, _mm256_mul_ps(j_normalLimiter_compMass2_linearX, displacingDeltaImpulse));
+      body2_displacingVelocityY = _mm256_add_ps(body2_displacingVelocityY, _mm256_mul_ps(j_normalLimiter_compMass2_linearY, displacingDeltaImpulse));
+      body2_displacingAngularVelocity = _mm256_add_ps(body2_displacingAngularVelocity, _mm256_mul_ps(j_normalLimiter_compMass2_angular, displacingDeltaImpulse));
+
+      j_normalLimiter_accumulatedDisplacingImpulse = _mm256_add_ps(j_normalLimiter_accumulatedDisplacingImpulse, displacingDeltaImpulse);
+
+      _mm256_store_ps(&joint_normalLimiter_accumulatedDisplacingImpulse[i], j_normalLimiter_accumulatedDisplacingImpulse);
+
+      // this is a bit painful :(
+      static_assert(offsetof(SolveBody, displacingVelocity) == 16 && offsetof(SolveBody, displacingAngularVelocity) == 24, "Storing assumes fixed layout");
+
+      row0 = _mm256_extractf128_ps(body1_displacingVelocityX, 0);
+      row1 = _mm256_extractf128_ps(body1_displacingVelocityY, 0);
+      row2 = _mm256_extractf128_ps(body1_displacingAngularVelocity, 0);
+      row3 = _mm_setzero_ps();
+
+      row4 = _mm256_extractf128_ps(body1_displacingVelocityX, 1);
+      row5 = _mm256_extractf128_ps(body1_displacingVelocityY, 1);
+      row6 = _mm256_extractf128_ps(body1_displacingAngularVelocity, 1);
+      row7 = _mm_setzero_ps();
+
+      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 0]].displacingVelocity.x, row0);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 1]].displacingVelocity.x, row1);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 2]].displacingVelocity.x, row2);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 3]].displacingVelocity.x, row3);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 4]].displacingVelocity.x, row4);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 5]].displacingVelocity.x, row5);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 6]].displacingVelocity.x, row6);
+      _mm_store_ps(&solveBodies[joint_body1Index[i + 7]].displacingVelocity.x, row7);
+
+      row0 = _mm256_extractf128_ps(body2_displacingVelocityX, 0);
+      row1 = _mm256_extractf128_ps(body2_displacingVelocityY, 0);
+      row2 = _mm256_extractf128_ps(body2_displacingAngularVelocity, 0);
+      row3 = _mm_setzero_ps();
+
+      row4 = _mm256_extractf128_ps(body2_displacingVelocityX, 1);
+      row5 = _mm256_extractf128_ps(body2_displacingVelocityY, 1);
+      row6 = _mm256_extractf128_ps(body2_displacingAngularVelocity, 1);
+      row7 = _mm_setzero_ps();
+
+      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 0]].displacingVelocity.x, row0);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 1]].displacingVelocity.x, row1);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 2]].displacingVelocity.x, row2);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 3]].displacingVelocity.x, row3);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 4]].displacingVelocity.x, row4);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 5]].displacingVelocity.x, row5);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 6]].displacingVelocity.x, row6);
+      _mm_store_ps(&solveBodies[joint_body2Index[i + 7]].displacingVelocity.x, row7);
     }
   }
 
