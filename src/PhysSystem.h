@@ -73,7 +73,7 @@ struct PhysSystem
 
     if (mode == 1)
       solver.SolveJointsAoS(contactIterationsCount, penetrationIterationsCount);
-    if (mode == 2)
+    else if (mode == 2)
       solver.SolveJointsSoA_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
     else if (mode == 3)
       solver.SolveJointsSoA_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
