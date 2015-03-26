@@ -34,6 +34,14 @@ float random(float min, float max)
   return min + (max - min) * (float(rand()) / float(RAND_MAX));
 }
 
+const char* kModes[] =
+{
+  "AoS",
+  "SoA Scalar",
+  "SoA SSE2",
+  "SoA AVX2"
+};
+
 int main()
 {
   sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(1024, 768), "This is awesome!");
@@ -43,7 +51,7 @@ int main()
   groundBody->invInertia = 0.0f;
   groundBody->invMass = 0.0f;
 
-  bool soa = true;
+  int mode = 3;
 
   const float gravity = 200.0f;
   const float integrationTime = 2e-2f;
@@ -68,7 +76,7 @@ int main()
 
   for (int i = 0; i < 10; ++i)
   {
-    physSystem.Update(1.f / 60.f, soa);
+    physSystem.Update(1.f / 60.f, mode);
 
     warmTime += physSystem.solveTime;
   }
@@ -86,8 +94,8 @@ int main()
     {
       if (event.type == sf::Event::Closed)
         window->close();
-      else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S)
-        soa = !soa;
+      else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
+        mode = (mode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
     }
     Vector2f mousePos = Vector2f(sf::Mouse::getPosition(*window).x, sf::Mouse::getPosition(*window).y);
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
@@ -119,7 +127,7 @@ int main()
         Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
         draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-        physSystem.Update(integrationTime, soa);
+        physSystem.Update(integrationTime, mode);
         physicsTime = physicsClock.getElapsedTime().asSeconds();
       }
     }
@@ -184,8 +192,8 @@ int main()
     debugTextStream2 << std::fixed;
     debugTextStream2.precision(2);
     debugTextStream2 << 
-      "Warm time: " << std::setw(5) << warmTime * 1000.0f << "; " <<
-      "Mode: " << (soa ? "SoA" : "AoS") << "; " <<
+      std::setw(5) << warmTime * 1000.0f << "; " <<
+      "Mode: " << kModes[mode] << "; " <<
       "Physics time: " << std::setw(5) << physicsTime * 1000.0f << 
       "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << 
       "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << 
