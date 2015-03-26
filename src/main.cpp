@@ -41,7 +41,9 @@ const char* kModes[] =
   "SoA Scalar",
   "SoA SSE2",
   "SoA AVX2",
-  "SoA Packed AVX2"
+  "SoA Packed Scalar",
+  "SoA Packed SSE2",
+  "SoA Packed AVX2",
 };
 
 int main()

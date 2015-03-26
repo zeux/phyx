@@ -80,6 +80,10 @@ struct PhysSystem
     else if (mode == 4)
       solver.SolveJointsSoA_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
     else if (mode == 5)
+      solver.SolveJointsSoAPacked_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+    else if (mode == 6)
+      solver.SolveJointsSoAPacked_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+    else if (mode == 7)
       solver.SolveJointsSoAPacked_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
     else
       solver.SolveJoints(contactIterationsCount, penetrationIterationsCount);
