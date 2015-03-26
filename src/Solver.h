@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <vector>
 
-#include <emmintrin.h>
+#include <immintrin.h>
 
 #ifdef _MSC_VER
 #define NOINLINE __declspec(noinline)
@@ -501,77 +501,209 @@ struct Solver
 
   NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount)
   {
+    typedef __m256 Vf;
+    typedef __m256i Vi;
+
     assert(jointStart % 8 == 0 && jointCount % 8 == 0);
 
-    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
+    Vf sign = _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000));
+
+    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
     {
       int i = jointIndex;
 
-      SolveBody* body1 = &solveBodies[joint_body1Index[i]];
-      SolveBody* body2 = &solveBodies[joint_body2Index[i]];
+      Vf zero = _mm256_setzero_ps();
+
+      Vi j_body1Index = _mm256_load_si256((__m256i*)&joint_body1Index[i]);
+      Vi j_body2Index = _mm256_load_si256((__m256i*)&joint_body2Index[i]);
+
+      Vf j_normalLimiter_normalProjector1X = _mm256_load_ps(&joint_normalLimiter_normalProjector1X[i]);
+      Vf j_normalLimiter_normalProjector1Y = _mm256_load_ps(&joint_normalLimiter_normalProjector1Y[i]);
+      Vf j_normalLimiter_normalProjector2X = _mm256_load_ps(&joint_normalLimiter_normalProjector2X[i]);
+      Vf j_normalLimiter_normalProjector2Y = _mm256_load_ps(&joint_normalLimiter_normalProjector2Y[i]);
+      Vf j_normalLimiter_angularProjector1 = _mm256_load_ps(&joint_normalLimiter_angularProjector1[i]);
+      Vf j_normalLimiter_angularProjector2 = _mm256_load_ps(&joint_normalLimiter_angularProjector2[i]);
+
+      Vf j_normalLimiter_compMass1_linearX = _mm256_load_ps(&joint_normalLimiter_compMass1_linearX[i]);
+      Vf j_normalLimiter_compMass1_linearY = _mm256_load_ps(&joint_normalLimiter_compMass1_linearY[i]);
+      Vf j_normalLimiter_compMass2_linearX = _mm256_load_ps(&joint_normalLimiter_compMass2_linearX[i]);
+      Vf j_normalLimiter_compMass2_linearY = _mm256_load_ps(&joint_normalLimiter_compMass2_linearY[i]);
+      Vf j_normalLimiter_compMass1_angular = _mm256_load_ps(&joint_normalLimiter_compMass1_angular[i]);
+      Vf j_normalLimiter_compMass2_angular = _mm256_load_ps(&joint_normalLimiter_compMass2_angular[i]);
+      Vf j_normalLimiter_compInvMass = _mm256_load_ps(&joint_normalLimiter_compInvMass[i]);
+      Vf j_normalLimiter_accumulatedImpulse = _mm256_load_ps(&joint_normalLimiter_accumulatedImpulse[i]);
+
+      Vf j_normalLimiter_dstVelocity = _mm256_load_ps(&joint_normalLimiter_dstVelocity[i]);
+      Vf j_normalLimiter_dstDisplacingVelocity = _mm256_load_ps(&joint_normalLimiter_dstDisplacingVelocity[i]);
+      Vf j_normalLimiter_accumulatedDisplacingImpulse = _mm256_load_ps(&joint_normalLimiter_accumulatedDisplacingImpulse[i]);
+
+      Vf j_frictionLimiter_normalProjector1X = _mm256_load_ps(&joint_frictionLimiter_normalProjector1X[i]);
+      Vf j_frictionLimiter_normalProjector1Y = _mm256_load_ps(&joint_frictionLimiter_normalProjector1Y[i]);
+      Vf j_frictionLimiter_normalProjector2X = _mm256_load_ps(&joint_frictionLimiter_normalProjector2X[i]);
+      Vf j_frictionLimiter_normalProjector2Y = _mm256_load_ps(&joint_frictionLimiter_normalProjector2Y[i]);
+      Vf j_frictionLimiter_angularProjector1 = _mm256_load_ps(&joint_frictionLimiter_angularProjector1[i]);
+      Vf j_frictionLimiter_angularProjector2 = _mm256_load_ps(&joint_frictionLimiter_angularProjector2[i]);
+
+      Vf j_frictionLimiter_compMass1_linearX = _mm256_load_ps(&joint_frictionLimiter_compMass1_linearX[i]);
+      Vf j_frictionLimiter_compMass1_linearY = _mm256_load_ps(&joint_frictionLimiter_compMass1_linearY[i]);
+      Vf j_frictionLimiter_compMass2_linearX = _mm256_load_ps(&joint_frictionLimiter_compMass2_linearX[i]);
+      Vf j_frictionLimiter_compMass2_linearY = _mm256_load_ps(&joint_frictionLimiter_compMass2_linearY[i]);
+      Vf j_frictionLimiter_compMass1_angular = _mm256_load_ps(&joint_frictionLimiter_compMass1_angular[i]);
+      Vf j_frictionLimiter_compMass2_angular = _mm256_load_ps(&joint_frictionLimiter_compMass2_angular[i]);
+      Vf j_frictionLimiter_compInvMass = _mm256_load_ps(&joint_frictionLimiter_compInvMass[i]);
+      Vf j_frictionLimiter_accumulatedImpulse = _mm256_load_ps(&joint_frictionLimiter_accumulatedImpulse[i]);
+
+      Vf body1_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body1Index, sizeof(SolveBody));
+      Vf body1_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body1Index, sizeof(SolveBody));
+      Vf body1_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body1Index, sizeof(SolveBody));
+
+      Vf body2_velocityX = _mm256_i32gather_ps(&solveBodies[0].velocity.x, j_body2Index, sizeof(SolveBody));
+      Vf body2_velocityY = _mm256_i32gather_ps(&solveBodies[0].velocity.y, j_body2Index, sizeof(SolveBody));
+      Vf body2_angularVelocity = _mm256_i32gather_ps(&solveBodies[0].angularVelocity, j_body2Index, sizeof(SolveBody));
 
       {
-        float dV = 0;
-        dV -= joint_normalLimiter_normalProjector1X[i] * body1->velocity.x;
-        dV -= joint_normalLimiter_normalProjector1Y[i] * body1->velocity.y;
-        dV -= joint_normalLimiter_angularProjector1[i] * body1->angularVelocity;
-        dV -= joint_normalLimiter_normalProjector2X[i] * body2->velocity.x;
-        dV -= joint_normalLimiter_normalProjector2Y[i] * body2->velocity.y;
-        dV -= joint_normalLimiter_angularProjector2[i] * body2->angularVelocity;
-        dV += joint_normalLimiter_dstVelocity[i];
+        Vf dV = zero;
 
-        float deltaImpulse = dV * joint_normalLimiter_compInvMass[i];
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector1X, body1_velocityX));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector1Y, body1_velocityY));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_angularProjector1, body1_angularVelocity));
 
-        if (deltaImpulse + joint_normalLimiter_accumulatedImpulse[i] < 0.0f)
-          deltaImpulse = -joint_normalLimiter_accumulatedImpulse[i];
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector2X, body2_velocityX));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_normalProjector2Y, body2_velocityY));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_normalLimiter_angularProjector2, body2_angularVelocity));
 
-        body1->velocity.x += joint_normalLimiter_compMass1_linearX[i] * deltaImpulse;
-        body1->velocity.y += joint_normalLimiter_compMass1_linearY[i] * deltaImpulse;
-        body1->angularVelocity += joint_normalLimiter_compMass1_angular[i] * deltaImpulse;
-        body2->velocity.x += joint_normalLimiter_compMass2_linearX[i] * deltaImpulse;
-        body2->velocity.y += joint_normalLimiter_compMass2_linearY[i] * deltaImpulse;
-        body2->angularVelocity += joint_normalLimiter_compMass2_angular[i] * deltaImpulse;
+        dV = _mm256_add_ps(dV, j_normalLimiter_dstVelocity);
 
-        joint_normalLimiter_accumulatedImpulse[i] += deltaImpulse;
+        Vf deltaImpulse = _mm256_mul_ps(dV, j_normalLimiter_compInvMass);
+
+        deltaImpulse = _mm256_max_ps(deltaImpulse, _mm256_sub_ps(zero, j_normalLimiter_accumulatedImpulse));
+
+        body1_velocityX = _mm256_add_ps(body1_velocityX, _mm256_mul_ps(j_normalLimiter_compMass1_linearX, deltaImpulse));
+        body1_velocityY = _mm256_add_ps(body1_velocityY, _mm256_mul_ps(j_normalLimiter_compMass1_linearY, deltaImpulse));
+        body1_angularVelocity = _mm256_add_ps(body1_angularVelocity, _mm256_mul_ps(j_normalLimiter_compMass1_angular, deltaImpulse));
+
+        body2_velocityX = _mm256_add_ps(body2_velocityX, _mm256_mul_ps(j_normalLimiter_compMass2_linearX, deltaImpulse));
+        body2_velocityY = _mm256_add_ps(body2_velocityY, _mm256_mul_ps(j_normalLimiter_compMass2_linearY, deltaImpulse));
+        body2_angularVelocity = _mm256_add_ps(body2_angularVelocity, _mm256_mul_ps(j_normalLimiter_compMass2_angular, deltaImpulse));
+
+        j_normalLimiter_accumulatedImpulse = _mm256_add_ps(j_normalLimiter_accumulatedImpulse, deltaImpulse);
       }
 
-      float deltaImpulse;
+      Vf deltaImpulse;
 
       {
-        float dV = 0;
+        Vf dV = zero;
 
-        dV -= joint_frictionLimiter_normalProjector1X[i] * body1->velocity.x;
-        dV -= joint_frictionLimiter_normalProjector1Y[i] * body1->velocity.y;
-        dV -= joint_frictionLimiter_angularProjector1[i] * body1->angularVelocity;
-        dV -= joint_frictionLimiter_normalProjector2X[i] * body2->velocity.x;
-        dV -= joint_frictionLimiter_normalProjector2Y[i] * body2->velocity.y;
-        dV -= joint_frictionLimiter_angularProjector2[i] * body2->angularVelocity;
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_frictionLimiter_normalProjector1X, body1_velocityX));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_frictionLimiter_normalProjector1Y, body1_velocityY));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_frictionLimiter_angularProjector1, body1_angularVelocity));
 
-        deltaImpulse = dV * joint_frictionLimiter_compInvMass[i];
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_frictionLimiter_normalProjector2X, body2_velocityX));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_frictionLimiter_normalProjector2Y, body2_velocityY));
+        dV = _mm256_sub_ps(dV, _mm256_mul_ps(j_frictionLimiter_angularProjector2, body2_angularVelocity));
+
+        deltaImpulse = _mm256_mul_ps(dV, j_frictionLimiter_compInvMass);
       }
 
-      float reactionForce = joint_normalLimiter_accumulatedImpulse[i];
-      float accumulatedImpulse = joint_frictionLimiter_accumulatedImpulse[i];
+      Vf reactionForce = j_normalLimiter_accumulatedImpulse;
+      Vf accumulatedImpulse = j_frictionLimiter_accumulatedImpulse;
 
-      float frictionForce = accumulatedImpulse + deltaImpulse;
-      float frictionCoefficient = 0.3f;
+      Vf frictionForce = _mm256_add_ps(accumulatedImpulse, deltaImpulse);
+      Vf reactionForceScaled = _mm256_mul_ps(reactionForce, _mm256_set1_ps(0.3f));
 
-      if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
-      {
-        float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
-        frictionForce = dir * reactionForce * frictionCoefficient;
-        deltaImpulse = frictionForce - accumulatedImpulse;
-      }
+      Vf frictionForceAbs = _mm256_andnot_ps(frictionForce, sign);
+      Vf reactionForceScaledSigned = _mm256_xor_ps(_mm256_and_ps(frictionForce, sign), reactionForceScaled);
+      Vf deltaImpulseAdjusted = _mm256_sub_ps(reactionForceScaledSigned, accumulatedImpulse);
 
-      joint_frictionLimiter_accumulatedImpulse[i] += deltaImpulse;
+      deltaImpulse = _mm256_blendv_ps(deltaImpulse, deltaImpulseAdjusted, _mm256_cmp_ps(frictionForceAbs, reactionForceScaled, _CMP_GT_OQ));
 
-      body1->velocity.x += joint_frictionLimiter_compMass1_linearX[i] * deltaImpulse;
-      body1->velocity.y += joint_frictionLimiter_compMass1_linearY[i] * deltaImpulse;
-      body1->angularVelocity += joint_frictionLimiter_compMass1_angular[i] * deltaImpulse;
+      j_frictionLimiter_accumulatedImpulse = _mm256_add_ps(j_frictionLimiter_accumulatedImpulse, deltaImpulse);
 
-      body2->velocity.x += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
-      body2->velocity.y += joint_frictionLimiter_compMass2_linearX[i] * deltaImpulse;
-      body2->angularVelocity += joint_frictionLimiter_compMass2_angular[i] * deltaImpulse;
+      body1_velocityX = _mm256_add_ps(body1_velocityX, _mm256_mul_ps(j_frictionLimiter_compMass1_linearX, deltaImpulse));
+      body1_velocityY = _mm256_add_ps(body1_velocityY, _mm256_mul_ps(j_frictionLimiter_compMass1_linearY, deltaImpulse));
+      body1_angularVelocity = _mm256_add_ps(body1_angularVelocity, _mm256_mul_ps(j_frictionLimiter_compMass1_angular, deltaImpulse));
+
+      body2_velocityX = _mm256_add_ps(body2_velocityX, _mm256_mul_ps(j_frictionLimiter_compMass2_linearX, deltaImpulse));
+      body2_velocityY = _mm256_add_ps(body2_velocityY, _mm256_mul_ps(j_frictionLimiter_compMass2_linearY, deltaImpulse));
+      body2_angularVelocity = _mm256_add_ps(body2_angularVelocity, _mm256_mul_ps(j_frictionLimiter_compMass2_angular, deltaImpulse));
+
+      _mm256_store_ps(&joint_normalLimiter_accumulatedImpulse[i], j_normalLimiter_accumulatedImpulse);
+      _mm256_store_ps(&joint_frictionLimiter_accumulatedImpulse[i], j_frictionLimiter_accumulatedImpulse);
+
+      // this is painful :(
+      __m128 body1_velocityX_0 = _mm256_extractf128_ps(body1_velocityX, 0);
+      __m128 body1_velocityX_1 = _mm256_extractf128_ps(body1_velocityX, 1);
+      __m128 body1_velocityY_0 = _mm256_extractf128_ps(body1_velocityY, 0);
+      __m128 body1_velocityY_1 = _mm256_extractf128_ps(body1_velocityY, 1);
+      __m128 body1_angularVelocity_0 = _mm256_extractf128_ps(body1_angularVelocity, 0);
+      __m128 body1_angularVelocity_1 = _mm256_extractf128_ps(body1_angularVelocity, 1);
+
+      __m128 body2_velocityX_0 = _mm256_extractf128_ps(body2_velocityX, 0);
+      __m128 body2_velocityX_1 = _mm256_extractf128_ps(body2_velocityX, 1);
+      __m128 body2_velocityY_0 = _mm256_extractf128_ps(body2_velocityY, 0);
+      __m128 body2_velocityY_1 = _mm256_extractf128_ps(body2_velocityY, 1);
+      __m128 body2_angularVelocity_0 = _mm256_extractf128_ps(body2_angularVelocity, 0);
+      __m128 body2_angularVelocity_1 = _mm256_extractf128_ps(body2_angularVelocity, 1);
+
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].velocity.x, _mm_shuffle_ps(body1_velocityX_0, body1_velocityX_0, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].velocity.x, _mm_shuffle_ps(body1_velocityX_1, body1_velocityX_1, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].velocity.y, _mm_shuffle_ps(body1_velocityY_0, body1_velocityY_0, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].velocity.y, _mm_shuffle_ps(body1_velocityY_1, body1_velocityY_1, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 0]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 1]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 2]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 3]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_0, body1_angularVelocity_0, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 4]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 5]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 6]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body1Index[i + 7]].angularVelocity, _mm_shuffle_ps(body1_angularVelocity_1, body1_angularVelocity_1, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].velocity.x, _mm_shuffle_ps(body2_velocityX_0, body2_velocityX_0, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].velocity.x, _mm_shuffle_ps(body2_velocityX_1, body2_velocityX_1, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].velocity.y, _mm_shuffle_ps(body2_velocityY_0, body2_velocityY_0, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].velocity.y, _mm_shuffle_ps(body2_velocityY_1, body2_velocityY_1, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 0]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 1]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 2]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 3]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_0, body2_angularVelocity_0, _MM_SHUFFLE(0, 0, 0, 0)));
+
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 4]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(3, 3, 3, 3)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 5]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(2, 2, 2, 2)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 6]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(1, 1, 1, 1)));
+      _mm_store_ss(&solveBodies[joint_body2Index[i + 7]].angularVelocity, _mm_shuffle_ps(body2_angularVelocity_1, body2_angularVelocity_1, _MM_SHUFFLE(0, 0, 0, 0)));
     }
   }
 
