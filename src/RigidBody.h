@@ -3,6 +3,12 @@
 #include "Coords2.h"
 #include "Geom.h"
 
+#ifdef _MSC_VER
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE __attribute__((noinline))
+#endif
+
 struct RigidBody
 {
   RigidBody(){} 

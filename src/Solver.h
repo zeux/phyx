@@ -4,12 +4,6 @@
 
 #include <immintrin.h>
 
-#ifdef _MSC_VER
-#define NOINLINE __declspec(noinline)
-#else
-#define NOINLINE __attribute__((noinline))
-#endif
-
 template <typename T> struct AlignedArray
 {
   T* data;
