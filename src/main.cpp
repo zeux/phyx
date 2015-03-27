@@ -2,9 +2,7 @@
 #include "PhysSystem.h"
 #include <sstream>
 #include <iomanip>
-
-//50 125 218
-//50 50 50
+#include <string.h>
 
 sf::Vector2f ConvertVector(Vector2f vec)
 {
