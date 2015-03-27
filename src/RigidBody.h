@@ -75,5 +75,4 @@ struct RigidBody
 
   float invMass, invInertia;
   Coords2f coords;
-  char padding[1024];
 };

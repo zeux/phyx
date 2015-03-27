@@ -14,9 +14,6 @@ struct Collider
 {
   NOINLINE void FindCollisions(RigidBody *bodies, size_t bodiesCount)
   {
-    for (ManifoldMap::iterator man = manifolds.begin(); man != manifolds.end(); man++)
-      man->second.isMerged = 0;
-
     UpdateBroadphase(bodies, bodiesCount);
     UpdatePairs(bodies, bodiesCount);
     UpdateManifolds();
@@ -57,11 +54,7 @@ struct Collider
           BodyPair pair(&body1, &body2);
 
           ManifoldMap::iterator man = manifolds.find(pair);
-          if (man != manifolds.end())
-          {
-            man->second.isMerged = true;
-          }
-          else
+          if (man == manifolds.end())
           {
             manifolds[pair] = Manifold(pair.body1, pair.body2);
           }
