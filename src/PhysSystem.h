@@ -49,6 +49,7 @@ struct PhysSystem
     {
       solver.contactJoints[jointIndex].valid = 0;
     }
+
     for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
     {
       Manifold& man = collider.manifolds[manifoldIndex];
@@ -56,31 +57,23 @@ struct PhysSystem
       for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
       {
         Collision &col = man.collisions[collisionIndex];
-        if (!col.userInfo) continue;
 
         ContactJoint::Descriptor desc;
         desc.body1 = man.body1;
         desc.body2 = man.body2;
         desc.collision = &col;
-        solver.RefreshContactJoint(desc);
+
+        if (col.solverIndex < 0)
+        {
+          solver.contactJoints.push_back(ContactJoint(desc, solver.contactJoints.size()));
+        }
+        else
+        {
+          solver.RefreshContactJoint(desc, col.solverIndex);
+        }
       }
     }
-    for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
-    {
-      Manifold& man = collider.manifolds[manifoldIndex];
 
-      for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
-      {
-        Collision &col = man.collisions[collisionIndex];
-        if (col.userInfo) continue;
-
-        ContactJoint::Descriptor desc;
-        desc.body1 = man.body1;
-        desc.body2 = man.body2;
-        desc.collision = &col;
-        solver.contactJoints.push_back(ContactJoint(desc));
-      }
-    }
     solver.RefreshJoints();
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();

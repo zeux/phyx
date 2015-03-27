@@ -74,7 +74,8 @@ struct Solver
       }
       else
       {
-        contactJoints[jointIndex++].Refresh();
+        contactJoints[jointIndex].Refresh(jointIndex);
+        jointIndex++;
       }
     }
     for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
@@ -83,23 +84,15 @@ struct Solver
     }
   }
 
-  void RefreshContactJoint(ContactJoint::Descriptor desc)
+  void RefreshContactJoint(ContactJoint::Descriptor desc, int solverIndex)
   {
-    ContactJoint *joint = (ContactJoint*)(desc.collision->userInfo);
+    ContactJoint& joint = contactJoints[solverIndex];
 
-    joint->valid = 1;
-    joint->collision = desc.collision;
+    assert(joint.body1 == desc.body1);
+    assert(joint.body2 == desc.body2);
 
-    assert(joint->body1 == desc.body1);
-    assert(joint->body2 == desc.body2);
-
-    if ((joint->body1->coords.pos - joint->body2->coords.pos) * desc.collision->normal < 0.0f)
-    {
-      int pp = 1;
-    }
-
-    joint->valid = 1;
-    joint->collision = desc.collision;
+    joint.valid = 1;
+    joint.collision = desc.collision;
   }
 
   NOINLINE void SolveJoints(int contactIterationsCount, int penetrationIterationsCount)

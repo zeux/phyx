@@ -14,7 +14,7 @@ struct Collision
     this->normal = normal;
     isMerged = 0;
     isNewlyCreated = 1;
-    userInfo = 0;
+    solverIndex = -1;
   }
 
   bool Equals(Collision *other, float tolerance)
@@ -40,5 +40,5 @@ struct Collision
   Vector2f normal;
   bool isMerged;
   bool isNewlyCreated;
-  void *userInfo;
+  int solverIndex;
 };

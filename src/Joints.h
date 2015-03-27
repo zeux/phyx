@@ -201,7 +201,7 @@ struct ContactJoint
     RigidBody *body1;
     RigidBody *body2;
   };
-  ContactJoint(const Descriptor &desc)
+  ContactJoint(const Descriptor &desc, int solverIndex)
   {
     this->valid = 1;
     this->collision = desc.collision;
@@ -209,16 +209,15 @@ struct ContactJoint
     this->body2 = desc.body2;
     this->body1Index = desc.body1->index;
     this->body2Index = desc.body2->index;
-    collision->userInfo = this;
+    collision->solverIndex = solverIndex;
 
   }
-  void Refresh()
+  void Refresh(int solverIndex)
   {
-    collision->userInfo = this;
+    collision->solverIndex = solverIndex;
 
     Vector2f w1 = collision->delta1;
     Vector2f w2 = collision->delta2;
-
 
     Vector2f point1 = w1 + body1->coords.pos;
     Vector2f point2 = w2 + body2->coords.pos;
