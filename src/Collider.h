@@ -8,7 +8,22 @@
 #include "Collision.h"
 #include "Manifold.h"
 #include "RigidBody.h"
-#include <map>
+
+#include <unordered_map>
+
+namespace std
+{
+  template <> struct hash<std::pair<RigidBody*, RigidBody*>>
+  {
+    size_t operator()(const std::pair<RigidBody*, RigidBody*>& p) const
+    {
+      uintptr_t lb = reinterpret_cast<uintptr_t>(p.first);
+      uintptr_t rb = reinterpret_cast<uintptr_t>(p.second);
+
+      return lb ^ (rb + 0x9e3779b9 + (lb<<6) + (lb>>2));
+    }
+  };
+}
 
 struct Collider
 {
@@ -51,12 +66,12 @@ struct Collider
 
         if (body1.geom.aabb.boxPoint1.y <= body2.geom.aabb.boxPoint2.y && body1.geom.aabb.boxPoint2.y >= body2.geom.aabb.boxPoint1.y)
         {
-          BodyPair pair(&body1, &body2);
+          unsigned int& mp = manifoldMap[std::make_pair(&body1, &body2)];
 
-          ManifoldMap::iterator man = manifolds.find(pair);
-          if (man == manifolds.end())
+          if (!mp)
           {
-            manifolds[pair] = Manifold(pair.body1, pair.body2);
+            manifolds.push_back(Manifold(&body1, &body2));
+            mp = manifolds.size();
           }
         }
       }
@@ -65,47 +80,37 @@ struct Collider
 
   NOINLINE void UpdateManifolds()
   {
-    for (ManifoldMap::iterator man = manifolds.begin(); man != manifolds.end();)
+    for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size(); )
     {
-      man->second.Update();
-      if (man->second.collisionsCount == 0)
+      Manifold& m = manifolds[manifoldIndex];
+
+      m.Update();
+
+      if (m.collisionsCount == 0)
       {
-        ManifoldMap::iterator next = man;
-        next++;
-        manifolds.erase(man);
-        man = next;
+        manifoldMap.erase(std::make_pair(m.body1, m.body2));
+
+        if (manifoldIndex != manifolds.size() - 1)
+        {
+          m = manifolds.back();
+          manifolds.pop_back();
+
+          manifoldMap[std::make_pair(m.body1, m.body2)] = manifoldIndex;
+        }
+        else
+        {
+          manifolds.pop_back();
+        }
       }
       else
       {
-        man++;
+        ++manifoldIndex;
       }
     }
   }
   
-  struct BodyPair
-  {
-    BodyPair()
-    {
-      body1 = body2 = 0;
-    }
-    BodyPair(RigidBody *body1, RigidBody *body2)
-    {
-      this->body1 = body1;
-      this->body2 = body2;
-    }
-    bool operator < (const BodyPair &other) const
-    {
-      if (body1 < other.body1) return 1;
-      if ((body1 == other.body1) && (body2 < other.body2)) return 1;
-      return 0;
-    }
-
-    RigidBody *body1;
-    RigidBody *body2;
-  };
-
-  typedef std::map<BodyPair, Manifold> ManifoldMap;
-  ManifoldMap manifolds;
+  std::unordered_map<std::pair<RigidBody*, RigidBody*>, unsigned int> manifoldMap;
+  std::vector<Manifold> manifolds;
 
   struct BroadphaseEntry
   {

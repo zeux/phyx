@@ -190,22 +190,24 @@ int main(int argc, char** argv)
       pickingCollision = true;
     }*/
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::C))
-    for (Collider::ManifoldMap::iterator man = physSystem.GetCollider()->manifolds.begin(); man != physSystem.GetCollider()->manifolds.end(); man++)
+    for (size_t manifoldIndex = 0; manifoldIndex < physSystem.GetCollider()->manifolds.size(); ++manifoldIndex)
     {
-      for (int collisionNumber = 0; collisionNumber < man->second.collisionsCount; collisionNumber++)
+      Manifold& man = physSystem.GetCollider()->manifolds[manifoldIndex];
+
+      for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
       {
         Coords2f coords = Coords2f(Vector2f(0.0f, 0.0f), 3.1415f / 4.0f);
 
-        coords.pos = man->second.body1->coords.pos + man->second.collisions[collisionNumber].delta1;
+        coords.pos = man.body1->coords.pos + man.collisions[collisionNumber].delta1;
 
         float redMult = 1.0f;
-        if (man->second.collisions[collisionNumber].isNewlyCreated)
+        if (man.collisions[collisionNumber].isNewlyCreated)
           redMult = 0.5f;
 
         sf::Color color1(100, char(100 * redMult), char(100 * redMult), 100);
         RenderBox(window, coords, Vector2f(3.0f, 3.0f), color1);
 
-        coords.pos = man->second.body2->coords.pos + man->second.collisions[collisionNumber].delta2;
+        coords.pos = man.body2->coords.pos + man.collisions[collisionNumber].delta2;
         sf::Color color2(150, char(150 * redMult), char(150 * redMult), 100);
         //if (pickingCollision && (coords.pos - mousePos).SquareLen() < 5.0f * 5.0f)
         //{

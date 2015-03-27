@@ -49,29 +49,34 @@ struct PhysSystem
     {
       solver.contactJoints[jointIndex].valid = 0;
     }
-    for (Collider::ManifoldMap::iterator man = collider.manifolds.begin(); man != collider.manifolds.end(); man++)
+    for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
     {
-      for (int collisionIndex = 0; collisionIndex < man->second.collisionsCount; collisionIndex++)
+      Manifold& man = collider.manifolds[manifoldIndex];
+
+      for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
       {
-        Collision &col = man->second.collisions[collisionIndex];
+        Collision &col = man.collisions[collisionIndex];
         if (!col.userInfo) continue;
 
         ContactJoint::Descriptor desc;
-        desc.body1 = man->second.body1;
-        desc.body2 = man->second.body2;
+        desc.body1 = man.body1;
+        desc.body2 = man.body2;
         desc.collision = &col;
         solver.RefreshContactJoint(desc);
       }
     }
-    for (Collider::ManifoldMap::iterator man = collider.manifolds.begin(); man != collider.manifolds.end(); man++)
+    for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
     {
-      for (int collisionIndex = 0; collisionIndex < man->second.collisionsCount; collisionIndex++)
+      Manifold& man = collider.manifolds[manifoldIndex];
+
+      for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
       {
-        Collision &col = man->second.collisions[collisionIndex];
+        Collision &col = man.collisions[collisionIndex];
         if (col.userInfo) continue;
+
         ContactJoint::Descriptor desc;
-        desc.body1 = man->second.body1;
-        desc.body2 = man->second.body2;
+        desc.body1 = man.body1;
+        desc.body2 = man.body2;
         desc.collision = &col;
         solver.contactJoints.push_back(ContactJoint(desc));
       }
