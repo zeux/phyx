@@ -66,12 +66,12 @@ struct Collider
 
         if (body1.geom.aabb.boxPoint1.y <= body2.geom.aabb.boxPoint2.y && body1.geom.aabb.boxPoint2.y >= body2.geom.aabb.boxPoint1.y)
         {
-          unsigned int& mp = manifoldMap[std::make_pair(&body1, &body2)];
+          bool& valid = manifoldMap[std::make_pair(&body1, &body2)];
 
-          if (!mp)
+          if (!valid)
           {
+            valid = true;
             manifolds.push_back(Manifold(&body1, &body2));
-            mp = manifolds.size();
           }
         }
       }
@@ -109,7 +109,7 @@ struct Collider
     }
   }
   
-  std::unordered_map<std::pair<RigidBody*, RigidBody*>, unsigned int> manifoldMap;
+  std::unordered_map<std::pair<RigidBody*, RigidBody*>, bool> manifoldMap;
   std::vector<Manifold> manifolds;
 
   struct BroadphaseEntry
