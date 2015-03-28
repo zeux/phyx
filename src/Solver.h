@@ -58,6 +58,48 @@ template <typename T> struct AlignedArray
   }
 };
 
+template <int N> struct ContactJointPacked
+{
+  unsigned int body1Index[N];
+  unsigned int body2Index[N];
+
+  float normalLimiter_normalProjector1X[N];
+  float normalLimiter_normalProjector1Y[N];
+  float normalLimiter_normalProjector2X[N];
+  float normalLimiter_normalProjector2Y[N];
+  float normalLimiter_angularProjector1[N];
+  float normalLimiter_angularProjector2[N];
+
+  float normalLimiter_compMass1_linearX[N];
+  float normalLimiter_compMass1_linearY[N];
+  float normalLimiter_compMass2_linearX[N];
+  float normalLimiter_compMass2_linearY[N];
+  float normalLimiter_compMass1_angular[N];
+  float normalLimiter_compMass2_angular[N];
+  float normalLimiter_compInvMass[N];
+  float normalLimiter_accumulatedImpulse[N];
+
+  float normalLimiter_dstVelocity[N];
+  float normalLimiter_dstDisplacingVelocity[N];
+  float normalLimiter_accumulatedDisplacingImpulse[N];
+
+  float frictionLimiter_normalProjector1X[N];
+  float frictionLimiter_normalProjector1Y[N];
+  float frictionLimiter_normalProjector2X[N];
+  float frictionLimiter_normalProjector2Y[N];
+  float frictionLimiter_angularProjector1[N];
+  float frictionLimiter_angularProjector2[N];
+
+  float frictionLimiter_compMass1_linearX[N];
+  float frictionLimiter_compMass1_linearY[N];
+  float frictionLimiter_compMass2_linearX[N];
+  float frictionLimiter_compMass2_linearY[N];
+  float frictionLimiter_compMass1_angular[N];
+  float frictionLimiter_compMass2_angular[N];
+  float frictionLimiter_compInvMass[N];
+  float frictionLimiter_accumulatedImpulse[N];
+};
+
 struct Solver
 {
   Solver()
@@ -185,58 +227,58 @@ struct Solver
 
   NOINLINE void SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
-    int groupOffset = SolvePrepareSoAPacked(bodies, bodiesCount, 1);
+    int groupOffset = SolvePrepareSoAPacked(joint_packed4, bodies, bodiesCount, 1);
 
     for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
     {
-      SolveJointsImpulsesSoAPacked(0, contactJoints.size());
+      SolveJointsImpulsesSoAPacked(joint_packed4.data, 0, contactJoints.size());
     }
 
     for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
     {
-      SolveJointsDisplacementSoAPacked(0, contactJoints.size());
+      SolveJointsDisplacementSoAPacked(joint_packed4.data, 0, contactJoints.size());
     }
 
-    SolveFinishSoAPacked(bodies, bodiesCount);
+    SolveFinishSoAPacked(joint_packed4, bodies, bodiesCount);
   }
 
   NOINLINE void SolveJointsSoAPacked_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
-    int groupOffset = SolvePrepareSoAPacked(bodies, bodiesCount, 8);
+    int groupOffset = SolvePrepareSoAPacked(joint_packed4, bodies, bodiesCount, 4);
 
     for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
     {
-      SolveJointsImpulsesSoAPacked_SSE2(0, groupOffset);
-      SolveJointsImpulsesSoAPacked(groupOffset, contactJoints.size() - groupOffset);
+      SolveJointsImpulsesSoAPacked_SSE2(joint_packed4.data, 0, groupOffset);
+      SolveJointsImpulsesSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset);
     }
 
     for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
     {
-      SolveJointsDisplacementSoAPacked_SSE2(0, groupOffset);
-      SolveJointsDisplacementSoAPacked(groupOffset, contactJoints.size() - groupOffset);
+      SolveJointsDisplacementSoAPacked_SSE2(joint_packed4.data, 0, groupOffset);
+      SolveJointsDisplacementSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset);
     }
 
-    SolveFinishSoAPacked(bodies, bodiesCount);
+    SolveFinishSoAPacked(joint_packed4, bodies, bodiesCount);
   }
 
 #ifdef __AVX2__
   NOINLINE void SolveJointsSoAPacked_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
   {
-    int groupOffset = SolvePrepareSoAPacked(bodies, bodiesCount, 8);
+    int groupOffset = SolvePrepareSoAPacked(joint_packed8, bodies, bodiesCount, 8);
 
     for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
     {
-      SolveJointsImpulsesSoAPacked_AVX2(0, groupOffset);
-      SolveJointsImpulsesSoAPacked(groupOffset, contactJoints.size() - groupOffset);
+      SolveJointsImpulsesSoAPacked_AVX2(joint_packed8.data, 0, groupOffset);
+      SolveJointsImpulsesSoAPacked(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset);
     }
 
     for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
     {
-      SolveJointsDisplacementSoAPacked_AVX2(0, groupOffset);
-      SolveJointsDisplacementSoAPacked(groupOffset, contactJoints.size() - groupOffset);
+      SolveJointsDisplacementSoAPacked_AVX2(joint_packed8.data, 0, groupOffset);
+      SolveJointsDisplacementSoAPacked(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset);
     }
 
-    SolveFinishSoAPacked(bodies, bodiesCount);
+    SolveFinishSoAPacked(joint_packed8, bodies, bodiesCount);
   }
 #endif
   
@@ -414,7 +456,10 @@ struct Solver
     return groupOffset;
   }
 
-  NOINLINE int SolvePrepareSoAPacked(RigidBody* bodies, int bodiesCount, int groupSizeTarget)
+  template <int N>
+  NOINLINE int SolvePrepareSoAPacked(
+    AlignedArray<ContactJointPacked<N>>& joint_packed,
+    RigidBody* bodies, int bodiesCount, int groupSizeTarget)
   {
     solveBodies.resize(bodiesCount);
 
@@ -439,8 +484,8 @@ struct Solver
     {
       ContactJoint& joint = contactJoints[joint_index[i]];
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
-      int iP = i & 7;
+      ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+      int iP = i & (N - 1);
 
       jointP.body1Index[iP] = joint.body1Index;
       jointP.body2Index[iP] = joint.body2Index;
@@ -508,7 +553,9 @@ struct Solver
     }
   }
 
-  NOINLINE void SolveFinishSoAPacked(RigidBody* bodies, int bodiesCount)
+  template <int N> NOINLINE void SolveFinishSoAPacked(
+    AlignedArray<ContactJointPacked<N>>& joint_packed,
+    RigidBody* bodies, int bodiesCount)
   {
     for (int i = 0; i < bodiesCount; ++i)
     {
@@ -525,8 +572,8 @@ struct Solver
     {
       ContactJoint& joint = contactJoints[joint_index[i]];
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
-      int iP = i & 7;
+      ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+      int iP = i & (N - 1);
 
       joint.normalLimiter.accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
       joint.normalLimiter.accumulatedDisplacingImpulse = jointP.normalLimiter_accumulatedDisplacingImpulse[iP];
@@ -1369,14 +1416,15 @@ struct Solver
   }
 #endif
 
-  NOINLINE void SolveJointsImpulsesSoAPacked(int jointStart, int jointCount)
+  template <int N>
+  NOINLINE void SolveJointsImpulsesSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount)
   {
     for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
     {
       int i = jointIndex;
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
-      int iP = i & 7;
+      ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+      int iP = i & (N - 1);
 
       SolveBody* body1 = &solveBodies[jointP.body1Index[iP]];
       SolveBody* body2 = &solveBodies[jointP.body2Index[iP]];
@@ -1442,7 +1490,7 @@ struct Solver
     }
   }
 
-  NOINLINE void SolveJointsImpulsesSoAPacked_SSE2(int jointStart, int jointCount)
+  NOINLINE void SolveJointsImpulsesSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount)
   {
     typedef __m128 Vf;
 
@@ -1454,8 +1502,8 @@ struct Solver
     {
       int i = jointIndex;
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
-      int iP = i & 7;
+      ContactJointPacked<4>& jointP = joint_packed[i >> 2];
+      int iP = 0;
 
       Vf zero = _mm_setzero_ps();
 
@@ -1611,7 +1659,7 @@ struct Solver
   }
 
 #ifdef __AVX2__
-  NOINLINE void SolveJointsImpulsesSoAPacked_AVX2(int jointStart, int jointCount)
+  NOINLINE void SolveJointsImpulsesSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount)
   {
     typedef __m256 Vf;
 
@@ -1623,7 +1671,7 @@ struct Solver
     {
       int i = jointIndex;
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
+      ContactJointPacked<8>& jointP = joint_packed[i >> 3];
       int iP = 0;
 
       Vf zero = _mm256_setzero_ps();
@@ -1812,14 +1860,15 @@ struct Solver
   }
 #endif
 
-  NOINLINE void SolveJointsDisplacementSoAPacked(int jointStart, int jointCount)
+  template <int N>
+  NOINLINE void SolveJointsDisplacementSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount)
   {
     for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
     {
       int i = jointIndex;
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
-      int iP = i & 7;
+      ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+      int iP = i & (N - 1);
 
       SolveBody* body1 = &solveBodies[jointP.body1Index[iP]];
       SolveBody* body2 = &solveBodies[jointP.body2Index[iP]];
@@ -1851,7 +1900,7 @@ struct Solver
     }
   }
 
-  NOINLINE void SolveJointsDisplacementSoAPacked_SSE2(int jointStart, int jointCount)
+  NOINLINE void SolveJointsDisplacementSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount)
   {
     typedef __m128 Vf;
 
@@ -1861,8 +1910,8 @@ struct Solver
     {
       int i = jointIndex;
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
-      int iP = i & 7;
+      ContactJointPacked<4>& jointP = joint_packed[i >> 3];
+      int iP = 0;
 
       Vf zero = _mm_setzero_ps();
 
@@ -1965,7 +2014,7 @@ struct Solver
   }
 
 #ifdef __AVX2__
-  NOINLINE void SolveJointsDisplacementSoAPacked_AVX2(int jointStart, int jointCount)
+  NOINLINE void SolveJointsDisplacementSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount)
   {
     typedef __m256 Vf;
 
@@ -1975,7 +2024,7 @@ struct Solver
     {
       int i = jointIndex;
 
-      ContactJointPacked& jointP = joint_packed[i >> 3];
+      ContactJointPacked<8>& jointP = joint_packed[i >> 3];
       int iP = 0;
 
       Vf zero = _mm256_setzero_ps();
@@ -2128,54 +2177,13 @@ struct Solver
 
  std::vector<ContactJoint> contactJoints;
 
- struct ContactJointPacked
- {
-  unsigned int body1Index[8];
-  unsigned int body2Index[8];
-
-  float normalLimiter_normalProjector1X[8];
-  float normalLimiter_normalProjector1Y[8];
-  float normalLimiter_normalProjector2X[8];
-  float normalLimiter_normalProjector2Y[8];
-  float normalLimiter_angularProjector1[8];
-  float normalLimiter_angularProjector2[8];
-
-  float normalLimiter_compMass1_linearX[8];
-  float normalLimiter_compMass1_linearY[8];
-  float normalLimiter_compMass2_linearX[8];
-  float normalLimiter_compMass2_linearY[8];
-  float normalLimiter_compMass1_angular[8];
-  float normalLimiter_compMass2_angular[8];
-  float normalLimiter_compInvMass[8];
-  float normalLimiter_accumulatedImpulse[8];
-
-  float normalLimiter_dstVelocity[8];
-  float normalLimiter_dstDisplacingVelocity[8];
-  float normalLimiter_accumulatedDisplacingImpulse[8];
-
-  float frictionLimiter_normalProjector1X[8];
-  float frictionLimiter_normalProjector1Y[8];
-  float frictionLimiter_normalProjector2X[8];
-  float frictionLimiter_normalProjector2Y[8];
-  float frictionLimiter_angularProjector1[8];
-  float frictionLimiter_angularProjector2[8];
-
-  float frictionLimiter_compMass1_linearX[8];
-  float frictionLimiter_compMass1_linearY[8];
-  float frictionLimiter_compMass2_linearX[8];
-  float frictionLimiter_compMass2_linearY[8];
-  float frictionLimiter_compMass1_angular[8];
-  float frictionLimiter_compMass2_angular[8];
-  float frictionLimiter_compInvMass[8];
-  float frictionLimiter_accumulatedImpulse[8];
- };
-
  AlignedArray<int> jointGroup_bodies;
  AlignedArray<int> jointGroup_joints;
 
  AlignedArray<int> joint_index;
 
- AlignedArray<ContactJointPacked> joint_packed;
+ AlignedArray<ContactJointPacked<4>> joint_packed4;
+ AlignedArray<ContactJointPacked<8>> joint_packed8;
 
  AlignedArray<int> joint_body1Index;
  AlignedArray<int> joint_body2Index;
