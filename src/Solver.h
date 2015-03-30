@@ -2038,15 +2038,19 @@ struct Solver
       Vf body2_velocityY_1 = _mm256_combine_ps(row1, row5);
       Vf body2_angularVelocity_1 = _mm256_combine_ps(row2, row6);
 
-      Vf normaldV_0 = j_normalLimiter_dstVelocity_0;
+      Vf normaldV1_0 = j_normalLimiter_dstVelocity_0;
 
-      normaldV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_0, body1_velocityX_0, normaldV_0);
-      normaldV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_0, body1_velocityY_0, normaldV_0);
-      normaldV_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_0, body1_angularVelocity_0, normaldV_0);
+      normaldV1_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_0, body1_velocityX_0, normaldV1_0);
+      normaldV1_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_0, body1_velocityY_0, normaldV1_0);
+      normaldV1_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_0, body1_angularVelocity_0, normaldV1_0);
 
-      normaldV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_0, body2_velocityX_0, normaldV_0);
-      normaldV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_0, body2_velocityY_0, normaldV_0);
-      normaldV_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_0, body2_angularVelocity_0, normaldV_0);
+      Vf normaldV2_0 = zero;
+
+      normaldV2_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_0, body2_velocityX_0, normaldV2_0);
+      normaldV2_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_0, body2_velocityY_0, normaldV2_0);
+      normaldV2_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_0, body2_angularVelocity_0, normaldV2_0);
+
+      Vf normaldV_0 = _mm256_add_ps(normaldV1_0, normaldV2_0);
 
       Vf normalDeltaImpulse_0 = _mm256_mul_ps(normaldV_0, j_normalLimiter_compInvMass_0);
 
@@ -2062,15 +2066,19 @@ struct Solver
 
       j_normalLimiter_accumulatedImpulse_0 = _mm256_add_ps(j_normalLimiter_accumulatedImpulse_0, normalDeltaImpulse_0);
 
-      Vf frictiondV_0 = zero;
+      Vf frictiondV0_0 = zero;
 
-      frictiondV_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1X_0, body1_velocityX_0, frictiondV_0);
-      frictiondV_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1Y_0, body1_velocityY_0, frictiondV_0);
-      frictiondV_0 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector1_0, body1_angularVelocity_0, frictiondV_0);
+      frictiondV0_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1X_0, body1_velocityX_0, frictiondV0_0);
+      frictiondV0_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1Y_0, body1_velocityY_0, frictiondV0_0);
+      frictiondV0_0 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector1_0, body1_angularVelocity_0, frictiondV0_0);
 
-      frictiondV_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2X_0, body2_velocityX_0, frictiondV_0);
-      frictiondV_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2Y_0, body2_velocityY_0, frictiondV_0);
-      frictiondV_0 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector2_0, body2_angularVelocity_0, frictiondV_0);
+      Vf frictiondV1_0 = zero;
+
+      frictiondV1_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2X_0, body2_velocityX_0, frictiondV1_0);
+      frictiondV1_0 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2Y_0, body2_velocityY_0, frictiondV1_0);
+      frictiondV1_0 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector2_0, body2_angularVelocity_0, frictiondV1_0);
+
+      Vf frictiondV_0 = _mm256_add_ps(frictiondV0_0, frictiondV1_0);
 
       Vf frictionDeltaImpulse_0 = _mm256_mul_ps(frictiondV_0, j_frictionLimiter_compInvMass_0);
 
@@ -2098,15 +2106,19 @@ struct Solver
       body2_velocityY_0 = _mm256_fmadd_ps(j_frictionLimiter_compMass2_linearY_0, frictionDeltaImpulse_0, body2_velocityY_0);
       body2_angularVelocity_0 = _mm256_fmadd_ps(j_frictionLimiter_compMass2_angular_0, frictionDeltaImpulse_0, body2_angularVelocity_0);
 
-      Vf normaldV_1 = j_normalLimiter_dstVelocity_1;
+      Vf normaldV1_1 = j_normalLimiter_dstVelocity_1;
 
-      normaldV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_1, body1_velocityX_1, normaldV_1);
-      normaldV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_1, body1_velocityY_1, normaldV_1);
-      normaldV_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_1, body1_angularVelocity_1, normaldV_1);
+      normaldV1_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_1, body1_velocityX_1, normaldV1_1);
+      normaldV1_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_1, body1_velocityY_1, normaldV1_1);
+      normaldV1_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_1, body1_angularVelocity_1, normaldV1_1);
 
-      normaldV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_1, body2_velocityX_1, normaldV_1);
-      normaldV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_1, body2_velocityY_1, normaldV_1);
-      normaldV_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_1, body2_angularVelocity_1, normaldV_1);
+      Vf normaldV2_1 = zero;
+
+      normaldV2_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_1, body2_velocityX_1, normaldV2_1);
+      normaldV2_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_1, body2_velocityY_1, normaldV2_1);
+      normaldV2_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_1, body2_angularVelocity_1, normaldV2_1);
+
+      Vf normaldV_1 = _mm256_add_ps(normaldV1_1, normaldV2_1);
 
       Vf normalDeltaImpulse_1 = _mm256_mul_ps(normaldV_1, j_normalLimiter_compInvMass_1);
 
@@ -2122,15 +2134,19 @@ struct Solver
 
       j_normalLimiter_accumulatedImpulse_1 = _mm256_add_ps(j_normalLimiter_accumulatedImpulse_1, normalDeltaImpulse_1);
 
-      Vf frictiondV_1 = zero;
+      Vf frictiondV0_1 = zero;
 
-      frictiondV_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1X_1, body1_velocityX_1, frictiondV_1);
-      frictiondV_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1Y_1, body1_velocityY_1, frictiondV_1);
-      frictiondV_1 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector1_1, body1_angularVelocity_1, frictiondV_1);
+      frictiondV0_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1X_1, body1_velocityX_1, frictiondV0_1);
+      frictiondV0_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector1Y_1, body1_velocityY_1, frictiondV0_1);
+      frictiondV0_1 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector1_1, body1_angularVelocity_1, frictiondV0_1);
 
-      frictiondV_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2X_1, body2_velocityX_1, frictiondV_1);
-      frictiondV_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2Y_1, body2_velocityY_1, frictiondV_1);
-      frictiondV_1 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector2_1, body2_angularVelocity_1, frictiondV_1);
+      Vf frictiondV1_1 = zero;
+
+      frictiondV1_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2X_1, body2_velocityX_1, frictiondV1_1);
+      frictiondV1_1 = _mm256_fnmadd_ps(j_frictionLimiter_normalProjector2Y_1, body2_velocityY_1, frictiondV1_1);
+      frictiondV1_1 = _mm256_fnmadd_ps(j_frictionLimiter_angularProjector2_1, body2_angularVelocity_1, frictiondV1_1);
+
+      Vf frictiondV_1 = _mm256_add_ps(frictiondV0_1, frictiondV1_1);
 
       Vf frictionDeltaImpulse_1 = _mm256_mul_ps(frictiondV_1, j_frictionLimiter_compInvMass_1);
 
@@ -2682,15 +2698,19 @@ struct Solver
       Vf body2_displacingVelocityY_1 = _mm256_combine_ps(row1, row5);
       Vf body2_displacingAngularVelocity_1 = _mm256_combine_ps(row2, row6);
 
-      Vf dV_0 = j_normalLimiter_dstDisplacingVelocity_0;
+      Vf dV0_0 = j_normalLimiter_dstDisplacingVelocity_0;
 
-      dV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_0, body1_displacingVelocityX_0, dV_0);
-      dV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_0, body1_displacingVelocityY_0, dV_0);
-      dV_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_0, body1_displacingAngularVelocity_0, dV_0);
+      dV0_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_0, body1_displacingVelocityX_0, dV0_0);
+      dV0_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_0, body1_displacingVelocityY_0, dV0_0);
+      dV0_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_0, body1_displacingAngularVelocity_0, dV0_0);
 
-      dV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_0, body2_displacingVelocityX_0, dV_0);
-      dV_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_0, body2_displacingVelocityY_0, dV_0);
-      dV_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_0, body2_displacingAngularVelocity_0, dV_0);
+      Vf dV1_0 = zero;
+
+      dV1_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_0, body2_displacingVelocityX_0, dV1_0);
+      dV1_0 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_0, body2_displacingVelocityY_0, dV1_0);
+      dV1_0 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_0, body2_displacingAngularVelocity_0, dV1_0);
+
+      Vf dV_0 = _mm256_add_ps(dV0_0, dV1_0);
 
       Vf displacingDeltaImpulse_0 = _mm256_mul_ps(dV_0, j_normalLimiter_compInvMass_0);
 
@@ -2706,15 +2726,19 @@ struct Solver
 
       j_normalLimiter_accumulatedDisplacingImpulse_0 = _mm256_add_ps(j_normalLimiter_accumulatedDisplacingImpulse_0, displacingDeltaImpulse_0);
 
-      Vf dV_1 = j_normalLimiter_dstDisplacingVelocity_1;
+      Vf dV0_1 = j_normalLimiter_dstDisplacingVelocity_1;
 
-      dV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_1, body1_displacingVelocityX_1, dV_1);
-      dV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_1, body1_displacingVelocityY_1, dV_1);
-      dV_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_1, body1_displacingAngularVelocity_1, dV_1);
+      dV0_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1X_1, body1_displacingVelocityX_1, dV0_1);
+      dV0_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector1Y_1, body1_displacingVelocityY_1, dV0_1);
+      dV0_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector1_1, body1_displacingAngularVelocity_1, dV0_1);
 
-      dV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_1, body2_displacingVelocityX_1, dV_1);
-      dV_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_1, body2_displacingVelocityY_1, dV_1);
-      dV_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_1, body2_displacingAngularVelocity_1, dV_1);
+      Vf dV1_1 = zero;
+
+      dV1_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2X_1, body2_displacingVelocityX_1, dV1_1);
+      dV1_1 = _mm256_fnmadd_ps(j_normalLimiter_normalProjector2Y_1, body2_displacingVelocityY_1, dV1_1);
+      dV1_1 = _mm256_fnmadd_ps(j_normalLimiter_angularProjector2_1, body2_displacingAngularVelocity_1, dV1_1);
+
+      Vf dV_1 = _mm256_add_ps(dV0_1, dV1_1);
 
       Vf displacingDeltaImpulse_1 = _mm256_mul_ps(dV_1, j_normalLimiter_compInvMass_1);
 
