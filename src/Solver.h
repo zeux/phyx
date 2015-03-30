@@ -100,6 +100,37 @@ template <int N> struct ContactJointPacked
   float frictionLimiter_accumulatedImpulse[N];
 };
 
+// http://stackoverflow.com/questions/25622745/transpose-an-8x8-float-using-avx-avx2
+#define _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7) \
+  do { \
+    __m256 __t0, __t1, __t2, __t3, __t4, __t5, __t6, __t7; \
+    __m256 __tt0, __tt1, __tt2, __tt3, __tt4, __tt5, __tt6, __tt7; \
+    __t0 = _mm256_unpacklo_ps(row0, row1); \
+    __t1 = _mm256_unpackhi_ps(row0, row1); \
+    __t2 = _mm256_unpacklo_ps(row2, row3); \
+    __t3 = _mm256_unpackhi_ps(row2, row3); \
+    __t4 = _mm256_unpacklo_ps(row4, row5); \
+    __t5 = _mm256_unpackhi_ps(row4, row5); \
+    __t6 = _mm256_unpacklo_ps(row6, row7); \
+    __t7 = _mm256_unpackhi_ps(row6, row7); \
+    __tt0 = _mm256_shuffle_ps(__t0,__t2,_MM_SHUFFLE(1,0,1,0)); \
+    __tt1 = _mm256_shuffle_ps(__t0,__t2,_MM_SHUFFLE(3,2,3,2)); \
+    __tt2 = _mm256_shuffle_ps(__t1,__t3,_MM_SHUFFLE(1,0,1,0)); \
+    __tt3 = _mm256_shuffle_ps(__t1,__t3,_MM_SHUFFLE(3,2,3,2)); \
+    __tt4 = _mm256_shuffle_ps(__t4,__t6,_MM_SHUFFLE(1,0,1,0)); \
+    __tt5 = _mm256_shuffle_ps(__t4,__t6,_MM_SHUFFLE(3,2,3,2)); \
+    __tt6 = _mm256_shuffle_ps(__t5,__t7,_MM_SHUFFLE(1,0,1,0)); \
+    __tt7 = _mm256_shuffle_ps(__t5,__t7,_MM_SHUFFLE(3,2,3,2)); \
+    row0 = _mm256_permute2f128_ps(__tt0, __tt4, 0x20); \
+    row1 = _mm256_permute2f128_ps(__tt1, __tt5, 0x20); \
+    row2 = _mm256_permute2f128_ps(__tt2, __tt6, 0x20); \
+    row3 = _mm256_permute2f128_ps(__tt3, __tt7, 0x20); \
+    row4 = _mm256_permute2f128_ps(__tt0, __tt4, 0x31); \
+    row5 = _mm256_permute2f128_ps(__tt1, __tt5, 0x31); \
+    row6 = _mm256_permute2f128_ps(__tt2, __tt6, 0x31); \
+    row7 = _mm256_permute2f128_ps(__tt3, __tt7, 0x31); \
+  } while (0)
+
 struct Solver
 {
   Solver()
@@ -1966,77 +1997,47 @@ struct Solver
       Vf j_frictionLimiter_compInvMass_1 = _mm256_load_ps(&jointP.frictionLimiter_compInvMass[iP_1]);
       Vf j_frictionLimiter_accumulatedImpulse_1 = _mm256_load_ps(&jointP.frictionLimiter_accumulatedImpulse[iP_1]);
 
-      __m128 row0, row1, row2, row3, row4, row5, row6, row7;
+      Vf row0, row1, row2, row3, row4, row5, row6, row7;
 
       static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Loading assumes fixed layout");
 
-      row0 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].velocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].velocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].velocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].velocity.x);
+      row0 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].velocity.x));
+      row1 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].velocity.x));
+      row2 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].velocity.x));
+      row3 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].velocity.x));
+      row4 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].velocity.x));
+      row5 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].velocity.x));
+      row6 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].velocity.x));
+      row7 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].velocity.x));
 
-      row4 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].velocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].velocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].velocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].velocity.x);
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      Vf body1_velocityX_0 = row0;
+      Vf body1_velocityY_0 = row1;
+      Vf body1_angularVelocity_0 = row2;
 
-      Vf body1_velocityX_0 = _mm256_combine_ps(row0, row4);
-      Vf body1_velocityY_0 = _mm256_combine_ps(row1, row5);
-      Vf body1_angularVelocity_0 = _mm256_combine_ps(row2, row6);
+      Vf body2_velocityX_0 = row4;
+      Vf body2_velocityY_0 = row5;
+      Vf body2_angularVelocity_0 = row6;
 
-      row0 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].velocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].velocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].velocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].velocity.x);
+      row0 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].velocity.x));
+      row1 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].velocity.x));
+      row2 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].velocity.x));
+      row3 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].velocity.x));
+      row4 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].velocity.x));
+      row5 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].velocity.x));
+      row6 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].velocity.x));
+      row7 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].velocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].velocity.x));
 
-      row4 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].velocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].velocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].velocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].velocity.x);
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      Vf body1_velocityX_1 = row0;
+      Vf body1_velocityY_1 = row1;
+      Vf body1_angularVelocity_1 = row2;
 
-      Vf body2_velocityX_0 = _mm256_combine_ps(row0, row4);
-      Vf body2_velocityY_0 = _mm256_combine_ps(row1, row5);
-      Vf body2_angularVelocity_0 = _mm256_combine_ps(row2, row6);
-
-      row0 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].velocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].velocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].velocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].velocity.x);
-
-      row4 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].velocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].velocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].velocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].velocity.x);
-
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
-
-      Vf body1_velocityX_1 = _mm256_combine_ps(row0, row4);
-      Vf body1_velocityY_1 = _mm256_combine_ps(row1, row5);
-      Vf body1_angularVelocity_1 = _mm256_combine_ps(row2, row6);
-
-      row0 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].velocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].velocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].velocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].velocity.x);
-
-      row4 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].velocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].velocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].velocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].velocity.x);
-
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
-
-      Vf body2_velocityX_1 = _mm256_combine_ps(row0, row4);
-      Vf body2_velocityY_1 = _mm256_combine_ps(row1, row5);
-      Vf body2_angularVelocity_1 = _mm256_combine_ps(row2, row6);
+      Vf body2_velocityX_1 = row4;
+      Vf body2_velocityY_1 = row5;
+      Vf body2_angularVelocity_1 = row6;
 
       Vf normaldV1_0 = j_normalLimiter_dstVelocity_0;
 
@@ -2183,93 +2184,77 @@ struct Solver
       // this is a bit painful :(
       static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Storing assumes fixed layout");
 
-      row0 = _mm256_extractf128_ps(body1_velocityX_0, 0);
-      row1 = _mm256_extractf128_ps(body1_velocityY_0, 0);
-      row2 = _mm256_extractf128_ps(body1_angularVelocity_0, 0);
-      row3 = _mm_setzero_ps();
+      row0 = body1_velocityX_0;
+      row1 = body1_velocityY_0;
+      row2 = body1_angularVelocity_0;
+      row3 = _mm256_setzero_ps();
 
-      row4 = _mm256_extractf128_ps(body1_velocityX_0, 1);
-      row5 = _mm256_extractf128_ps(body1_velocityY_0, 1);
-      row6 = _mm256_extractf128_ps(body1_angularVelocity_0, 1);
-      row7 = _mm_setzero_ps();
+      row4 = body2_velocityX_0;
+      row5 = body2_velocityY_0;
+      row6 = body2_angularVelocity_0;
+      row7 = _mm256_setzero_ps();
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].velocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].velocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].velocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].velocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].velocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].velocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].velocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].velocity.x, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].velocity.x, _mm256_extractf128_ps(row0, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].velocity.x, _mm256_extractf128_ps(row0, 1));
 
-      row0 = _mm256_extractf128_ps(body2_velocityX_0, 0);
-      row1 = _mm256_extractf128_ps(body2_velocityY_0, 0);
-      row2 = _mm256_extractf128_ps(body2_angularVelocity_0, 0);
-      row3 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].velocity.x, _mm256_extractf128_ps(row1, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].velocity.x, _mm256_extractf128_ps(row1, 1));
 
-      row4 = _mm256_extractf128_ps(body2_velocityX_0, 1);
-      row5 = _mm256_extractf128_ps(body2_velocityY_0, 1);
-      row6 = _mm256_extractf128_ps(body2_angularVelocity_0, 1);
-      row7 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].velocity.x, _mm256_extractf128_ps(row2, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].velocity.x, _mm256_extractf128_ps(row2, 1));
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].velocity.x, _mm256_extractf128_ps(row3, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].velocity.x, _mm256_extractf128_ps(row3, 1));
 
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].velocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].velocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].velocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].velocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].velocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].velocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].velocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].velocity.x, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].velocity.x, _mm256_extractf128_ps(row4, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].velocity.x, _mm256_extractf128_ps(row4, 1));
 
-      row0 = _mm256_extractf128_ps(body1_velocityX_1, 0);
-      row1 = _mm256_extractf128_ps(body1_velocityY_1, 0);
-      row2 = _mm256_extractf128_ps(body1_angularVelocity_1, 0);
-      row3 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].velocity.x, _mm256_extractf128_ps(row5, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].velocity.x, _mm256_extractf128_ps(row5, 1));
 
-      row4 = _mm256_extractf128_ps(body1_velocityX_1, 1);
-      row5 = _mm256_extractf128_ps(body1_velocityY_1, 1);
-      row6 = _mm256_extractf128_ps(body1_angularVelocity_1, 1);
-      row7 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].velocity.x, _mm256_extractf128_ps(row6, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].velocity.x, _mm256_extractf128_ps(row6, 1));
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
 
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].velocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].velocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].velocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].velocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].velocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].velocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].velocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].velocity.x, row7);
+      row0 = body1_velocityX_1;
+      row1 = body1_velocityY_1;
+      row2 = body1_angularVelocity_1;
+      row3 = _mm256_setzero_ps();
 
-      row0 = _mm256_extractf128_ps(body2_velocityX_1, 0);
-      row1 = _mm256_extractf128_ps(body2_velocityY_1, 0);
-      row2 = _mm256_extractf128_ps(body2_angularVelocity_1, 0);
-      row3 = _mm_setzero_ps();
+      row4 = body2_velocityX_1;
+      row5 = body2_velocityY_1;
+      row6 = body2_angularVelocity_1;
+      row7 = _mm256_setzero_ps();
 
-      row4 = _mm256_extractf128_ps(body2_velocityX_1, 1);
-      row5 = _mm256_extractf128_ps(body2_velocityY_1, 1);
-      row6 = _mm256_extractf128_ps(body2_angularVelocity_1, 1);
-      row7 = _mm_setzero_ps();
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].velocity.x, _mm256_extractf128_ps(row0, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].velocity.x, _mm256_extractf128_ps(row0, 1));
 
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].velocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].velocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].velocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].velocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].velocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].velocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].velocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].velocity.x, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].velocity.x, _mm256_extractf128_ps(row1, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].velocity.x, _mm256_extractf128_ps(row1, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].velocity.x, _mm256_extractf128_ps(row2, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].velocity.x, _mm256_extractf128_ps(row2, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].velocity.x, _mm256_extractf128_ps(row3, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].velocity.x, _mm256_extractf128_ps(row3, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].velocity.x, _mm256_extractf128_ps(row4, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].velocity.x, _mm256_extractf128_ps(row4, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].velocity.x, _mm256_extractf128_ps(row5, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].velocity.x, _mm256_extractf128_ps(row5, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].velocity.x, _mm256_extractf128_ps(row6, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].velocity.x, _mm256_extractf128_ps(row6, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
     }
   }
 
@@ -2628,77 +2613,47 @@ struct Solver
       Vf j_normalLimiter_dstDisplacingVelocity_1 = _mm256_load_ps(&jointP.normalLimiter_dstDisplacingVelocity[iP_1]);
       Vf j_normalLimiter_accumulatedDisplacingImpulse_1 = _mm256_load_ps(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP_1]);
 
-      __m128 row0, row1, row2, row3, row4, row5, row6, row7;
+      Vf row0, row1, row2, row3, row4, row5, row6, row7;
 
       static_assert(offsetof(SolveBody, displacingVelocity) == 16 && offsetof(SolveBody, displacingAngularVelocity) == 24, "Loading assumes fixed layout");
 
-      row0 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].displacingVelocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].displacingVelocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].displacingVelocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].displacingVelocity.x);
+      row0 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].displacingVelocity.x));
+      row1 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].displacingVelocity.x));
+      row2 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].displacingVelocity.x));
+      row3 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].displacingVelocity.x));
+      row4 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].displacingVelocity.x));
+      row5 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].displacingVelocity.x));
+      row6 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].displacingVelocity.x));
+      row7 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].displacingVelocity.x));
 
-      row4 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].displacingVelocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].displacingVelocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].displacingVelocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].displacingVelocity.x);
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      Vf body1_displacingVelocityX_0 = row0;
+      Vf body1_displacingVelocityY_0 = row1;
+      Vf body1_displacingAngularVelocity_0 = row2;
 
-      Vf body1_displacingVelocityX_0 = _mm256_combine_ps(row0, row4);
-      Vf body1_displacingVelocityY_0 = _mm256_combine_ps(row1, row5);
-      Vf body1_displacingAngularVelocity_0 = _mm256_combine_ps(row2, row6);
+      Vf body2_displacingVelocityX_0 = row4;
+      Vf body2_displacingVelocityY_0 = row5;
+      Vf body2_displacingAngularVelocity_0 = row6;
 
-      row0 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].displacingVelocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].displacingVelocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].displacingVelocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].displacingVelocity.x);
+      row0 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].displacingVelocity.x));
+      row1 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].displacingVelocity.x));
+      row2 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].displacingVelocity.x));
+      row3 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].displacingVelocity.x));
+      row4 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].displacingVelocity.x));
+      row5 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].displacingVelocity.x));
+      row6 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].displacingVelocity.x));
+      row7 = _mm256_combine_ps(_mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].displacingVelocity.x), _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].displacingVelocity.x));
 
-      row4 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].displacingVelocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].displacingVelocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].displacingVelocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].displacingVelocity.x);
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      Vf body1_displacingVelocityX_1 = row0;
+      Vf body1_displacingVelocityY_1 = row1;
+      Vf body1_displacingAngularVelocity_1 = row2;
 
-      Vf body2_displacingVelocityX_0 = _mm256_combine_ps(row0, row4);
-      Vf body2_displacingVelocityY_0 = _mm256_combine_ps(row1, row5);
-      Vf body2_displacingAngularVelocity_0 = _mm256_combine_ps(row2, row6);
-
-      row0 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].displacingVelocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].displacingVelocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].displacingVelocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].displacingVelocity.x);
-
-      row4 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].displacingVelocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].displacingVelocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].displacingVelocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].displacingVelocity.x);
-
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
-
-      Vf body1_displacingVelocityX_1 = _mm256_combine_ps(row0, row4);
-      Vf body1_displacingVelocityY_1 = _mm256_combine_ps(row1, row5);
-      Vf body1_displacingAngularVelocity_1 = _mm256_combine_ps(row2, row6);
-
-      row0 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].displacingVelocity.x);
-      row1 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].displacingVelocity.x);
-      row2 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].displacingVelocity.x);
-      row3 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].displacingVelocity.x);
-
-      row4 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].displacingVelocity.x);
-      row5 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].displacingVelocity.x);
-      row6 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].displacingVelocity.x);
-      row7 = _mm_load_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].displacingVelocity.x);
-
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
-
-      Vf body2_displacingVelocityX_1 = _mm256_combine_ps(row0, row4);
-      Vf body2_displacingVelocityY_1 = _mm256_combine_ps(row1, row5);
-      Vf body2_displacingAngularVelocity_1 = _mm256_combine_ps(row2, row6);
+      Vf body2_displacingVelocityX_1 = row4;
+      Vf body2_displacingVelocityY_1 = row5;
+      Vf body2_displacingAngularVelocity_1 = row6;
 
       Vf dV0_0 = j_normalLimiter_dstDisplacingVelocity_0;
 
@@ -2762,93 +2717,77 @@ struct Solver
       // this is a bit painful :(
       static_assert(offsetof(SolveBody, displacingVelocity) == 16 && offsetof(SolveBody, displacingAngularVelocity) == 24, "Storing assumes fixed layout");
 
-      row0 = _mm256_extractf128_ps(body1_displacingVelocityX_0, 0);
-      row1 = _mm256_extractf128_ps(body1_displacingVelocityY_0, 0);
-      row2 = _mm256_extractf128_ps(body1_displacingAngularVelocity_0, 0);
-      row3 = _mm_setzero_ps();
+      row0 = body1_displacingVelocityX_0;
+      row1 = body1_displacingVelocityY_0;
+      row2 = body1_displacingAngularVelocity_0;
+      row3 = _mm256_setzero_ps();
 
-      row4 = _mm256_extractf128_ps(body1_displacingVelocityX_0, 1);
-      row5 = _mm256_extractf128_ps(body1_displacingVelocityY_0, 1);
-      row6 = _mm256_extractf128_ps(body1_displacingAngularVelocity_0, 1);
-      row7 = _mm_setzero_ps();
+      row4 = body2_displacingVelocityX_0;
+      row5 = body2_displacingVelocityY_0;
+      row6 = body2_displacingAngularVelocity_0;
+      row7 = _mm256_setzero_ps();
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].displacingVelocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].displacingVelocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].displacingVelocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].displacingVelocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].displacingVelocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].displacingVelocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].displacingVelocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].displacingVelocity.x, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 0]].displacingVelocity.x, _mm256_extractf128_ps(row0, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].displacingVelocity.x, _mm256_extractf128_ps(row0, 1));
 
-      row0 = _mm256_extractf128_ps(body2_displacingVelocityX_0, 0);
-      row1 = _mm256_extractf128_ps(body2_displacingVelocityY_0, 0);
-      row2 = _mm256_extractf128_ps(body2_displacingAngularVelocity_0, 0);
-      row3 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 1]].displacingVelocity.x, _mm256_extractf128_ps(row1, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].displacingVelocity.x, _mm256_extractf128_ps(row1, 1));
 
-      row4 = _mm256_extractf128_ps(body2_displacingVelocityX_0, 1);
-      row5 = _mm256_extractf128_ps(body2_displacingVelocityY_0, 1);
-      row6 = _mm256_extractf128_ps(body2_displacingAngularVelocity_0, 1);
-      row7 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 2]].displacingVelocity.x, _mm256_extractf128_ps(row2, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].displacingVelocity.x, _mm256_extractf128_ps(row2, 1));
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 3]].displacingVelocity.x, _mm256_extractf128_ps(row3, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].displacingVelocity.x, _mm256_extractf128_ps(row3, 1));
 
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 0]].displacingVelocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 1]].displacingVelocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 2]].displacingVelocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 3]].displacingVelocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].displacingVelocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].displacingVelocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].displacingVelocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].displacingVelocity.x, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 4]].displacingVelocity.x, _mm256_extractf128_ps(row4, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 4]].displacingVelocity.x, _mm256_extractf128_ps(row4, 1));
 
-      row0 = _mm256_extractf128_ps(body1_displacingVelocityX_1, 0);
-      row1 = _mm256_extractf128_ps(body1_displacingVelocityY_1, 0);
-      row2 = _mm256_extractf128_ps(body1_displacingAngularVelocity_1, 0);
-      row3 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 5]].displacingVelocity.x, _mm256_extractf128_ps(row5, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 5]].displacingVelocity.x, _mm256_extractf128_ps(row5, 1));
 
-      row4 = _mm256_extractf128_ps(body1_displacingVelocityX_1, 1);
-      row5 = _mm256_extractf128_ps(body1_displacingVelocityY_1, 1);
-      row6 = _mm256_extractf128_ps(body1_displacingAngularVelocity_1, 1);
-      row7 = _mm_setzero_ps();
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 6]].displacingVelocity.x, _mm256_extractf128_ps(row6, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 6]].displacingVelocity.x, _mm256_extractf128_ps(row6, 1));
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_0 + 7]].displacingVelocity.x, _mm256_extractf128_ps(row7, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_0 + 7]].displacingVelocity.x, _mm256_extractf128_ps(row7, 1));
 
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].displacingVelocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].displacingVelocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].displacingVelocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].displacingVelocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].displacingVelocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].displacingVelocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].displacingVelocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].displacingVelocity.x, row7);
+      row0 = body1_displacingVelocityX_1;
+      row1 = body1_displacingVelocityY_1;
+      row2 = body1_displacingAngularVelocity_1;
+      row3 = _mm256_setzero_ps();
 
-      row0 = _mm256_extractf128_ps(body2_displacingVelocityX_1, 0);
-      row1 = _mm256_extractf128_ps(body2_displacingVelocityY_1, 0);
-      row2 = _mm256_extractf128_ps(body2_displacingAngularVelocity_1, 0);
-      row3 = _mm_setzero_ps();
+      row4 = body2_displacingVelocityX_1;
+      row5 = body2_displacingVelocityY_1;
+      row6 = body2_displacingAngularVelocity_1;
+      row7 = _mm256_setzero_ps();
 
-      row4 = _mm256_extractf128_ps(body2_displacingVelocityX_1, 1);
-      row5 = _mm256_extractf128_ps(body2_displacingVelocityY_1, 1);
-      row6 = _mm256_extractf128_ps(body2_displacingAngularVelocity_1, 1);
-      row7 = _mm_setzero_ps();
+      _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
-      _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-      _MM_TRANSPOSE4_PS(row4, row5, row6, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 0]].displacingVelocity.x, _mm256_extractf128_ps(row0, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].displacingVelocity.x, _mm256_extractf128_ps(row0, 1));
 
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 0]].displacingVelocity.x, row0);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].displacingVelocity.x, row1);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].displacingVelocity.x, row2);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].displacingVelocity.x, row3);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].displacingVelocity.x, row4);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].displacingVelocity.x, row5);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].displacingVelocity.x, row6);
-      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].displacingVelocity.x, row7);
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 1]].displacingVelocity.x, _mm256_extractf128_ps(row1, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 1]].displacingVelocity.x, _mm256_extractf128_ps(row1, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 2]].displacingVelocity.x, _mm256_extractf128_ps(row2, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 2]].displacingVelocity.x, _mm256_extractf128_ps(row2, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 3]].displacingVelocity.x, _mm256_extractf128_ps(row3, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 3]].displacingVelocity.x, _mm256_extractf128_ps(row3, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 4]].displacingVelocity.x, _mm256_extractf128_ps(row4, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 4]].displacingVelocity.x, _mm256_extractf128_ps(row4, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 5]].displacingVelocity.x, _mm256_extractf128_ps(row5, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 5]].displacingVelocity.x, _mm256_extractf128_ps(row5, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 6]].displacingVelocity.x, _mm256_extractf128_ps(row6, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 6]].displacingVelocity.x, _mm256_extractf128_ps(row6, 1));
+
+      _mm_store_ps(&solveBodies[jointP.body1Index[iP_1 + 7]].displacingVelocity.x, _mm256_extractf128_ps(row7, 0));
+      _mm_store_ps(&solveBodies[jointP.body2Index[iP_1 + 7]].displacingVelocity.x, _mm256_extractf128_ps(row7, 1));
     }
   }
 #endif
