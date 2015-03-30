@@ -48,11 +48,15 @@ const struct { PhysSystem::SolveMode mode; const char* name; } kModes[] =
   #ifdef __AVX2__
     { PhysSystem::Solve_SoAPacked_AVX2, "SoA Packed AVX2" },
   #endif
+
+  #if defined(__AVX2__) && defined(__FMA__)
+    { PhysSystem::Solve_SoAPacked_FMA, "SoA Packed FMA" },
+  #endif
 };
 
 int main(int argc, char** argv)
 {
-  int windowWidth = 1024, windowHeight = 768;
+  int windowWidth = 1280, windowHeight = 1024;
 
   PhysSystem physSystem;
   RigidBody *groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
@@ -62,7 +66,7 @@ int main(int argc, char** argv)
   int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
 
   const float gravity = 200.0f;
-  const float integrationTime = 2e-2f;
+  const float integrationTime = 1 / 60.f;
 
   float physicsTime = 0.0f;
 

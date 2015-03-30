@@ -20,6 +20,7 @@ struct PhysSystem
     Solve_SoAPacked_Scalar,
     Solve_SoAPacked_SSE2,
     Solve_SoAPacked_AVX2,
+    Solve_SoAPacked_FMA,
   };
 
   RigidBody *AddBody(Coords2f coords, Vector2f size)
@@ -112,6 +113,12 @@ struct PhysSystem
   #ifdef __AVX2__
     case Solve_SoAPacked_AVX2:
       solver.SolveJointsSoAPacked_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      break;
+  #endif
+
+  #if defined(__AVX2__) && defined(__FMA__)
+    case Solve_SoAPacked_FMA:
+      solver.SolveJointsSoAPacked_FMA(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
   #endif
 
