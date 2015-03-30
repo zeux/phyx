@@ -2054,7 +2054,7 @@ struct Solver
 
       Vf normalDeltaImpulse_0 = _mm256_mul_ps(normaldV_0, j_normalLimiter_compInvMass_0);
 
-      normalDeltaImpulse_0 = _mm256_max_ps(normalDeltaImpulse_0, _mm256_sub_ps(zero, j_normalLimiter_accumulatedImpulse_0));
+      normalDeltaImpulse_0 = _mm256_max_ps(normalDeltaImpulse_0, _mm256_xor_ps(j_normalLimiter_accumulatedImpulse_0, sign));
 
       body1_velocityX_0 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearX_0, normalDeltaImpulse_0, body1_velocityX_0);
       body1_velocityY_0 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearY_0, normalDeltaImpulse_0, body1_velocityY_0);
@@ -2122,7 +2122,7 @@ struct Solver
 
       Vf normalDeltaImpulse_1 = _mm256_mul_ps(normaldV_1, j_normalLimiter_compInvMass_1);
 
-      normalDeltaImpulse_1 = _mm256_max_ps(normalDeltaImpulse_1, _mm256_sub_ps(zero, j_normalLimiter_accumulatedImpulse_1));
+      normalDeltaImpulse_1 = _mm256_max_ps(normalDeltaImpulse_1, _mm256_xor_ps(j_normalLimiter_accumulatedImpulse_1, sign));
 
       body1_velocityX_1 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearX_1, normalDeltaImpulse_1, body1_velocityX_1);
       body1_velocityY_1 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearY_1, normalDeltaImpulse_1, body1_velocityY_1);
@@ -2582,6 +2582,8 @@ struct Solver
 
     assert(jointStart % 16 == 0 && jointCount % 16 == 0);
 
+    Vf sign = _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000));
+
     for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 16)
     {
       int i = jointIndex;
@@ -2714,7 +2716,7 @@ struct Solver
 
       Vf displacingDeltaImpulse_0 = _mm256_mul_ps(dV_0, j_normalLimiter_compInvMass_0);
 
-      displacingDeltaImpulse_0 = _mm256_max_ps(displacingDeltaImpulse_0, _mm256_sub_ps(zero, j_normalLimiter_accumulatedDisplacingImpulse_0));
+      displacingDeltaImpulse_0 = _mm256_max_ps(displacingDeltaImpulse_0, _mm256_xor_ps(j_normalLimiter_accumulatedDisplacingImpulse_0, sign));
 
       body1_displacingVelocityX_0 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearX_0, displacingDeltaImpulse_0, body1_displacingVelocityX_0);
       body1_displacingVelocityY_0 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearY_0, displacingDeltaImpulse_0, body1_displacingVelocityY_0);
@@ -2742,7 +2744,7 @@ struct Solver
 
       Vf displacingDeltaImpulse_1 = _mm256_mul_ps(dV_1, j_normalLimiter_compInvMass_1);
 
-      displacingDeltaImpulse_1 = _mm256_max_ps(displacingDeltaImpulse_1, _mm256_sub_ps(zero, j_normalLimiter_accumulatedDisplacingImpulse_1));
+      displacingDeltaImpulse_1 = _mm256_max_ps(displacingDeltaImpulse_1, _mm256_xor_ps(j_normalLimiter_accumulatedDisplacingImpulse_1, sign));
 
       body1_displacingVelocityX_1 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearX_1, displacingDeltaImpulse_1, body1_displacingVelocityX_1);
       body1_displacingVelocityY_1 = _mm256_fmadd_ps(j_normalLimiter_compMass1_linearY_1, displacingDeltaImpulse_1, body1_displacingVelocityY_1);
