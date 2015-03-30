@@ -100,6 +100,7 @@ template <int N> struct ContactJointPacked
   float frictionLimiter_accumulatedImpulse[N];
 };
 
+#ifdef __AVX2__
 // http://stackoverflow.com/questions/25622745/transpose-an-8x8-float-using-avx-avx2
 #define _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7) \
   do { \
@@ -130,6 +131,19 @@ template <int N> struct ContactJointPacked
     row6 = _mm256_permute2f128_ps(__tt2, __tt6, 0x31); \
     row7 = _mm256_permute2f128_ps(__tt3, __tt7, 0x31); \
   } while (0)
+
+  inline __m256 _mm256_combine_ps(__m128 a, __m128 b)
+  {
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
+  }
+
+  inline __m256 _mm256_load2_m128(const float* aaddr, const float* baddr)
+  {
+    __m128 a = _mm_load_ps(aaddr);
+    __m128 b = _mm_load_ps(baddr);
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
+  }
+#endif
 
 struct Solver
 {
@@ -939,18 +953,6 @@ struct Solver
   }
 
 #ifdef __AVX2__
-  static inline __m256 _mm256_combine_ps(__m128 a, __m128 b)
-  {
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
-  }
-
-  static inline __m256 _mm256_load2_m128(const float* aaddr, const float* baddr)
-  {
-    __m128 a = _mm_load_ps(aaddr);
-    __m128 b = _mm_load_ps(baddr);
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
-  }
-
   NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount)
   {
     typedef __m256 Vf;
