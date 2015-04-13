@@ -79,7 +79,7 @@ struct PhysSystem
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    int contactIterationsCount = 500;
+    int contactIterationsCount = 15;
     int penetrationIterationsCount = 15;
 
     switch (mode)

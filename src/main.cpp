@@ -73,10 +73,13 @@ int main(int argc, char** argv)
   RigidBody *draggedBody = physSystem.AddBody(
     Coords2f(Vector2f(windowWidth * 0.1f, windowHeight * 0.7f), 0.0f), Vector2f(30.0f, 30.0f));
 
-  for (int bodyIndex = 0; bodyIndex < 1000; bodyIndex++)
+  float bodyRadius = 2.f;
+  int bodyCount = 10000;
+
+  for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
   {
     RigidBody *testBody = physSystem.AddBody(
-      Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(15.0f, 15.0f));
+      Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(bodyRadius * 2.f, bodyRadius * 2.f));
     //testBody->invInertia = 0;
     testBody->velocity = Vector2f(10.0f, 0.0f);
   }
