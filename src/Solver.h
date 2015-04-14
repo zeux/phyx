@@ -28,10 +28,13 @@ template <typename T> struct AlignedArray
   {
     if (newsize > capacity)
     {
+      int newcapacity = capacity;
+      while (newcapacity < newsize) newcapacity += newcapacity / 2 + 1;
+
       aligned_free(data);
 
-      data = static_cast<T*>(aligned_alloc(newsize * sizeof(T), 32));
-      capacity = newsize;
+      data = static_cast<T*>(aligned_alloc(newcapacity * sizeof(T), 32));
+      capacity = newcapacity;
     }
 
     size = newsize;
