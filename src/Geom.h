@@ -92,7 +92,6 @@ struct Geom
 
   void RecomputeAABB()
   {
-    aabb.Reset();
     Vector2f diff = Vector2f(
       fabsf(coords.xVector.x) * size.x + fabsf(coords.yVector.x) * size.y,
       fabsf(coords.xVector.y) * size.x + fabsf(coords.yVector.y) * size.y);
