@@ -11,19 +11,24 @@ sf::Vector2f ConvertVector(Vector2f vec)
 
 void RenderBox(std::vector<sf::Vertex>& vertices, Coords2f coords, Vector2f size, sf::Color color)
 {
-  Vector2f localPoints[4];
-  localPoints[0] = Vector2f(-size.x, -size.y);
-  localPoints[1] = Vector2f(size.x, -size.y);
-  localPoints[2] = Vector2f(size.x, size.y);
-  localPoints[3] = Vector2f(-size.x, size.y);
+  Vector2f axisX = coords.xVector * size.x;
+  Vector2f axisY = coords.yVector * size.y;
 
-  for (int vertexNumber = 0; vertexNumber < 4; vertexNumber++)
-  {
-    sf::Vertex v;
-    v.color = color;
-    v.position = ConvertVector(coords.GetPointGlobalPos(localPoints[vertexNumber]));
-    vertices.push_back(v);
-  }
+  sf::Vertex v;
+
+  v.color = color;
+
+  v.position = ConvertVector(coords.pos - axisX - axisY);
+  vertices.push_back(v);
+
+  v.position = ConvertVector(coords.pos + axisX - axisY);
+  vertices.push_back(v);
+
+  v.position = ConvertVector(coords.pos + axisX + axisY);
+  vertices.push_back(v);
+
+  v.position = ConvertVector(coords.pos - axisX + axisY);
+  vertices.push_back(v);
 }
 
 float random(float min, float max)
