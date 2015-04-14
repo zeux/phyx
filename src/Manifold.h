@@ -76,8 +76,8 @@ struct Manifold
   }
   RigidBody *body1;
   RigidBody *body2;
-  Collision collisions[4]; //in 2d there's always 2 collisions max and 2 more may occur temporarily before merging
   int collisionsCount;
+  Collision collisions[4]; //in 2d there's always 2 collisions max and 2 more may occur temporarily before merging
 
 private:
   bool ComputeSeparatingAxis(Vector2f &separatingAxis)

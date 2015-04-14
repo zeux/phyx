@@ -32,13 +32,6 @@ struct Collider
   {
   }
 
-  NOINLINE void FindCollisions(RigidBody *bodies, size_t bodiesCount)
-  {
-    UpdateBroadphase(bodies, bodiesCount);
-    UpdatePairs(bodies, bodiesCount);
-    UpdateManifolds();
-  }
-
   NOINLINE void UpdateBroadphase(RigidBody* bodies, size_t bodiesCount)
   {
     broadphase.clear();

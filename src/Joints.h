@@ -195,22 +195,14 @@ struct NormalLimiter : public Limiter
 
 struct ContactJoint
 {
-  struct Descriptor
+  ContactJoint(RigidBody* body1, RigidBody* body2, Collision* collision, int solverIndex)
   {
-    Collision *collision;
-    RigidBody *body1;
-    RigidBody *body2;
-  };
-  ContactJoint(const Descriptor &desc, int solverIndex)
-  {
-    this->valid = 1;
-    this->collision = desc.collision;
-    this->body1 = desc.body1;
-    this->body2 = desc.body2;
-    this->body1Index = desc.body1->index;
-    this->body2Index = desc.body2->index;
+    this->collision = collision;
+    this->body1 = body1;
+    this->body2 = body2;
+    this->body1Index = body1->index;
+    this->body2Index = body2->index;
     collision->solverIndex = solverIndex;
-
   }
   void Refresh(int solverIndex)
   {
@@ -263,12 +255,11 @@ struct ContactJoint
   {
     normalLimiter.SolveDisplacingImpulse(body1, body2);
   }
+  Collision* collision;
   RigidBody *body1;
   RigidBody *body2;
   unsigned int body1Index;
   unsigned int body2Index;
   NormalLimiter normalLimiter;
   FrictionLimiter frictionLimiter;
-  Collision *collision;
-  bool valid;
 };

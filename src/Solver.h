@@ -153,11 +153,12 @@ struct Solver
   Solver()
   {
   }
-  void RefreshJoints()
+
+  NOINLINE void RefreshJoints()
   {
-    for (size_t jointIndex = 0; jointIndex < contactJoints.size();)
+    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); )
     {
-      if (!contactJoints[jointIndex].valid)
+      if (!contactJoints[jointIndex].collision)
       {
         contactJoints[jointIndex] = contactJoints[contactJoints.size() - 1];
         contactJoints.pop_back();
@@ -168,21 +169,14 @@ struct Solver
         jointIndex++;
       }
     }
+  }
+
+  NOINLINE void PreStepJoints()
+  {
     for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
     {
       contactJoints[jointIndex].PreStep();
     }
-  }
-
-  void RefreshContactJoint(ContactJoint::Descriptor desc, int solverIndex)
-  {
-    ContactJoint& joint = contactJoints[solverIndex];
-
-    assert(joint.body1 == desc.body1);
-    assert(joint.body2 == desc.body2);
-
-    joint.valid = 1;
-    joint.collision = desc.collision;
   }
 
   NOINLINE void SolveJoints(int contactIterationsCount, int penetrationIterationsCount)

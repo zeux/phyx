@@ -30,52 +30,29 @@ struct PhysSystem
     bodies.push_back(newbie);
     return &(bodies[bodies.size() - 1]);
   }
+
   void Update(float dt, SolveMode mode)
   {
     collisionTime = mergeTime = solveTime = 0;
 
     sf::Clock clock;
-    for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
-    {
-      bodies[bodyIndex].IntegrateVelocity(dt);
-    }
+
+    IntegrateVelocity(dt);
+
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    collider.FindCollisions(bodies.data(), bodies.size());
+    collider.UpdateBroadphase(bodies.data(), bodies.size());
+    collider.UpdatePairs(bodies.data(), bodies.size());
+    collider.UpdateManifolds();
+
     collisionTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
-    for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
-    {
-      solver.contactJoints[jointIndex].valid = 0;
-    }
-
-    for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
-    {
-      Manifold& man = collider.manifolds[manifoldIndex];
-
-      for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
-      {
-        Collision &col = man.collisions[collisionIndex];
-
-        ContactJoint::Descriptor desc;
-        desc.body1 = man.body1;
-        desc.body2 = man.body2;
-        desc.collision = &col;
-
-        if (col.solverIndex < 0)
-        {
-          solver.contactJoints.push_back(ContactJoint(desc, solver.contactJoints.size()));
-        }
-        else
-        {
-          solver.RefreshContactJoint(desc, col.solverIndex);
-        }
-      }
-    }
-
+    RefreshContactJoints();
     solver.RefreshJoints();
+    solver.PreStepJoints();
+
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();
 
@@ -89,36 +66,36 @@ struct PhysSystem
       break;
 
     case Solve_SoA_Scalar:
-      solver.SolveJointsSoA_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoA_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
 
     case Solve_SoA_SSE2:
-      solver.SolveJointsSoA_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoA_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
 
   #ifdef __AVX2__
     case Solve_SoA_AVX2:
-      solver.SolveJointsSoA_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoA_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
   #endif
 
     case Solve_SoAPacked_Scalar:
-      solver.SolveJointsSoAPacked_Scalar(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoAPacked_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
 
     case Solve_SoAPacked_SSE2:
-      solver.SolveJointsSoAPacked_SSE2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoAPacked_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
 
   #ifdef __AVX2__
     case Solve_SoAPacked_AVX2:
-      solver.SolveJointsSoAPacked_AVX2(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoAPacked_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
   #endif
 
   #if defined(__AVX2__) && defined(__FMA__)
     case Solve_SoAPacked_FMA:
-      solver.SolveJointsSoAPacked_FMA(&bodies[0], bodies.size(), contactIterationsCount, penetrationIterationsCount);
+      solver.SolveJointsSoAPacked_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
       break;
   #endif
 
@@ -128,13 +105,61 @@ struct PhysSystem
 
     solveTime += clock.getElapsedTime().asSeconds();
     clock.restart();
+
+    IntegratePosition(dt);
+
+    mergeTime += clock.getElapsedTime().asSeconds();
+    clock.restart();
+  }
+
+  NOINLINE void IntegrateVelocity(float dt)
+  {
+    for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
+    {
+      bodies[bodyIndex].IntegrateVelocity(dt);
+    }
+  }
+
+  NOINLINE void IntegratePosition(float dt)
+  {
     for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
     {
       bodies[bodyIndex].IntegratePosition(dt);
     }
-    mergeTime += clock.getElapsedTime().asSeconds();
-    clock.restart();
   }
+
+  NOINLINE void RefreshContactJoints()
+  {
+    for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
+    {
+      solver.contactJoints[jointIndex].collision = 0;
+    }
+
+    for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
+    {
+      Manifold& man = collider.manifolds[manifoldIndex];
+
+      for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
+      {
+        Collision &col = man.collisions[collisionIndex];
+
+        if (col.solverIndex < 0)
+        {
+          solver.contactJoints.push_back(ContactJoint(man.body1, man.body2, &col, solver.contactJoints.size()));
+        }
+        else
+        {
+          ContactJoint& joint = solver.contactJoints[col.solverIndex];
+
+          assert(joint.body1 == man.body1);
+          assert(joint.body2 == man.body2);
+
+          joint.collision = &col;
+        }
+      }
+    }
+  }
+
   size_t GetBodiesCount()
   {
     return bodies.size();
