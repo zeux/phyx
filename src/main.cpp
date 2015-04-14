@@ -98,16 +98,20 @@ int main(int argc, char** argv)
         testBody->velocity = body->velocity;
       }
 
+      double collisionTime = 0;
+      double mergeTime = 0;
       double solveTime = 0;
 
       for (int i = 0; i < 10; ++i)
       {
         testSystem.Update(1.f / 60.f, kModes[mode].mode);
 
+        collisionTime += testSystem.collisionTime;
+        mergeTime += testSystem.mergeTime;
         solveTime += testSystem.solveTime;
       }
 
-      printf("%s: %.2f ms\n", kModes[mode].name, solveTime * 1000.f);
+      printf("%s: collision %.2f ms, merge %.2f ms, solve %.2f ms\n", kModes[mode].name, collisionTime * 1000, mergeTime * 1000, solveTime * 1000);
     }
 
     return 0;

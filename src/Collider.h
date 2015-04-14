@@ -9,16 +9,16 @@
 #include "Manifold.h"
 #include "RigidBody.h"
 
-#include <unordered_map>
+#include "DenseHash.h"
 
 namespace std
 {
-  template <> struct hash<std::pair<RigidBody*, RigidBody*>>
+  template <> struct hash<std::pair<unsigned int, unsigned int>>
   {
-    size_t operator()(const std::pair<RigidBody*, RigidBody*>& p) const
+    size_t operator()(const std::pair<unsigned int, unsigned int>& p) const
     {
-      uintptr_t lb = reinterpret_cast<uintptr_t>(p.first);
-      uintptr_t rb = reinterpret_cast<uintptr_t>(p.second);
+      unsigned int lb = p.first;
+      unsigned int rb = p.second;
 
       return lb ^ (rb + 0x9e3779b9 + (lb<<6) + (lb>>2));
     }
@@ -27,6 +27,11 @@ namespace std
 
 struct Collider
 {
+  Collider()
+  : manifoldMap(std::make_pair(~0u, 0), std::make_pair(~0u, 1))
+  {
+  }
+
   NOINLINE void FindCollisions(RigidBody *bodies, size_t bodiesCount)
   {
     UpdateBroadphase(bodies, bodiesCount);
@@ -54,7 +59,8 @@ struct Collider
 
     for (size_t bodyIndex1 = 0; bodyIndex1 < bodiesCount; bodyIndex1++)
     {
-      RigidBody& body1 = bodies[broadphase[bodyIndex1].index];
+      unsigned int rigidBodyIndex1 = broadphase[bodyIndex1].index;
+      RigidBody& body1 = bodies[rigidBodyIndex1];
       float maxx = body1.geom.aabb.boxPoint2.x;
 
       for (size_t bodyIndex2 = bodyIndex1 + 1; bodyIndex2 < bodiesCount; bodyIndex2++)
@@ -62,17 +68,13 @@ struct Collider
         if (broadphase[bodyIndex2].minx > maxx)
           break;
 
-        RigidBody& body2 = bodies[broadphase[bodyIndex2].index];
+        unsigned int rigidBodyIndex2 = broadphase[bodyIndex2].index;
+        RigidBody& body2 = bodies[rigidBodyIndex2];
 
         if (body1.geom.aabb.boxPoint1.y <= body2.geom.aabb.boxPoint2.y && body1.geom.aabb.boxPoint2.y >= body2.geom.aabb.boxPoint1.y)
         {
-          bool& valid = manifoldMap[std::make_pair(&body1, &body2)];
-
-          if (!valid)
-          {
-            valid = true;
+          if (manifoldMap.insert(std::make_pair(rigidBodyIndex1, rigidBodyIndex2)))
             manifolds.push_back(Manifold(&body1, &body2));
-          }
         }
       }
     }
@@ -88,19 +90,10 @@ struct Collider
 
       if (m.collisionsCount == 0)
       {
-        manifoldMap.erase(std::make_pair(m.body1, m.body2));
+        manifoldMap.erase(std::make_pair(m.body1->index, m.body2->index));
 
-        if (manifoldIndex != manifolds.size() - 1)
-        {
-          m = manifolds.back();
-          manifolds.pop_back();
-
-          manifoldMap[std::make_pair(m.body1, m.body2)] = manifoldIndex;
-        }
-        else
-        {
-          manifolds.pop_back();
-        }
+        m = manifolds.back();
+        manifolds.pop_back();
       }
       else
       {
@@ -109,7 +102,7 @@ struct Collider
     }
   }
   
-  std::unordered_map<std::pair<RigidBody*, RigidBody*>, bool> manifoldMap;
+  DenseHashSet<std::pair<unsigned int, unsigned int> > manifoldMap;
   std::vector<Manifold> manifolds;
 
   struct BroadphaseEntry
