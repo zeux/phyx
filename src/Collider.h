@@ -38,7 +38,15 @@ struct Collider
 
     for (size_t bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
     {
-      BroadphaseEntry e = { bodies[bodyIndex].geom.aabb, unsigned(bodyIndex) };
+      const AABB2f& aabb = bodies[bodyIndex].geom.aabb;
+
+      BroadphaseEntry e =
+      {
+        aabb.boxPoint1.x, aabb.boxPoint2.x,
+        (aabb.boxPoint1.y + aabb.boxPoint2.y) * 0.5f,
+        (aabb.boxPoint2.y - aabb.boxPoint1.y) * 0.5f,
+        unsigned(bodyIndex)
+      };
 
       broadphase.push_back(e);
     }
@@ -53,15 +61,15 @@ struct Collider
     for (size_t bodyIndex1 = 0; bodyIndex1 < bodiesCount; bodyIndex1++)
     {
       const BroadphaseEntry& be1 = broadphase[bodyIndex1];
-      float maxx = be1.aabb.boxPoint2.x;
+      float maxx = be1.maxx;
 
       for (size_t bodyIndex2 = bodyIndex1 + 1; bodyIndex2 < bodiesCount; bodyIndex2++)
       {
         const BroadphaseEntry& be2 = broadphase[bodyIndex2];
-        if (be2.aabb.boxPoint1.x > maxx)
+        if (be2.minx > maxx)
           break;
 
-        if (be1.aabb.boxPoint1.y <= be2.aabb.boxPoint2.y && be1.aabb.boxPoint2.y >= be2.aabb.boxPoint1.y)
+        if (fabsf(be2.centery - be1.centery) <= be1.extenty + be2.extenty)
         {
           if (manifoldMap.insert(std::make_pair(be1.index, be2.index)))
             manifolds.push_back(Manifold(&bodies[be1.index], &bodies[be2.index]));
@@ -97,12 +105,13 @@ struct Collider
 
   struct BroadphaseEntry
   {
-    AABB2f aabb;
+    float minx, maxx;
+    float centery, extenty;
     unsigned int index;
 
     bool operator<(const BroadphaseEntry& other) const
     {
-      return aabb.boxPoint1.x < other.aabb.boxPoint1.x;
+      return minx < other.minx;
     }
   };
 
