@@ -22,16 +22,15 @@ template <typename T, typename F> inline void ParallelFor(WorkQueue& queue, T* d
 	std::atomic<unsigned int> counter(0);
 	std::atomic<unsigned int> ready(0);
 
-	for (size_t i = 0; i < queue.getWorkerCount() - 1; ++i)
+	for (size_t i = 0; i < queue.getWorkerCount(); ++i)
 	{
 		queue.push([&, data, count, groupSize]() {
 			ParallelForBatch(data, count, groupSize, counter, func);
-			ready++;
+
+			if (++ready == queue.getWorkerCount())
+				queue.signalReady();
 		});
 	}
 
-	ParallelForBatch(data, count, groupSize, counter, func);
-
-	while (ready.load() != queue.getWorkerCount() - 1)
-		std::this_thread::yield();
+	queue.signalWait();
 }

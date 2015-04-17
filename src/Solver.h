@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <vector>
 
+#include "Parallel.h"
+
 #include <immintrin.h>
 
 template <typename T> struct AlignedArray
@@ -154,8 +156,10 @@ struct Solver
   {
   }
 
-  NOINLINE void RefreshJoints()
+  NOINLINE void RefreshJoints(WorkQueue& queue)
   {
+    ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j) { if (j.collision) j.Refresh(); });
+
     for (size_t jointIndex = 0; jointIndex < contactJoints.size(); )
     {
       if (!contactJoints[jointIndex].collision)
@@ -165,18 +169,15 @@ struct Solver
       }
       else
       {
-        contactJoints[jointIndex].Refresh(jointIndex);
+        contactJoints[jointIndex].collision->solverIndex = jointIndex;
         jointIndex++;
       }
     }
   }
 
-  NOINLINE void PreStepJoints()
+  NOINLINE void PreStepJoints(WorkQueue& queue)
   {
-    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
-    {
-      contactJoints[jointIndex].PreStep();
-    }
+    ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j) { j.PreStep(); });
   }
 
   NOINLINE void SolveJoints(int contactIterationsCount, int penetrationIterationsCount)

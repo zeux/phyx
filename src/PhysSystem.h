@@ -51,8 +51,9 @@ struct PhysSystem
     clock.restart();
 
     RefreshContactJoints();
-    solver.RefreshJoints();
-    solver.PreStepJoints();
+
+    solver.RefreshJoints(queue);
+    solver.PreStepJoints(queue);
 
     mergeTime += clock.getElapsedTime().asSeconds();
     clock.restart();

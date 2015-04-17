@@ -15,6 +15,7 @@ public:
 	}
 
 	WorkQueue(size_t workerCount)
+	: signalTriggered(false)
 	{
 		for (size_t i = 0; i < workerCount; ++i)
 			workers.emplace_back(std::bind(workerThreadFun, std::ref(queue)));
@@ -39,9 +40,29 @@ public:
 		return workers.size();
 	}
 
+	void signalWait()
+	{
+		std::unique_lock<std::mutex> lock(signalMutex);
+
+		signalCondition.wait(lock, [&]() { return signalTriggered; });
+
+		signalTriggered = false;
+	}
+
+	void signalReady()
+	{
+		signalTriggered = true;
+
+		signalCondition.notify_one();
+	}
+
 private:
 	BlockingQueue<std::function<void()>> queue;
 	std::vector<std::thread> workers;
+
+	std::mutex signalMutex;
+	std::condition_variable signalCondition;
+	bool signalTriggered;
 
 	static void workerThreadFun(BlockingQueue<std::function<void()>>& queue)
 	{

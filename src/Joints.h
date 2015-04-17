@@ -204,10 +204,8 @@ struct ContactJoint
     this->body2Index = body2->index;
     collision->solverIndex = solverIndex;
   }
-  void Refresh(int solverIndex)
+  void Refresh()
   {
-    collision->solverIndex = solverIndex;
-
     Vector2f w1 = collision->delta1;
     Vector2f w2 = collision->delta2;
 
