@@ -11,6 +11,8 @@
 
 #include "DenseHash.h"
 
+#include "Parallel.h"
+
 namespace std
 {
   template <> struct hash<std::pair<unsigned int, unsigned int>>
@@ -42,9 +44,9 @@ struct Collider
 
       BroadphaseEntry e =
       {
-        aabb.boxPoint1.x, aabb.boxPoint2.x,
-        (aabb.boxPoint1.y + aabb.boxPoint2.y) * 0.5f,
-        (aabb.boxPoint2.y - aabb.boxPoint1.y) * 0.5f,
+        aabb.boxPoint1.y, aabb.boxPoint2.y,
+        (aabb.boxPoint1.x + aabb.boxPoint2.x) * 0.5f,
+        (aabb.boxPoint2.x - aabb.boxPoint1.x) * 0.5f,
         unsigned(bodyIndex)
       };
 
@@ -78,13 +80,13 @@ struct Collider
     }
   }
 
-  NOINLINE void UpdateManifolds()
+  NOINLINE void UpdateManifolds(WorkQueue& queue)
   {
+    ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m) { m.Update(); });
+
     for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size(); )
     {
       Manifold& m = manifolds[manifoldIndex];
-
-      m.Update();
 
       if (m.collisionsCount == 0)
       {

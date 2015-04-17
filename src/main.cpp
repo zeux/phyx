@@ -63,6 +63,8 @@ int main(int argc, char** argv)
 {
   int windowWidth = 1280, windowHeight = 1024;
 
+  std::unique_ptr<WorkQueue> queue(new WorkQueue(4));
+
   PhysSystem physSystem;
   RigidBody *groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
   groundBody->invInertia = 0.0f;
@@ -109,7 +111,7 @@ int main(int argc, char** argv)
 
       for (int i = 0; i < 10; ++i)
       {
-        testSystem.Update(1.f / 60.f, kModes[mode].mode);
+        testSystem.Update(*queue, 1.f / 60.f, kModes[mode].mode);
 
         collisionTime += testSystem.collisionTime;
         mergeTime += testSystem.mergeTime;
@@ -144,21 +146,28 @@ int main(int argc, char** argv)
         window->close();
       else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
         currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
+      else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::P)
+        paused = !paused;
+      else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::C)
+      {
+        size_t workers = queue->getWorkerCount();
+        workers *= 2;
+        if (workers > WorkQueue::getIdealWorkerCount())
+          workers = 1;
+        queue.reset(new WorkQueue(workers));
+      }
     }
     Vector2f mousePos = Vector2f(sf::Mouse::getPosition(*window).x, sf::Mouse::getPosition(*window).y);
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
-    {
-      paused = 0;
-    }
     window->clear(sf::Color(50, 50, 50, 255));
     vertices.clear();
     if (clock.getElapsedTime().asSeconds() > prevUpdateTime + integrationTime)
     {
       sf::Clock physicsClock;
       prevUpdateTime += integrationTime;
-      if (!paused)
+      float time = 0;
+      if (!paused || sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
+        time = integrationTime;
       {
-
         for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
         {
           physSystem.GetBody(bodyIndex)->acceleration = Vector2f(0.0f, 0.0f);
@@ -176,11 +185,10 @@ int main(int argc, char** argv)
         Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
         draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-        physSystem.Update(integrationTime, kModes[currentMode].mode);
+        physSystem.Update(*queue, time, kModes[currentMode].mode);
         physicsTime = physicsClock.getElapsedTime().asSeconds();
       }
     }
-
 
     for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
     {
@@ -199,14 +207,8 @@ int main(int argc, char** argv)
       RenderBox(vertices, bodyCoords, size, color);
     }
 
-
-    bool pickingCollision = 0;
-    /*if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
-    {
-      pickingCollision = true;
-    }*/
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::C))
-    for (size_t manifoldIndex = 0; manifoldIndex < physSystem.GetCollider()->manifolds.size(); ++manifoldIndex)
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::V))
+    for (size_t manifoldIndex = 0; manifoldIndex < physSystem.GetCollider()->manifolds.size(); manifoldIndex++)
     {
       Manifold& man = physSystem.GetCollider()->manifolds[manifoldIndex];
 
@@ -225,10 +227,7 @@ int main(int argc, char** argv)
 
         coords.pos = man.body2->coords.pos + man.collisions[collisionNumber].delta2;
         sf::Color color2(150, char(150 * redMult), char(150 * redMult), 100);
-        //if (pickingCollision && (coords.pos - mousePos).SquareLen() < 5.0f * 5.0f)
-        //{
-        //  color2 = sf::Color(255, 0, 0, 255);
-        //}
+
         RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), color2);
       }
     }
@@ -246,6 +245,7 @@ int main(int argc, char** argv)
     debugTextStream2 << std::fixed;
     debugTextStream2.precision(2);
     debugTextStream2 << 
+      queue->getWorkerCount() << " cores; " <<
       "Mode: " << kModes[currentMode].name << "; " <<
       "Physics time: " << std::setw(5) << physicsTime * 1000.0f << 
       "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << 

@@ -7,6 +7,7 @@
 #include "Solver.h"
 #include <vector>
 #include <SFML/Graphics.hpp>
+#include "WorkQueue.h"
 
 struct PhysSystem
 {
@@ -31,7 +32,7 @@ struct PhysSystem
     return &(bodies[bodies.size() - 1]);
   }
 
-  void Update(float dt, SolveMode mode)
+  void Update(WorkQueue& queue, float dt, SolveMode mode)
   {
     collisionTime = mergeTime = solveTime = 0;
 
@@ -44,7 +45,7 @@ struct PhysSystem
 
     collider.UpdateBroadphase(bodies.data(), bodies.size());
     collider.UpdatePairs(bodies.data(), bodies.size());
-    collider.UpdateManifolds();
+    collider.UpdateManifolds(queue);
 
     collisionTime += clock.getElapsedTime().asSeconds();
     clock.restart();
