@@ -13,7 +13,7 @@ inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
         return;
     }
 
-    struct Item : WorkQueue::Item
+    struct Item: WorkQueue::Item
     {
         WorkQueue* queue;
 

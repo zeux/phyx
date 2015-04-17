@@ -46,13 +46,15 @@ struct PhysSystem
         collider.UpdateBroadphase(bodies.data(), bodies.size());
         collider.UpdatePairs(queue, bodies.data(), bodies.size());
         collider.UpdateManifolds(queue);
+        collider.PackManifolds();
 
         collisionTime += clock.getElapsedTime().asSeconds();
         clock.restart();
 
         RefreshContactJoints();
 
-        solver.PreStepJoints(queue);
+        solver.RefreshJoints(queue);
+        solver.PreStepJoints();
 
         mergeTime += clock.getElapsedTime().asSeconds();
         clock.restart();

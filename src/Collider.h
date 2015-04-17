@@ -140,7 +140,10 @@ struct Collider
         ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int) {
             m.Update();
         });
+    }
 
+    NOINLINE void PackManifolds()
+    {
         for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size();)
         {
             Manifold& m = manifolds[manifoldIndex];

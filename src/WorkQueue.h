@@ -112,7 +112,7 @@ class WorkQueue
         }
     }
 
-    struct ItemFunction : Item
+    struct ItemFunction: Item
     {
         std::function<void()> function;
 

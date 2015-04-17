@@ -165,12 +165,17 @@ struct Solver
     {
     }
 
-    NOINLINE void PreStepJoints(WorkQueue& queue)
+    NOINLINE void RefreshJoints(WorkQueue& queue)
     {
-        ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) {
-            j.Refresh();
-            j.PreStep();
-        });
+        ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
+    }
+
+    NOINLINE void PreStepJoints()
+    {
+        for (auto& joint: contactJoints)
+        {
+            joint.PreStep();
+        }
     }
 
     NOINLINE float SolveJoints(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
