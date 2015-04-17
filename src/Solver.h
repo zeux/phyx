@@ -355,6 +355,8 @@ struct Solver
 
             productive |= SolveJointsImpulsesSoAPacked_SSE2(joint_packed4.data, 0, groupOffset, iterationIndex);
             productive |= SolveJointsImpulsesSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
