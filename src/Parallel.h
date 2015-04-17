@@ -2,34 +2,54 @@
 
 #include "WorkQueue.h"
 
-template <typename T, typename F> inline NOINLINE void ParallelForBatch(T* data, unsigned int count, unsigned int groupSize, std::atomic<unsigned int>& counter, F& func)
-{
-	do
-	{
-		unsigned int index = (counter++) * groupSize;
-		if (index >= count) return;
-
-		unsigned int end = std::min(count, index + groupSize);
-
-		for (unsigned int i = index; i < end; ++i)
-			func(data[i]);
-	}
-	while (true);
-}
-
 template <typename T, typename F> inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
 {
+	struct Item: WorkQueue::Item
+	{
+		WorkQueue* queue;
+
+		std::atomic<unsigned int>* counter;
+		std::atomic<unsigned int>* ready;
+
+		T* data;
+		unsigned int count;
+		unsigned int groupSize;
+
+		F* func;
+
+		void run() override
+		{
+			for (;;)
+			{
+				unsigned int index = (*counter)++ * groupSize;
+				if (index >= count) break;
+
+				unsigned int end = std::min(count, index + groupSize);
+
+				for (unsigned int i = index; i < end; ++i)
+					(*func)(data[i]);
+			}
+
+			if (++*ready == queue->getWorkerCount())
+				queue->signalReady();
+		}
+	};
+
 	std::atomic<unsigned int> counter(0);
 	std::atomic<unsigned int> ready(0);
 
 	for (size_t i = 0; i < queue.getWorkerCount(); ++i)
 	{
-		queue.push([&, data, count, groupSize]() {
-			ParallelForBatch(data, count, groupSize, counter, func);
+		std::unique_ptr<Item> item(new Item());
+		item->queue = &queue;
+		item->counter = &counter;
+		item->ready = &ready;
+		item->data = data;
+		item->count = count;
+		item->groupSize = groupSize;
+		item->func = &func;
 
-			if (++ready == queue.getWorkerCount())
-				queue.signalReady();
-		});
+		queue.push(std::unique_ptr<WorkQueue::Item>(std::move(item)));
 	}
 
 	queue.signalWait();

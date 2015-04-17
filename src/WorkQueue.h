@@ -3,12 +3,20 @@
 #include <vector>
 #include <thread>
 #include <functional>
-
-#include "BlockingQueue.h"
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 
 class WorkQueue
 {
 public:
+	struct Item
+	{
+		virtual ~Item() {}
+
+		virtual void run() = 0;
+	};
+
 	static unsigned int getIdealWorkerCount()
 	{
 		return std::max(std::thread::hardware_concurrency(), 1u);
@@ -18,21 +26,34 @@ public:
 	: signalTriggered(false)
 	{
 		for (size_t i = 0; i < workerCount; ++i)
-			workers.emplace_back(std::bind(workerThreadFun, std::ref(queue)));
+			workers.emplace_back(workerThreadFun, this);
 	}
 
 	~WorkQueue()
 	{
 		for (size_t i = 0; i < workers.size(); ++i)
-			queue.push(std::function<void()>());
+			push(std::unique_ptr<Item>());
 
 		for (size_t i = 0; i < workers.size(); ++i)
 			workers[i].join();
 	}
 
+	void push(std::unique_ptr<Item> item)
+	{
+		std::unique_lock<std::mutex> lock(itemsMutex);
+
+		items.push(std::move(item));
+
+		lock.unlock();
+		itemsCondition.notify_one();
+	}
+
 	void push(std::function<void()> fun)
 	{
-		queue.push(std::move(fun));
+		std::unique_ptr<ItemFunction> item(new ItemFunction());
+		item->function = std::move(fun);
+
+		push(std::move(item));
 	}
 
 	size_t getWorkerCount() const
@@ -57,18 +78,44 @@ public:
 	}
 
 private:
-	BlockingQueue<std::function<void()>> queue;
 	std::vector<std::thread> workers;
+
+	std::mutex itemsMutex;
+	std::condition_variable itemsCondition;
+	std::queue<std::unique_ptr<Item>> items;
 
 	std::mutex signalMutex;
 	std::condition_variable signalCondition;
 	bool signalTriggered;
 
-	static void workerThreadFun(BlockingQueue<std::function<void()>>& queue)
+	static void workerThreadFun(WorkQueue* queue)
 	{
-		while (std::function<void()> fun = queue.pop())
+		for (;;)
 		{
-			fun();
+			std::unique_ptr<Item> item;
+
+			{
+				std::unique_lock<std::mutex> lock(queue->itemsMutex);
+
+				queue->itemsCondition.wait(lock, [&]() { return !queue->items.empty(); });
+
+				item = std::move(queue->items.front());
+				queue->items.pop();
+			}
+
+			if (!item) break;
+
+			item->run();
 		}
 	}
+
+	struct ItemFunction: Item
+	{
+		std::function<void()> function;
+
+		void run() override
+		{
+			function();
+		}
+	};
 };
