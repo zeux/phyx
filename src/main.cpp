@@ -152,6 +152,12 @@ int main(int argc, char** argv)
         {
             if (event.type == sf::Event::Closed)
                 window->close();
+            else if (event.type == sf::Event::Resized)
+            {
+                sf::Vector2u size = window->getSize();
+
+                window->setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(size.x), static_cast<float>(size.y))));
+            }
             else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
                 currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
             else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::P)
