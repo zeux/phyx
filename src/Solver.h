@@ -15,7 +15,10 @@ struct AlignedArray
     int size;
     int capacity;
 
-    AlignedArray() : data(0), size(0), capacity(0)
+    AlignedArray()
+        : data(0)
+        , size(0)
+        , capacity(0)
     {
     }
 

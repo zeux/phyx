@@ -10,7 +10,11 @@ struct Vector2
     }
     inline Vector2<T>() {}
     //inline Vector3d(const Vector3d & rhs) { *this = rhs; }
-    inline Vector2<T>(const T& _x, const T& _y) : x(_x), y(_y) {}
+    inline Vector2<T>(const T& _x, const T& _y)
+        : x(_x)
+        , y(_y)
+    {
+    }
     inline T Len() const
     {
         return sqrt(x * x + y * y);

@@ -12,7 +12,8 @@ struct DenseHashSetItem
 {
     Key key;
 
-    DenseHashSetItem(const Key& key) : key(key)
+    DenseHashSetItem(const Key& key)
+        : key(key)
     {
     }
 };
@@ -23,7 +24,9 @@ struct DenseHashMapItem
     Key key;
     Value value;
 
-    DenseHashMapItem(const Key& key) : key(key), value()
+    DenseHashMapItem(const Key& key)
+        : key(key)
+        , value()
     {
     }
 };
@@ -34,7 +37,11 @@ class DenseHashTable
   public:
     class const_iterator;
 
-    DenseHashTable(const Key& empty_key, const Key& dead_key, size_t buckets) : data(buckets, Item(empty_key)), count(0), empty_key(empty_key), dead_key(dead_key)
+    DenseHashTable(const Key& empty_key, const Key& dead_key, size_t buckets)
+        : data(buckets, Item(empty_key))
+        , count(0)
+        , empty_key(empty_key)
+        , dead_key(dead_key)
     {
         // buckets has to be power-of-two or zero
         assert((buckets & (buckets - 1)) == 0);
@@ -177,11 +184,15 @@ class DenseHashTable
     class const_iterator
     {
       public:
-        const_iterator() : set(0), index(0)
+        const_iterator()
+            : set(0)
+            , index(0)
         {
         }
 
-        const_iterator(const DenseHashTable<Key, Item, Hash, Eq>* set, size_t index) : set(set), index(index)
+        const_iterator(const DenseHashTable<Key, Item, Hash, Eq>* set, size_t index)
+            : set(set)
+            , index(index)
         {
         }
 
@@ -267,11 +278,13 @@ class DenseHashSet
   public:
     typedef typename Impl::const_iterator const_iterator;
 
-    explicit DenseHashSet(const Key& empty_key) : impl(empty_key, empty_key, 0)
+    explicit DenseHashSet(const Key& empty_key)
+        : impl(empty_key, empty_key, 0)
     {
     }
 
-    DenseHashSet(const Key& empty_key, const Key& dead_key, size_t buckets = 0) : impl(empty_key, dead_key, buckets)
+    DenseHashSet(const Key& empty_key, const Key& dead_key, size_t buckets = 0)
+        : impl(empty_key, dead_key, buckets)
     {
     }
 
@@ -331,11 +344,13 @@ class DenseHashMap
   public:
     typedef typename Impl::const_iterator const_iterator;
 
-    explicit DenseHashMap(const Key& empty_key) : impl(empty_key, empty_key, 0)
+    explicit DenseHashMap(const Key& empty_key)
+        : impl(empty_key, empty_key, 0)
     {
     }
 
-    DenseHashMap(const Key& empty_key, const Key& dead_key, size_t buckets = 0) : impl(empty_key, dead_key, buckets)
+    DenseHashMap(const Key& empty_key, const Key& dead_key, size_t buckets = 0)
+        : impl(empty_key, dead_key, buckets)
     {
     }
 
