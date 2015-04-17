@@ -167,23 +167,20 @@ struct Solver
 
     NOINLINE void PreStepJoints(WorkQueue& queue)
     {
-        ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int)
-                    {
+        ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) {
             j.Refresh();
             j.PreStep();
-                    });
+        });
     }
 
     NOINLINE float SolveJoints(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
     {
-        for (int bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
-        {
-            bodies[bodyIndex].lastIteration = -1;
-            bodies[bodyIndex].lastDisplacementIteration = -1;
-        }
+        SolvePrepareAoS(bodies, bodiesCount);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
+            bool productive = false;
+
             for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
             {
                 ContactJoint& joint = contactJoints[jointIndex];
@@ -196,12 +193,17 @@ struct Solver
                 {
                     joint.body1->lastIteration = iterationIndex;
                     joint.body2->lastIteration = iterationIndex;
+                    productive = true;
                 }
             }
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
+            bool productive = false;
+
             for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
             {
                 ContactJoint& joint = contactJoints[jointIndex];
@@ -214,52 +216,35 @@ struct Solver
                 {
                     joint.body1->lastDisplacementIteration = iterationIndex;
                     joint.body2->lastDisplacementIteration = iterationIndex;
+                    productive = true;
                 }
             }
+
+            if (!productive) break;
         }
 
-        int iterationSum = 0;
-
-        for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
-        {
-            ContactJoint& joint = contactJoints[jointIndex];
-
-            iterationSum += std::max(joint.body1->lastIteration, joint.body2->lastIteration) + 2;
-            iterationSum += std::max(joint.body1->lastDisplacementIteration, joint.body2->lastDisplacementIteration) + 2;
-        }
-
-        return float(iterationSum) / float(contactJoints.size());
+        return SolveFinishAoS();
     }
 
     NOINLINE float SolveJointsAoS(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
     {
-        for (int bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
-        {
-            bodies[bodyIndex].lastIteration = -1;
-            bodies[bodyIndex].lastDisplacementIteration = -1;
-        }
+        SolvePrepareAoS(bodies, bodiesCount);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesAoS(0, contactJoints.size(), iterationIndex);
+            bool productive = SolveJointsImpulsesAoS(0, contactJoints.size(), iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementAoS(0, contactJoints.size(), iterationIndex);
+            bool productive = SolveJointsDisplacementAoS(0, contactJoints.size(), iterationIndex);
+
+            if (!productive) break;
         }
 
-        int iterationSum = 0;
-
-        for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
-        {
-            ContactJoint& joint = contactJoints[jointIndex];
-
-            iterationSum += std::max(joint.body1->lastIteration, joint.body2->lastIteration) + 2;
-            iterationSum += std::max(joint.body1->lastDisplacementIteration, joint.body2->lastDisplacementIteration) + 2;
-        }
-
-        return float(iterationSum) / float(contactJoints.size());
+        return SolveFinishAoS();
     }
 
     NOINLINE float SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
@@ -268,12 +253,16 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoA(0, contactJoints.size(), iterationIndex);
+            bool productive = SolveJointsImpulsesSoA(0, contactJoints.size(), iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoA(0, contactJoints.size(), iterationIndex);
+            bool productive = SolveJointsDisplacementSoA(0, contactJoints.size(), iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoA(bodies, bodiesCount);
@@ -285,14 +274,22 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoA_SSE2(0, groupOffset, iterationIndex);
-            SolveJointsImpulsesSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsImpulsesSoA_SSE2(0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoA_SSE2(0, groupOffset, iterationIndex);
-            SolveJointsDisplacementSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsDisplacementSoA_SSE2(0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoA(bodies, bodiesCount);
@@ -305,14 +302,22 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoA_AVX2(0, groupOffset, iterationIndex);
-            SolveJointsImpulsesSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsImpulsesSoA_AVX2(0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoA_AVX2(0, groupOffset, iterationIndex);
-            SolveJointsDisplacementSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsDisplacementSoA_AVX2(0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoA(groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoA(bodies, bodiesCount);
@@ -325,12 +330,16 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoAPacked(joint_packed4.data, 0, contactJoints.size(), iterationIndex);
+            bool productive = SolveJointsImpulsesSoAPacked(joint_packed4.data, 0, contactJoints.size(), iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoAPacked(joint_packed4.data, 0, contactJoints.size(), iterationIndex);
+            bool productive = SolveJointsDisplacementSoAPacked(joint_packed4.data, 0, contactJoints.size(), iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoAPacked(joint_packed4, bodies, bodiesCount);
@@ -342,14 +351,20 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoAPacked_SSE2(joint_packed4.data, 0, groupOffset, iterationIndex);
-            SolveJointsImpulsesSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsImpulsesSoAPacked_SSE2(joint_packed4.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoAPacked_SSE2(joint_packed4.data, 0, groupOffset, iterationIndex);
-            SolveJointsDisplacementSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsDisplacementSoAPacked_SSE2(joint_packed4.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoAPacked(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoAPacked(joint_packed4, bodies, bodiesCount);
@@ -362,14 +377,22 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoAPacked_AVX2(joint_packed8.data, 0, groupOffset, iterationIndex);
-            SolveJointsImpulsesSoAPacked(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsImpulsesSoAPacked_AVX2(joint_packed8.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoAPacked(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoAPacked_AVX2(joint_packed8.data, 0, groupOffset, iterationIndex);
-            SolveJointsDisplacementSoAPacked(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsDisplacementSoAPacked_AVX2(joint_packed8.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoAPacked(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoAPacked(joint_packed8, bodies, bodiesCount);
@@ -383,14 +406,22 @@ struct Solver
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
-            SolveJointsImpulsesSoAPacked_FMA(joint_packed16.data, 0, groupOffset, iterationIndex);
-            SolveJointsImpulsesSoAPacked(joint_packed16.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsImpulsesSoAPacked_FMA(joint_packed16.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoAPacked(joint_packed16.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
-            SolveJointsDisplacementSoAPacked_FMA(joint_packed16.data, 0, groupOffset, iterationIndex);
-            SolveJointsDisplacementSoAPacked(joint_packed16.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            bool productive = false;
+
+            productive |= SolveJointsDisplacementSoAPacked_FMA(joint_packed16.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoAPacked(joint_packed16.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+
+            if (!productive) break;
         }
 
         return SolveFinishSoAPacked(joint_packed16, bodies, bodiesCount);
@@ -464,6 +495,30 @@ struct Solver
 
             return (groupOffset / groupSizeTarget) * groupSizeTarget;
         }
+    }
+
+    NOINLINE void SolvePrepareAoS(RigidBody* bodies, int bodiesCount)
+    {
+        for (int bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
+        {
+            bodies[bodyIndex].lastIteration = -1;
+            bodies[bodyIndex].lastDisplacementIteration = -1;
+        }
+    }
+
+    NOINLINE float SolveFinishAoS()
+    {
+        int iterationSum = 0;
+
+        for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
+        {
+            ContactJoint& joint = contactJoints[jointIndex];
+
+            iterationSum += std::max(joint.body1->lastIteration, joint.body2->lastIteration) + 2;
+            iterationSum += std::max(joint.body1->lastDisplacementIteration, joint.body2->lastDisplacementIteration) + 2;
+        }
+
+        return float(iterationSum) / float(contactJoints.size());
     }
 
     NOINLINE int SolvePrepareSoA(RigidBody* bodies, int bodiesCount, int groupSizeTarget)
@@ -732,8 +787,10 @@ struct Solver
         return float(iterationSum) / float(jointCount);
     }
 
-    NOINLINE void SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex)
     {
+        bool productive = false;
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
         {
             ContactJoint& joint = contactJoints[jointIndex];
@@ -809,12 +866,17 @@ struct Solver
             {
                 body1->lastIteration = iterationIndex;
                 body2->lastIteration = iterationIndex;
+                productive = true;
             }
         }
+
+        return productive;
     }
 
-    NOINLINE void SolveJointsImpulsesSoA(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoA(int jointStart, int jointCount, int iterationIndex)
     {
+        bool productive = false;
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
         {
             int i = jointIndex;
@@ -890,11 +952,14 @@ struct Solver
             {
                 body1->lastIteration = iterationIndex;
                 body2->lastIteration = iterationIndex;
+                productive = true;
             }
         }
+
+        return productive;
     }
 
-    NOINLINE void SolveJointsImpulsesSoA_SSE2(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoA_SSE2(int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m128 Vf;
         typedef __m128i Vi;
@@ -905,6 +970,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm_setzero_si128();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 4)
         {
@@ -1047,6 +1114,8 @@ struct Solver
 
             Vf productive = _mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse));
 
+            productive_any = _mm_or_si128(productive_any, productive);
+
             body1_lastIteration = _mm_or_si128(_mm_andnot_si128(productive, body1_lastIteration), _mm_and_si128(iterationIndex0, productive));
             body2_lastIteration = _mm_or_si128(_mm_andnot_si128(productive, body2_lastIteration), _mm_and_si128(iterationIndex0, productive));
 
@@ -1077,10 +1146,12 @@ struct Solver
             _mm_store_ps(&solveBodiesImpulse[joint_body2Index[i + 2]].velocity.x, row2);
             _mm_store_ps(&solveBodiesImpulse[joint_body2Index[i + 3]].velocity.x, row3);
         }
+
+        return _mm_movemask_epi8(productive_any) != 0;
     }
 
 #ifdef __AVX2__
-    NOINLINE void SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m256 Vf;
         typedef __m256i Vi;
@@ -1091,6 +1162,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm256_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm256_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm256_setzero_si256();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
         {
@@ -1229,6 +1302,8 @@ struct Solver
 
             Vf productive = _mm256_cmp_ps(cumulativeImpulse, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
 
+            productive_any = _mm256_or_si256(productive_any, productive);
+
             body1_lastIteration = _mm256_blendv_epi8(body1_lastIteration, iterationIndex0, productive);
             body2_lastIteration = _mm256_blendv_epi8(body2_lastIteration, iterationIndex0, productive);
 
@@ -1271,11 +1346,15 @@ struct Solver
             _mm_store_ps(&solveBodiesImpulse[joint_body1Index[i + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
             _mm_store_ps(&solveBodiesImpulse[joint_body2Index[i + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
         }
+
+        return _mm256_movemask_epi8(productive_any) != 0;
     }
 #endif
 
-    NOINLINE void SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex)
     {
+        bool productive = false;
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
         {
             ContactJoint& joint = contactJoints[jointIndex];
@@ -1315,12 +1394,17 @@ struct Solver
             {
                 body1->lastDisplacementIteration = iterationIndex;
                 body2->lastDisplacementIteration = iterationIndex;
+                productive = true;
             }
         }
+
+        return productive;
     }
 
-    NOINLINE void SolveJointsDisplacementSoA(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoA(int jointStart, int jointCount, int iterationIndex)
     {
+        bool productive = false;
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
         {
             int i = jointIndex;
@@ -1360,11 +1444,14 @@ struct Solver
             {
                 body1->lastIteration = iterationIndex;
                 body2->lastIteration = iterationIndex;
+                productive = true;
             }
         }
+
+        return productive;
     }
 
-    NOINLINE void SolveJointsDisplacementSoA_SSE2(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoA_SSE2(int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m128 Vf;
         typedef __m128i Vi;
@@ -1375,6 +1462,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm_setzero_si128();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 4)
         {
@@ -1462,6 +1551,8 @@ struct Solver
 
             Vf productive = _mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse));
 
+            productive_any = _mm_or_si128(productive_any, productive);
+
             body1_lastDisplacementIteration = _mm_or_si128(_mm_andnot_si128(productive, body1_lastDisplacementIteration), _mm_and_si128(iterationIndex0, productive));
             body2_lastDisplacementIteration = _mm_or_si128(_mm_andnot_si128(productive, body2_lastDisplacementIteration), _mm_and_si128(iterationIndex0, productive));
 
@@ -1492,10 +1583,12 @@ struct Solver
             _mm_store_ps(&solveBodiesDisplacement[joint_body2Index[i + 2]].velocity.x, row2);
             _mm_store_ps(&solveBodiesDisplacement[joint_body2Index[i + 3]].velocity.x, row3);
         }
+
+        return _mm_movemask_epi8(productive_any) != 0;
     }
 
 #ifdef __AVX2__
-    NOINLINE void SolveJointsDisplacementSoA_AVX2(int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoA_AVX2(int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m256 Vf;
         typedef __m256i Vi;
@@ -1506,6 +1599,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm256_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm256_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm256_setzero_si256();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
         {
@@ -1589,6 +1684,8 @@ struct Solver
 
             Vf productive = _mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
 
+            productive_any = _mm256_or_si256(productive_any, productive);
+
             body1_lastDisplacementIteration = _mm256_blendv_epi8(body1_lastDisplacementIteration, iterationIndex0, productive);
             body2_lastDisplacementIteration = _mm256_blendv_epi8(body2_lastDisplacementIteration, iterationIndex0, productive);
 
@@ -1631,12 +1728,16 @@ struct Solver
             _mm_store_ps(&solveBodiesDisplacement[joint_body1Index[i + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
             _mm_store_ps(&solveBodiesDisplacement[joint_body2Index[i + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
         }
+
+        return _mm256_movemask_epi8(productive_any) != 0;
     }
 #endif
 
     template <int N>
-    NOINLINE void SolveJointsImpulsesSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
+        bool productive_any = false;
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
         {
             int i = jointIndex;
@@ -1715,11 +1816,14 @@ struct Solver
             {
                 body1->lastIteration = iterationIndex;
                 body2->lastIteration = iterationIndex;
+                productive_any = true;
             }
         }
+
+        return productive_any;
     }
 
-    NOINLINE void SolveJointsImpulsesSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m128 Vf;
         typedef __m128i Vi;
@@ -1730,6 +1834,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm_setzero_si128();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 4)
         {
@@ -1875,6 +1981,8 @@ struct Solver
 
             Vf productive = _mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse));
 
+            productive_any = _mm_or_si128(productive_any, productive);
+
             body1_lastIteration = _mm_or_si128(_mm_andnot_si128(productive, body1_lastIteration), _mm_and_si128(iterationIndex0, productive));
             body2_lastIteration = _mm_or_si128(_mm_andnot_si128(productive, body2_lastIteration), _mm_and_si128(iterationIndex0, productive));
 
@@ -1905,10 +2013,12 @@ struct Solver
             _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 2]].velocity.x, row2);
             _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 3]].velocity.x, row3);
         }
+
+        return _mm_movemask_epi8(productive_any) != 0;
     }
 
 #ifdef __AVX2__
-    NOINLINE void SolveJointsImpulsesSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m256 Vf;
         typedef __m256i Vi;
@@ -1919,6 +2029,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm256_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm256_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm256_setzero_si256();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
         {
@@ -2060,6 +2172,8 @@ struct Solver
 
             Vf productive = _mm256_cmp_ps(cumulativeImpulse, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
 
+            productive_any = _mm256_or_si256(productive_any, productive);
+
             body1_lastIteration = _mm256_blendv_epi8(body1_lastIteration, iterationIndex0, productive);
             body2_lastIteration = _mm256_blendv_epi8(body2_lastIteration, iterationIndex0, productive);
 
@@ -2102,11 +2216,13 @@ struct Solver
             _mm_store_ps(&solveBodiesImpulse[jointP.body1Index[iP + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
             _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
         }
+
+        return _mm256_movemask_epi8(productive_any) != 0;
     }
 #endif
 
 #if defined(__AVX2__) && defined(__FMA__)
-    NOINLINE void SolveJointsImpulsesSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsImpulsesSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m256 Vf;
         typedef __m256i Vi;
@@ -2117,6 +2233,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm256_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm256_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm256_setzero_si256();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 16)
         {
@@ -2398,6 +2516,8 @@ struct Solver
             Vf productive_0 = _mm256_cmp_ps(cumulativeImpulse_0, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
             Vf productive_1 = _mm256_cmp_ps(cumulativeImpulse_1, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
 
+            productive_any = _mm256_or_si256(productive_any, _mm256_or_si256(productive_0, productive_1));
+
             body1_lastIteration_0 = _mm256_blendv_epi8(body1_lastIteration_0, iterationIndex0, productive_0);
             body2_lastIteration_0 = _mm256_blendv_epi8(body2_lastIteration_0, iterationIndex0, productive_0);
 
@@ -2479,13 +2599,17 @@ struct Solver
             _mm_store_ps(&solveBodiesImpulse[jointP.body1Index[iP_1 + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
             _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP_1 + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
         }
+
+        return _mm256_movemask_epi8(productive_any) != 0;
     }
 
 #endif
 
     template <int N>
-    NOINLINE void SolveJointsDisplacementSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
+        bool productive_any = false;
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
         {
             int i = jointIndex;
@@ -2528,11 +2652,14 @@ struct Solver
             {
                 body1->lastIteration = iterationIndex;
                 body2->lastIteration = iterationIndex;
+                productive_any = true;
             }
         }
+
+        return productive_any;
     }
 
-    NOINLINE void SolveJointsDisplacementSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m128 Vf;
         typedef __m128i Vi;
@@ -2544,11 +2671,13 @@ struct Solver
         Vi iterationIndex0 = _mm_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm_set1_epi32(iterationIndex - 2);
 
+        Vi productive_any = _mm_setzero_si128();
+
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 4)
         {
             int i = jointIndex;
 
-            ContactJointPacked<4>& jointP = joint_packed[i >> 3];
+            ContactJointPacked<4>& jointP = joint_packed[i >> 2];
             int iP = 0;
 
             Vf zero = _mm_setzero_ps();
@@ -2633,6 +2762,8 @@ struct Solver
 
             Vf productive = _mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse));
 
+            productive_any = _mm_or_si128(productive_any, productive);
+
             body1_lastDisplacementIteration = _mm_or_si128(_mm_andnot_si128(productive, body1_lastDisplacementIteration), _mm_and_si128(iterationIndex0, productive));
             body2_lastDisplacementIteration = _mm_or_si128(_mm_andnot_si128(productive, body2_lastDisplacementIteration), _mm_and_si128(iterationIndex0, productive));
 
@@ -2663,10 +2794,12 @@ struct Solver
             _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 2]].velocity.x, row2);
             _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 3]].velocity.x, row3);
         }
+
+        return _mm_movemask_epi8(productive_any) != 0;
     }
 
 #ifdef __AVX2__
-    NOINLINE void SolveJointsDisplacementSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m256 Vf;
         typedef __m256i Vi;
@@ -2677,6 +2810,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm256_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm256_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm256_setzero_si256();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
         {
@@ -2763,6 +2898,8 @@ struct Solver
 
             Vf productive = _mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
 
+            productive_any = _mm256_or_si256(productive_any, productive);
+
             body1_lastDisplacementIteration = _mm256_blendv_epi8(body1_lastDisplacementIteration, iterationIndex0, productive);
             body2_lastDisplacementIteration = _mm256_blendv_epi8(body2_lastDisplacementIteration, iterationIndex0, productive);
 
@@ -2805,11 +2942,13 @@ struct Solver
             _mm_store_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
             _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
         }
+
+        return _mm256_movemask_epi8(productive_any) != 0;
     }
 #endif
 
 #if defined(__AVX2__) && defined(__FMA__)
-    NOINLINE void SolveJointsDisplacementSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+    NOINLINE bool SolveJointsDisplacementSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex)
     {
         typedef __m256 Vf;
         typedef __m256i Vi;
@@ -2820,6 +2959,8 @@ struct Solver
 
         Vi iterationIndex0 = _mm256_set1_epi32(iterationIndex);
         Vi iterationIndex2 = _mm256_set1_epi32(iterationIndex - 2);
+
+        Vi productive_any = _mm256_setzero_si256();
 
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 16)
         {
@@ -2983,6 +3124,8 @@ struct Solver
             Vf productive_0 = _mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse_0), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
             Vf productive_1 = _mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse_1), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
 
+            productive_any = _mm256_or_si256(productive_any, _mm256_or_si256(productive_0, productive_1));
+
             body1_lastDisplacementIteration_0 = _mm256_blendv_epi8(body1_lastDisplacementIteration_0, iterationIndex0, productive_0);
             body2_lastDisplacementIteration_0 = _mm256_blendv_epi8(body2_lastDisplacementIteration_0, iterationIndex0, productive_0);
 
@@ -3064,6 +3207,8 @@ struct Solver
             _mm_store_ps(&solveBodiesDisplacement[jointP.body1Index[iP_1 + 7]].velocity.x, _mm256_extractf128_ps(row7, 0));
             _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP_1 + 7]].velocity.x, _mm256_extractf128_ps(row7, 1));
         }
+
+        return _mm256_movemask_epi8(productive_any) != 0;
     }
 #endif
 

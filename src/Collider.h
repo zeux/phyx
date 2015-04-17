@@ -95,12 +95,11 @@ struct Collider
         for (auto& buf : manifoldBuffers)
             buf.pairs.clear();
 
-        ParallelFor(queue, bodies, bodiesCount, 128, [this, bodies, bodiesCount](RigidBody& body, int worker)
-                    {
+        ParallelFor(queue, bodies, bodiesCount, 128, [this, bodies, bodiesCount](RigidBody& body, int worker) {
             size_t bodyIndex1 = &body - bodies;
 
             UpdatePairsOne(bodies, bodyIndex1, bodyIndex1 + 1, bodiesCount, manifoldBuffers[worker]);
-                    });
+        });
 
         for (auto& buf : manifoldBuffers)
         {
@@ -138,10 +137,9 @@ struct Collider
 
     NOINLINE void UpdateManifolds(WorkQueue& queue)
     {
-        ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int)
-                    {
+        ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int) {
             m.Update();
-                    });
+        });
 
         for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size();)
         {
