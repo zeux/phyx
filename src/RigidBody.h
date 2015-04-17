@@ -76,6 +76,6 @@ struct RigidBody
     float invMass, invInertia;
     Coords2f coords;
 
-    int lastProductiveIteration;
-    int lastProductiveDisplacementIteration;
+    int lastIteration;
+    int lastDisplacementIteration;
 };
