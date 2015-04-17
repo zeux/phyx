@@ -32,7 +32,7 @@ struct PhysSystem
         return &(bodies[bodies.size() - 1]);
     }
 
-    void Update(WorkQueue &queue, float dt, SolveMode mode)
+    void Update(WorkQueue &queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount)
     {
         collisionTime = mergeTime = solveTime = 0;
 
@@ -57,51 +57,48 @@ struct PhysSystem
         mergeTime += clock.getElapsedTime().asSeconds();
         clock.restart();
 
-        int contactIterationsCount = 15;
-        int penetrationIterationsCount = 15;
-
         switch (mode)
         {
         case Solve_AoS:
-            solver.SolveJointsAoS(contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsAoS(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
         case Solve_SoA_Scalar:
-            solver.SolveJointsSoA_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoA_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
         case Solve_SoA_SSE2:
-            solver.SolveJointsSoA_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoA_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
-#ifdef __AVX2__
+    #ifdef __AVX2__
         case Solve_SoA_AVX2:
-            solver.SolveJointsSoA_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoA_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
-#endif
+    #endif
 
         case Solve_SoAPacked_Scalar:
-            solver.SolveJointsSoAPacked_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoAPacked_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
         case Solve_SoAPacked_SSE2:
-            solver.SolveJointsSoAPacked_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoAPacked_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
-#ifdef __AVX2__
+    #ifdef __AVX2__
         case Solve_SoAPacked_AVX2:
-            solver.SolveJointsSoAPacked_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoAPacked_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
-#endif
+    #endif
 
-#if defined(__AVX2__) && defined(__FMA__)
+    #if defined(__AVX2__) && defined(__FMA__)
         case Solve_SoAPacked_FMA:
-            solver.SolveJointsSoAPacked_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJointsSoAPacked_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
-#endif
+    #endif
 
         default:
-            solver.SolveJoints(contactIterationsCount, penetrationIterationsCount);
+            iterations = solver.SolveJoints(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
         }
 
         solveTime += clock.getElapsedTime().asSeconds();
@@ -197,6 +194,7 @@ struct PhysSystem
     float collisionTime;
     float mergeTime;
     float solveTime;
+    float iterations;
 
   private:
     std::vector<RigidBody> bodies;

@@ -225,12 +225,10 @@ struct ContactJoint
         normalLimiter.PreStep(body1, body2);
         frictionLimiter.PreStep(body1, body2);
     }
-    void SolveImpulse()
+    float SolveImpulse()
     {
-        normalLimiter.SolveImpulse(body1, body2);
-        //if(!shock)
-        /*float deltaImpulse1 = fdir1.ComputeDeltaImpulse<fixed1, fixed2>(body1->velocity, body1->angularVelocity, body2->velocity, body2->angularVelocity, 0);
-    float deltaImpulse2 = fdir2.ComputeDeltaImpulse<fixed1, fixed2>(body1->velocity, body1->angularVelocity, body2->velocity, body2->angularVelocity, 0);*/
+        float di = normalLimiter.SolveImpulse(body1, body2);
+
         float deltaImpulse =
             frictionLimiter.ComputeDeltaImpulse(body1, body2, 0.0f);
 
@@ -251,10 +249,12 @@ struct ContactJoint
         //totalError = max(totalError, fabsf(fdir1->deltaImpulse));
         frictionLimiter.accumulatedImpulse += deltaImpulse;
         frictionLimiter.ApplyImpulse(body1, body2, deltaImpulse);
+
+        return std::max(fabsf(di), fabsf(deltaImpulse));
     }
-    void SolveDisplacement()
+    float SolveDisplacement()
     {
-        normalLimiter.SolveDisplacingImpulse(body1, body2);
+        return normalLimiter.SolveDisplacingImpulse(body1, body2);
     }
     Collision *collision;
     RigidBody *body1;

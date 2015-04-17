@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 {
     int windowWidth = 1280, windowHeight = 1024;
 
-    std::unique_ptr<WorkQueue> queue(new WorkQueue(4));
+    std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount()));
 
     PhysSystem physSystem;
     RigidBody *groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
@@ -74,6 +74,8 @@ int main(int argc, char **argv)
 
     const float gravity = 200.0f;
     const float integrationTime = 1 / 60.f;
+    const int contactIterationsCount = 15;
+    const int penetrationIterationsCount = 15;
 
     float physicsTime = 0.0f;
 
@@ -108,17 +110,19 @@ int main(int argc, char **argv)
             double collisionTime = 0;
             double mergeTime = 0;
             double solveTime = 0;
+            float iterations = 0;
 
             for (int i = 0; i < 10; ++i)
             {
-                testSystem.Update(*queue, 1.f / 60.f, kModes[mode].mode);
+                testSystem.Update(*queue, 1.f / 60.f, kModes[mode].mode, contactIterationsCount, penetrationIterationsCount);
 
                 collisionTime += testSystem.collisionTime;
                 mergeTime += testSystem.mergeTime;
                 solveTime += testSystem.solveTime;
+                iterations += testSystem.iterations;
             }
 
-            printf("%s: collision %.2f ms, merge %.2f ms, solve %.2f ms\n", kModes[mode].name, collisionTime * 1000, mergeTime * 1000, solveTime * 1000);
+            printf("%s: collision %.2f ms, merge %.2f ms, solve %.2f ms, %.2f iterations\n", kModes[mode].name, collisionTime * 1000, mergeTime * 1000, solveTime * 1000, iterations);
         }
 
         return 0;
@@ -185,7 +189,7 @@ int main(int argc, char **argv)
                 Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
                 draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-                physSystem.Update(*queue, time, kModes[currentMode].mode);
+                physSystem.Update(*queue, time, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
                 physicsTime = physicsClock.getElapsedTime().asSeconds();
             }
         }
@@ -236,7 +240,11 @@ int main(int argc, char **argv)
             window->draw(&vertices[0], vertices.size(), sf::Quads);
 
         std::stringstream debugTextStream;
-        debugTextStream << "Bodies count: " << physSystem.GetBodiesCount() << " contacts count: " << physSystem.GetJointsCount();
+        debugTextStream.precision(2);
+        debugTextStream
+            << "Bodies: " << physSystem.GetBodiesCount()
+            << " Contacts: " << physSystem.GetJointsCount()
+            << " Iterations: " << physSystem.iterations;
         sf::Text text(debugTextStream.str().c_str(), font, 20);
         text.setPosition(sf::Vector2f(10.0f, 30.0f));
         window->draw(text);
@@ -244,9 +252,10 @@ int main(int argc, char **argv)
         std::stringstream debugTextStream2;
         debugTextStream2 << std::fixed;
         debugTextStream2.precision(2);
-        debugTextStream2 << queue->getWorkerCount() << " cores; "
-                         << "Mode: " << kModes[currentMode].name << "; "
-                         << "Physics time: " << std::setw(5) << physicsTime * 1000.0f << "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << "ms, s: " << std::setw(5) << physSystem.solveTime * 1000.0f << "ms)";
+        debugTextStream2
+            << queue->getWorkerCount() << " cores; "
+            << "Mode: " << kModes[currentMode].name << "; "
+            << "Physics time: " << std::setw(5) << physicsTime * 1000.0f << "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << "ms, s: " << std::setw(5) << physSystem.solveTime * 1000.0f << "ms)";
         sf::Text text2(debugTextStream2.str().c_str(), font, 20);
         text2.setPosition(sf::Vector2f(10.0f, 50.0f));
         window->draw(text2);
