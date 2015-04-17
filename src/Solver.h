@@ -156,28 +156,12 @@ struct Solver
   {
   }
 
-  NOINLINE void RefreshJoints(WorkQueue& queue)
-  {
-    ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j) { if (j.collision) j.Refresh(); });
-
-    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); )
-    {
-      if (!contactJoints[jointIndex].collision)
-      {
-        contactJoints[jointIndex] = contactJoints[contactJoints.size() - 1];
-        contactJoints.pop_back();
-      }
-      else
-      {
-        contactJoints[jointIndex].collision->solverIndex = jointIndex;
-        jointIndex++;
-      }
-    }
-  }
-
   NOINLINE void PreStepJoints(WorkQueue& queue)
   {
-    ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j) { j.PreStep(); });
+    ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) {
+      j.Refresh();
+      j.PreStep();
+    });
   }
 
   NOINLINE void SolveJoints(int contactIterationsCount, int penetrationIterationsCount)

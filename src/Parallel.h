@@ -17,7 +17,7 @@ template <typename T, typename F> inline void ParallelFor(WorkQueue& queue, T* d
 
 		F* func;
 
-		void run() override
+		void run(int worker) override
 		{
 			for (;;)
 			{
@@ -27,7 +27,7 @@ template <typename T, typename F> inline void ParallelFor(WorkQueue& queue, T* d
 				unsigned int end = std::min(count, index + groupSize);
 
 				for (unsigned int i = index; i < end; ++i)
-					(*func)(data[i]);
+					(*func)(data[i], worker);
 			}
 
 			if (++*ready == queue->getWorkerCount())

@@ -56,10 +56,18 @@ struct Collider
     std::sort(broadphase.begin(), broadphase.end());
   }
 
-  NOINLINE void UpdatePairs(RigidBody* bodies, size_t bodiesCount)
+  NOINLINE void UpdatePairs(WorkQueue& queue, RigidBody* bodies, size_t bodiesCount)
   {
     assert(bodiesCount == broadphase.size());
 
+    if (queue.getWorkerCount() == 1)
+      UpdatePairsSerial(bodies, bodiesCount);
+    else
+      UpdatePairsParallel(queue, bodies, bodiesCount);
+  }
+
+  NOINLINE void UpdatePairsSerial(RigidBody* bodies, size_t bodiesCount)
+  {
     for (size_t bodyIndex1 = 0; bodyIndex1 < bodiesCount; bodyIndex1++)
     {
       const BroadphaseEntry& be1 = broadphase[bodyIndex1];
@@ -80,9 +88,56 @@ struct Collider
     }
   }
 
+  NOINLINE void UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies, size_t bodiesCount)
+  {
+    manifoldBuffers.resize(queue.getWorkerCount());
+
+    for (auto& buf: manifoldBuffers)
+      buf.pairs.clear();
+
+    ParallelFor(queue, bodies, bodiesCount, 128, [this, bodies, bodiesCount](RigidBody& body, int worker) {
+      size_t bodyIndex1 = &body - bodies;
+
+      UpdatePairsOne(bodies, bodyIndex1, bodyIndex1 + 1, bodiesCount, manifoldBuffers[worker]);
+    });
+
+    for (auto& buf: manifoldBuffers)
+    {
+      for (auto& pair: buf.pairs)
+      {
+        manifoldMap.insert(pair);
+        manifolds.push_back(Manifold(&bodies[pair.first], &bodies[pair.second]));
+      }
+    }
+  }
+
+  struct ManifoldDeferredBuffer
+  {
+    std::vector<std::pair<int, int>> pairs;
+  };
+
+  void UpdatePairsOne(RigidBody* bodies, size_t bodyIndex1, size_t startIndex, size_t endIndex, ManifoldDeferredBuffer& buffer)
+  {
+      const BroadphaseEntry& be1 = broadphase[bodyIndex1];
+      float maxx = be1.maxx;
+
+      for (size_t bodyIndex2 = startIndex; bodyIndex2 < endIndex; bodyIndex2++)
+      {
+        const BroadphaseEntry& be2 = broadphase[bodyIndex2];
+        if (be2.minx > maxx)
+          return;
+
+        if (fabsf(be2.centery - be1.centery) <= be1.extenty + be2.extenty)
+        {
+          if (!manifoldMap.contains(std::make_pair(be1.index, be2.index)))
+            buffer.pairs.push_back(std::make_pair(be1.index, be2.index));
+        }
+      }
+  }
+
   NOINLINE void UpdateManifolds(WorkQueue& queue)
   {
-    ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m) { m.Update(); });
+    ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int) { m.Update(); });
 
     for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size(); )
     {
@@ -104,6 +159,7 @@ struct Collider
   
   DenseHashSet<std::pair<unsigned int, unsigned int> > manifoldMap;
   std::vector<Manifold> manifolds;
+  std::vector<ManifoldDeferredBuffer> manifoldBuffers;
 
   struct BroadphaseEntry
   {

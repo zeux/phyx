@@ -14,7 +14,7 @@ public:
 	{
 		virtual ~Item() {}
 
-		virtual void run() = 0;
+		virtual void run(int worker) = 0;
 	};
 
 	static unsigned int getIdealWorkerCount()
@@ -26,7 +26,7 @@ public:
 	: signalTriggered(false)
 	{
 		for (size_t i = 0; i < workerCount; ++i)
-			workers.emplace_back(workerThreadFun, this);
+			workers.emplace_back(workerThreadFun, this, i);
 	}
 
 	~WorkQueue()
@@ -88,7 +88,7 @@ private:
 	std::condition_variable signalCondition;
 	bool signalTriggered;
 
-	static void workerThreadFun(WorkQueue* queue)
+	static void workerThreadFun(WorkQueue* queue, int worker)
 	{
 		for (;;)
 		{
@@ -105,7 +105,7 @@ private:
 
 			if (!item) break;
 
-			item->run();
+			item->run(worker);
 		}
 	}
 
@@ -113,7 +113,7 @@ private:
 	{
 		std::function<void()> function;
 
-		void run() override
+		void run(int worker) override
 		{
 			function();
 		}

@@ -44,7 +44,7 @@ struct PhysSystem
     clock.restart();
 
     collider.UpdateBroadphase(bodies.data(), bodies.size());
-    collider.UpdatePairs(bodies.data(), bodies.size());
+    collider.UpdatePairs(queue, bodies.data(), bodies.size());
     collider.UpdateManifolds(queue);
 
     collisionTime += clock.getElapsedTime().asSeconds();
@@ -52,7 +52,6 @@ struct PhysSystem
 
     RefreshContactJoints();
 
-    solver.RefreshJoints(queue);
     solver.PreStepJoints(queue);
 
     mergeTime += clock.getElapsedTime().asSeconds();
@@ -158,6 +157,22 @@ struct PhysSystem
 
           joint.collision = &col;
         }
+      }
+    }
+
+    for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); )
+    {
+      ContactJoint& joint = solver.contactJoints[jointIndex];
+
+      if (!joint.collision)
+      {
+        joint = solver.contactJoints.back();
+        solver.contactJoints.pop_back();
+      }
+      else
+      {
+        joint.collision->solverIndex = jointIndex;
+        jointIndex++;
       }
     }
   }
