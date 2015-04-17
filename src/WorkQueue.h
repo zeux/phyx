@@ -65,17 +65,18 @@ class WorkQueue
     {
         std::unique_lock<std::mutex> lock(signalMutex);
 
-        signalCondition.wait(lock, [&]()
-                             { return signalTriggered;
-                             });
+        signalCondition.wait(lock, [&]() { return signalTriggered; });
 
         signalTriggered = false;
     }
 
     void signalReady()
     {
+        std::unique_lock<std::mutex> lock(signalMutex);
+
         signalTriggered = true;
 
+        lock.unlock();
         signalCondition.notify_one();
     }
 
@@ -99,9 +100,7 @@ class WorkQueue
             {
                 std::unique_lock<std::mutex> lock(queue->itemsMutex);
 
-                queue->itemsCondition.wait(lock, [&]()
-                                           { return !queue->items.empty();
-                                           });
+                queue->itemsCondition.wait(lock, [&]() { return !queue->items.empty(); });
 
                 item = std::move(queue->items.front());
                 queue->items.pop();
