@@ -1,15 +1,15 @@
 SOURCES=$(wildcard src/*.cpp)
 HEADERS=$(wildcard src/*.h)
 
-all: bin/suslix
+all: bin/phyx
 
-bin/suslix: $(SOURCES) $(HEADERS)
-	c++ -g -O3 -std=c++11 -DNDEBUG -mavx2 -mfma -ffast-math $(SOURCES) -lsfml-window -lsfml-graphics -lsfml-system -o bin/suslix
+bin/phyx: $(SOURCES) $(HEADERS)
+	c++ -g -O3 -std=c++11 -DNDEBUG -mavx2 -mfma -ffast-math $(SOURCES) -lsfml-window -lsfml-graphics -lsfml-system -o bin/phyx
 
-run: bin/suslix
-	cd bin && ./suslix
+run: bin/phyx
+	cd bin && ./phyx
 
-profile: bin/suslix
-	cd bin && ./suslix profile
+profile: bin/phyx
+	cd bin && ./phyx profile
 
 .PHONY: all run profile

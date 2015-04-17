@@ -36,12 +36,8 @@ float random(float min, float max)
     return min + (max - min) * (float(rand()) / float(RAND_MAX));
 }
 
-const struct
+const struct { PhysSystem::SolveMode mode; const char *name; } kModes[] =
 {
-    PhysSystem::SolveMode mode;
-    const char *name;
-} kModes[] =
-    {
      {PhysSystem::Solve_Baseline, "Baseline"},
      {PhysSystem::Solve_AoS, "AoS"},
      {PhysSystem::Solve_SoA_Scalar, "SoA Scalar"},
