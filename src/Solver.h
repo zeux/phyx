@@ -7,6 +7,7 @@
 #include <immintrin.h>
 
 const float kProductiveImpulse = 1e-4f;
+const float kFrictionCoefficient = 0.3f;
 
 template <typename T>
 struct AlignedArray
@@ -848,7 +849,7 @@ struct Solver
             float accumulatedImpulse = joint.frictionLimiter.accumulatedImpulse;
 
             float frictionForce = accumulatedImpulse + frictionDeltaImpulse;
-            float frictionCoefficient = 0.3f;
+            float frictionCoefficient = kFrictionCoefficient;
 
             if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
             {
@@ -934,7 +935,7 @@ struct Solver
             float accumulatedImpulse = joint_frictionLimiter_accumulatedImpulse[i];
 
             float frictionForce = accumulatedImpulse + frictionDeltaImpulse;
-            float frictionCoefficient = 0.3f;
+            float frictionCoefficient = kFrictionCoefficient;
 
             if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
             {
@@ -1094,7 +1095,7 @@ struct Solver
             Vf accumulatedImpulse = j_frictionLimiter_accumulatedImpulse;
 
             Vf frictionForce = _mm_add_ps(accumulatedImpulse, frictionDeltaImpulse);
-            Vf reactionForceScaled = _mm_mul_ps(reactionForce, _mm_set1_ps(0.3f));
+            Vf reactionForceScaled = _mm_mul_ps(reactionForce, _mm_set1_ps(kFrictionCoefficient));
 
             Vf frictionForceAbs = _mm_andnot_ps(sign, frictionForce);
             Vf reactionForceScaledSigned = _mm_xor_ps(_mm_and_ps(frictionForce, sign), reactionForceScaled);
@@ -1282,7 +1283,7 @@ struct Solver
             Vf accumulatedImpulse = j_frictionLimiter_accumulatedImpulse;
 
             Vf frictionForce = _mm256_add_ps(accumulatedImpulse, frictionDeltaImpulse);
-            Vf reactionForceScaled = _mm256_mul_ps(reactionForce, _mm256_set1_ps(0.3f));
+            Vf reactionForceScaled = _mm256_mul_ps(reactionForce, _mm256_set1_ps(kFrictionCoefficient));
 
             Vf frictionForceAbs = _mm256_andnot_ps(sign, frictionForce);
             Vf reactionForceScaledSigned = _mm256_xor_ps(_mm256_and_ps(frictionForce, sign), reactionForceScaled);
@@ -1798,7 +1799,7 @@ struct Solver
             float accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
 
             float frictionForce = accumulatedImpulse + frictionDeltaImpulse;
-            float frictionCoefficient = 0.3f;
+            float frictionCoefficient = kFrictionCoefficient;
 
             if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
             {
@@ -1961,7 +1962,7 @@ struct Solver
             Vf accumulatedImpulse = j_frictionLimiter_accumulatedImpulse;
 
             Vf frictionForce = _mm_add_ps(accumulatedImpulse, frictionDeltaImpulse);
-            Vf reactionForceScaled = _mm_mul_ps(reactionForce, _mm_set1_ps(0.3f));
+            Vf reactionForceScaled = _mm_mul_ps(reactionForce, _mm_set1_ps(kFrictionCoefficient));
 
             Vf frictionForceAbs = _mm_andnot_ps(sign, frictionForce);
             Vf reactionForceScaledSigned = _mm_xor_ps(_mm_and_ps(frictionForce, sign), reactionForceScaled);
@@ -2152,7 +2153,7 @@ struct Solver
             Vf accumulatedImpulse = j_frictionLimiter_accumulatedImpulse;
 
             Vf frictionForce = _mm256_add_ps(accumulatedImpulse, frictionDeltaImpulse);
-            Vf reactionForceScaled = _mm256_mul_ps(reactionForce, _mm256_set1_ps(0.3f));
+            Vf reactionForceScaled = _mm256_mul_ps(reactionForce, _mm256_set1_ps(kFrictionCoefficient));
 
             Vf frictionForceAbs = _mm256_andnot_ps(sign, frictionForce);
             Vf reactionForceScaledSigned = _mm256_xor_ps(_mm256_and_ps(frictionForce, sign), reactionForceScaled);
@@ -2423,7 +2424,7 @@ struct Solver
             Vf accumulatedImpulse_0 = j_frictionLimiter_accumulatedImpulse_0;
 
             Vf frictionForce_0 = _mm256_add_ps(accumulatedImpulse_0, frictionDeltaImpulse_0);
-            Vf reactionForceScaled_0 = _mm256_mul_ps(reactionForce_0, _mm256_set1_ps(0.3f));
+            Vf reactionForceScaled_0 = _mm256_mul_ps(reactionForce_0, _mm256_set1_ps(kFrictionCoefficient));
 
             Vf frictionForceAbs_0 = _mm256_andnot_ps(sign, frictionForce_0);
             Vf reactionForceScaledSigned_0 = _mm256_xor_ps(_mm256_and_ps(frictionForce_0, sign), reactionForceScaled_0);
@@ -2491,7 +2492,7 @@ struct Solver
             Vf accumulatedImpulse_1 = j_frictionLimiter_accumulatedImpulse_1;
 
             Vf frictionForce_1 = _mm256_add_ps(accumulatedImpulse_1, frictionDeltaImpulse_1);
-            Vf reactionForceScaled_1 = _mm256_mul_ps(reactionForce_1, _mm256_set1_ps(0.3f));
+            Vf reactionForceScaled_1 = _mm256_mul_ps(reactionForce_1, _mm256_set1_ps(kFrictionCoefficient));
 
             Vf frictionForceAbs_1 = _mm256_andnot_ps(sign, frictionForce_1);
             Vf reactionForceScaledSigned_1 = _mm256_xor_ps(_mm256_and_ps(frictionForce_1, sign), reactionForceScaled_1);
