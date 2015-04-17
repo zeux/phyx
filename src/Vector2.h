@@ -4,13 +4,13 @@ template <typename T>
 struct Vector2
 {
     T x, y;
-    T &operator[](const int i)
+    T& operator[](const int i)
     {
         return *(&(x) + i);
     }
     inline Vector2<T>() {}
     //inline Vector3d(const Vector3d & rhs) { *this = rhs; }
-    inline Vector2<T>(const T &_x, const T &_y) : x(_x), y(_y) {}
+    inline Vector2<T>(const T& _x, const T& _y) : x(_x), y(_y) {}
     inline T Len() const
     {
         return sqrt(x * x + y * y);
@@ -83,52 +83,52 @@ struct Vector2
         }
     }
 
-    inline Vector2<T> &operator*=(const T &val)
+    inline Vector2<T>& operator*=(const T& val)
     {
         x *= val;
         y *= val;
         return *this;
     }
 
-    inline Vector2<T> &operator/=(const T &val)
+    inline Vector2<T>& operator/=(const T& val)
     {
         T inv = T(1.0) / val;
         x *= inv;
         y *= inv;
         return *this;
     }
-    inline Vector2<T> &operator+=(const Vector2<T> &vec)
+    inline Vector2<T>& operator+=(const Vector2<T>& vec)
     {
         x += vec.x;
         y += vec.y;
         return *this;
     }
-    inline Vector2<T> &operator-=(const Vector2<T> &vec)
+    inline Vector2<T>& operator-=(const Vector2<T>& vec)
     {
         x -= vec.x;
         y -= vec.y;
         return *this;
     }
-    inline Vector2<T> &operator--()
+    inline Vector2<T>& operator--()
     {
         x = -x;
         y = -y;
         return *this;
     }
 
-    inline Vector2<T> operator+(const Vector2<T> &vec) const
+    inline Vector2<T> operator+(const Vector2<T>& vec) const
     {
         return Vector2<T>(x + vec.x, y + vec.y);
     }
-    inline Vector2<T> operator-(const Vector2<T> &vec) const
+    inline Vector2<T> operator-(const Vector2<T>& vec) const
     {
         return Vector2<T>(x - vec.x, y - vec.y);
     }
-    inline T operator*(const Vector2<T> &vec) const
+    inline T operator*(const Vector2<T>& vec) const
     {
         return x * vec.x + y * vec.y;
     }
-    inline Vector2<T> operator*(const T &val) const
+    inline Vector2<T> operator*(const T& val) const
     {
         return Vector2<T>(x * val, y * val);
     }
@@ -138,7 +138,7 @@ struct Vector2
     }
 
     template <typename SomeVector>
-    inline const Vector2<T> operator=(const SomeVector &v)
+    inline const Vector2<T> operator=(const SomeVector& v)
     {
         x = v.x;
         y = v.y;
@@ -172,13 +172,13 @@ struct Vector2
 };
 
 template <typename T>
-inline Vector2<T> operator*(const T &d, const Vector2<T> &V)
+inline Vector2<T> operator*(const T& d, const Vector2<T>& V)
 {
     return Vector2<T>(V.x * d, V.y * d);
 }
 
 template <typename T>
-inline Vector2<T> operator/(const Vector2<T> &V, const T &d)
+inline Vector2<T> operator/(const Vector2<T>& V, const T& d)
 {
     T invd;
     if (fabs(d) > T(1e-8)) invd = T(1.0) / d;
@@ -186,7 +186,7 @@ inline Vector2<T> operator/(const Vector2<T> &V, const T &d)
 }
 
 template <typename T>
-inline T operator^(const Vector2<T> &v1, const Vector2<T> &v2)
+inline T operator^(const Vector2<T>& v1, const Vector2<T>& v2)
 {
     return v1.x * v2.y - v1.y * v2.x;
 }
@@ -203,7 +203,7 @@ const static Vector2d xAxis2d = Vector2d(1, 0);
 const static Vector2d yAxis2d = Vector2d(0, 1);
 
 template <typename T>
-bool GetTwoLinesIntersection(const Vector2<T> &p1, const Vector2<T> &p2, const Vector2<T> &t1, const Vector2<T> &t2, Vector2<T> &p0)
+bool GetTwoLinesIntersection(const Vector2<T>& p1, const Vector2<T>& p2, const Vector2<T>& t1, const Vector2<T>& t2, Vector2<T>& p0)
 {
     Vector2<T> v1, v2;
     T k1, k2;
@@ -229,7 +229,7 @@ bool GetTwoLinesIntersection(const Vector2<T> &p1, const Vector2<T> &p2, const V
 }
 
 template <typename T>
-bool ProjectPointToLine(const Vector2<T> &t1, const Vector2<T> &t2, const Vector2<T> &p, Vector2<T> &p0, T &signOfSide)
+bool ProjectPointToLine(const Vector2<T>& t1, const Vector2<T>& t2, const Vector2<T>& p, Vector2<T>& p0, T& signOfSide)
 {
     Vector2<T> v1 = p - t1;
     Vector2<T> v2 = t2 - t1;
@@ -246,14 +246,14 @@ bool ProjectPointToLine(const Vector2<T> &t1, const Vector2<T> &t2, const Vector
 }
 
 template <typename T>
-bool ProjectPointToLine(const Vector2<T> &t1, const Vector2<T> &t2, const Vector2<T> &p, Vector2<T> &p0)
+bool ProjectPointToLine(const Vector2<T>& t1, const Vector2<T>& t2, const Vector2<T>& p, Vector2<T>& p0)
 {
     T signOfSide;
     return ProjectPointToLine(t1, t2, p, p0, signOfSide);
 }
 
 template <typename T>
-T PointToSegmentDistanse(const Vector2<T> &t1, const Vector2<T> &t2, const Vector2<T> &p)
+T PointToSegmentDistanse(const Vector2<T>& t1, const Vector2<T>& t2, const Vector2<T>& p)
 {
     Vector2<T> p0;
     T signOfSide;
@@ -269,22 +269,22 @@ T PointToSegmentDistanse(const Vector2<T> &t1, const Vector2<T> &t2, const Vecto
 }
 
 template <typename T>
-void ProjectPointToLine(const Vector2<T> &point, const Vector2<T> &planePoint, const Vector2<T> &planeNormal, const Vector2<T> &projectionDirection,
-                        Vector2f &projectedPoint)
+void ProjectPointToLine(const Vector2<T>& point, const Vector2<T>& planePoint, const Vector2<T>& planeNormal, const Vector2<T>& projectionDirection,
+                        Vector2f& projectedPoint)
 {
     float mult = 1.0f / (projectionDirection * planeNormal);
     projectedPoint = point + projectionDirection * ((planePoint * planeNormal) - (point * planeNormal)) * mult;
 }
 
 template <typename T>
-void ProjectPointToPlane(const Vector2<T> &point, const Vector2<T> &planePoint, const Vector2<T> &planeNormal, const Vector2<T> &projectionDirection,
-                         Vector2f &projectedPoint)
+void ProjectPointToPlane(const Vector2<T>& point, const Vector2<T>& planePoint, const Vector2<T>& planeNormal, const Vector2<T>& projectionDirection,
+                         Vector2f& projectedPoint)
 {
     ProjectPointToLine(point, planePoint, planeNormal, projectionDirection, projectedPoint);
 }
 
 template <typename T>
-void ProjectPointToLine_noreturn(const Vector2<T> &t1, const Vector2<T> &t2, const Vector2<T> &p, Vector2<T> &p0, T &signOfSide)
+void ProjectPointToLine_noreturn(const Vector2<T>& t1, const Vector2<T>& t2, const Vector2<T>& p, Vector2<T>& p0, T& signOfSide)
 {
     Vector2<T> v1 = p - t1;
     Vector2<T> v2 = t2 - t1;

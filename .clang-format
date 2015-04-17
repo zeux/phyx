@@ -4,3 +4,4 @@ BreakBeforeBraces: Allman
 AllowShortIfStatementsOnASingleLine: true
 IndentCaseLabels: false
 ColumnLimit: 0
+PointerAlignment: Left

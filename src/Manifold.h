@@ -10,20 +10,20 @@ struct Manifold
         body1 = body2 = 0;
         collisionsCount = -1;
     }
-    Manifold(RigidBody *body1, RigidBody *body2)
+    Manifold(RigidBody* body1, RigidBody* body2)
     {
         this->body1 = body1;
         this->body2 = body2;
         collisionsCount = 0;
     }
-    void MergeCollision(Collision *newbie)
+    void MergeCollision(Collision* newbie)
     {
-        Collision *closest = 0;
+        Collision* closest = 0;
         float bestdepth = std::numeric_limits<float>::max();
 
         for (int collisionIndex = 0; collisionIndex < collisionsCount; collisionIndex++)
         {
-            Collision *col = &collisions[collisionIndex];
+            Collision* col = &collisions[collisionIndex];
             if (newbie->Equals(col, 2.0f))
             {
                 float depth = (newbie->delta1 - col->delta1).SquareLen() + (newbie->delta2 - col->delta2).SquareLen();
@@ -73,13 +73,13 @@ struct Manifold
             }
         }
     }
-    RigidBody *body1;
-    RigidBody *body2;
+    RigidBody* body1;
+    RigidBody* body2;
     int collisionsCount;
     Collision collisions[4]; //in 2d there's always 2 collisions max and 2 more may occur temporarily before merging
 
   private:
-    bool ComputeSeparatingAxis(Vector2f &separatingAxis)
+    bool ComputeSeparatingAxis(Vector2f& separatingAxis)
     {
 
         Vector2f axis[4];

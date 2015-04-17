@@ -90,7 +90,7 @@ class WorkQueue
     std::condition_variable signalCondition;
     bool signalTriggered;
 
-    static void workerThreadFun(WorkQueue *queue, int worker)
+    static void workerThreadFun(WorkQueue* queue, int worker)
     {
         for (;;)
         {

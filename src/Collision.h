@@ -7,7 +7,7 @@ struct Collision
     Collision()
     {
     }
-    Collision(Vector2f point1, const Vector2f &point2, const Vector2f normal, RigidBody *body1, RigidBody *body2)
+    Collision(Vector2f point1, const Vector2f& point2, const Vector2f normal, RigidBody* body1, RigidBody* body2)
     {
         this->delta1 = point1 - body1->coords.pos;
         this->delta2 = point2 - body2->coords.pos;
@@ -17,7 +17,7 @@ struct Collision
         solverIndex = -1;
     }
 
-    bool Equals(Collision *other, float tolerance)
+    bool Equals(Collision* other, float tolerance)
     {
         if (((other->delta1 - delta1).SquareLen() > tolerance * tolerance) &&
             ((other->delta2 - delta2).SquareLen() > tolerance * tolerance))
@@ -27,7 +27,7 @@ struct Collision
         return 1;
     }
 
-    void Refresh(Collision *col)
+    void Refresh(Collision* col)
     {
         isMerged = 1;
         isNewlyCreated = 0;

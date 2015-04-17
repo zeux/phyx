@@ -12,7 +12,7 @@ struct DenseHashSetItem
 {
     Key key;
 
-    DenseHashSetItem(const Key &key) : key(key)
+    DenseHashSetItem(const Key& key) : key(key)
     {
     }
 };
@@ -23,7 +23,7 @@ struct DenseHashMapItem
     Key key;
     Value value;
 
-    DenseHashMapItem(const Key &key) : key(key), value()
+    DenseHashMapItem(const Key& key) : key(key), value()
     {
     }
 };
@@ -34,7 +34,7 @@ class DenseHashTable
   public:
     class const_iterator;
 
-    DenseHashTable(const Key &empty_key, const Key &dead_key, size_t buckets) : data(buckets, Item(empty_key)), count(0), empty_key(empty_key), dead_key(dead_key)
+    DenseHashTable(const Key& empty_key, const Key& dead_key, size_t buckets) : data(buckets, Item(empty_key)), count(0), empty_key(empty_key), dead_key(dead_key)
     {
         // buckets has to be power-of-two or zero
         assert((buckets & (buckets - 1)) == 0);
@@ -46,7 +46,7 @@ class DenseHashTable
         count = 0;
     }
 
-    std::pair<Item *, bool> insert(const Key &key)
+    std::pair<Item*, bool> insert(const Key& key)
     {
         // It is invalid to insert empty_key into the table since it acts as a "entry does not exist" marker
         assert(!eq(key, empty_key) && !eq(key, dead_key));
@@ -61,7 +61,7 @@ class DenseHashTable
 
         for (size_t probe = 0; probe <= hashmod; ++probe)
         {
-            Item &probe_item = data[bucket];
+            Item& probe_item = data[bucket];
 
             // Element does not exist, insert here
             if (eq(probe_item.key, empty_key) || eq(probe_item.key, dead_key))
@@ -86,7 +86,7 @@ class DenseHashTable
         return std::make_pair(nullptr, false);
     }
 
-    void erase(const Key &key)
+    void erase(const Key& key)
     {
         // It is invalid to erase from the table that can't differentiate between empty and dead keys
         assert(!eq(empty_key, dead_key));
@@ -99,7 +99,7 @@ class DenseHashTable
 
         for (size_t probe = 0; probe <= hashmod; ++probe)
         {
-            Item &probe_item = data[bucket];
+            Item& probe_item = data[bucket];
 
             // Element exists
             if (eq(probe_item.key, key))
@@ -120,7 +120,7 @@ class DenseHashTable
         assert(false);
     }
 
-    const Item *find(const Key &key) const
+    const Item* find(const Key& key) const
     {
         if (data.empty()) return 0;
         if (eq(key, empty_key) || eq(key, dead_key)) return 0;
@@ -130,7 +130,7 @@ class DenseHashTable
 
         for (size_t probe = 0; probe <= hashmod; ++probe)
         {
-            const Item &probe_item = data[bucket];
+            const Item& probe_item = data[bucket];
 
             // Element exists
             if (eq(probe_item.key, key))
@@ -181,36 +181,36 @@ class DenseHashTable
         {
         }
 
-        const_iterator(const DenseHashTable<Key, Item, Hash, Eq> *set, size_t index) : set(set), index(index)
+        const_iterator(const DenseHashTable<Key, Item, Hash, Eq>* set, size_t index) : set(set), index(index)
         {
         }
 
-        const Item &getItem() const
+        const Item& getItem() const
         {
             return set->data[index];
         }
 
-        const Key &operator*() const
+        const Key& operator*() const
         {
             return set->data[index].key;
         }
 
-        const Key *operator->() const
+        const Key* operator->() const
         {
             return &set->data[index].key;
         }
 
-        bool operator==(const const_iterator &other) const
+        bool operator==(const const_iterator& other) const
         {
             return set == other.set && index == other.index;
         }
 
-        bool operator!=(const const_iterator &other) const
+        bool operator!=(const const_iterator& other) const
         {
             return set != other.set || index != other.index;
         }
 
-        const_iterator &operator++()
+        const_iterator& operator++()
         {
             size_t size = set->data.size();
 
@@ -230,7 +230,7 @@ class DenseHashTable
         }
 
       private:
-        const DenseHashTable<Key, Item, Hash, Eq> *set;
+        const DenseHashTable<Key, Item, Hash, Eq>* set;
         size_t index;
     };
 
@@ -267,11 +267,11 @@ class DenseHashSet
   public:
     typedef typename Impl::const_iterator const_iterator;
 
-    explicit DenseHashSet(const Key &empty_key) : impl(empty_key, empty_key, 0)
+    explicit DenseHashSet(const Key& empty_key) : impl(empty_key, empty_key, 0)
     {
     }
 
-    DenseHashSet(const Key &empty_key, const Key &dead_key, size_t buckets = 0) : impl(empty_key, dead_key, buckets)
+    DenseHashSet(const Key& empty_key, const Key& dead_key, size_t buckets = 0) : impl(empty_key, dead_key, buckets)
     {
     }
 
@@ -280,17 +280,17 @@ class DenseHashSet
         impl.clear();
     }
 
-    bool insert(const Key &key)
+    bool insert(const Key& key)
     {
         return impl.insert(key).second;
     }
 
-    void erase(const Key &key)
+    void erase(const Key& key)
     {
         impl.erase(key);
     }
 
-    bool contains(const Key &key) const
+    bool contains(const Key& key) const
     {
         return impl.find(key) != 0;
     }
@@ -331,11 +331,11 @@ class DenseHashMap
   public:
     typedef typename Impl::const_iterator const_iterator;
 
-    explicit DenseHashMap(const Key &empty_key) : impl(empty_key, empty_key, 0)
+    explicit DenseHashMap(const Key& empty_key) : impl(empty_key, empty_key, 0)
     {
     }
 
-    DenseHashMap(const Key &empty_key, const Key &dead_key, size_t buckets = 0) : impl(empty_key, dead_key, buckets)
+    DenseHashMap(const Key& empty_key, const Key& dead_key, size_t buckets = 0) : impl(empty_key, dead_key, buckets)
     {
     }
 
@@ -345,33 +345,33 @@ class DenseHashMap
     }
 
     // Note: this reference is invalidated by any insert operation (i.e. operator[])
-    Value &operator[](const Key &key)
+    Value& operator[](const Key& key)
     {
         return impl.insert(key).first->value;
     }
 
-    void erase(const Key &key)
+    void erase(const Key& key)
     {
         impl.erase(key);
     }
 
     // Note: this pointer is invalidated by any insert operation (i.e. operator[])
-    const Value *find(const Key &key) const
+    const Value* find(const Key& key) const
     {
-        const detail::DenseHashMapItem<Key, Value> *result = impl.find(key);
+        const detail::DenseHashMapItem<Key, Value>* result = impl.find(key);
 
         return result ? &result->value : nullptr;
     }
 
     // Note: this pointer is invalidated by any insert operation (i.e. operator[])
-    Value *find(const Key &key)
+    Value* find(const Key& key)
     {
-        const detail::DenseHashMapItem<Key, Value> *result = impl.find(key);
+        const detail::DenseHashMapItem<Key, Value>* result = impl.find(key);
 
-        return result ? const_cast<Value *>(&result->value) : nullptr;
+        return result ? const_cast<Value*>(&result->value) : nullptr;
     }
 
-    bool contains(const Key &key) const
+    bool contains(const Key& key) const
     {
         return impl.find(key) != 0;
     }

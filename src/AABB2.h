@@ -8,12 +8,12 @@ class AABB2
     {
         Reset();
     }
-    AABB2(const Vector2<T> &_boxPoint1, const Vector2<T> &_boxPoint2)
+    AABB2(const Vector2<T>& _boxPoint1, const Vector2<T>& _boxPoint2)
     {
         Set(_boxPoint1, _boxPoint2);
     }
 
-    bool Intersects(const AABB2<T> &aabb) const
+    bool Intersects(const AABB2<T>& aabb) const
     {
         if ((boxPoint1.x > aabb.boxPoint2.x) || (aabb.boxPoint1.x > boxPoint2.x)) return 0;
         if ((boxPoint1.y > aabb.boxPoint2.y) || (aabb.boxPoint1.y > boxPoint2.y)) return 0;
@@ -21,7 +21,7 @@ class AABB2
     }
 
     template <bool isFiniteCast>
-    bool Intersects(Vector2<T> rayStart, Vector2<T> rayDir, float &paramMin, float &paramMax)
+    bool Intersects(Vector2<T> rayStart, Vector2<T> rayDir, float& paramMin, float& paramMax)
     {
         // r.dir is unit direction vector of ray
         Vector2f invDir(1.0f / rayDir.x, 1.0f / rayDir.y);
@@ -49,7 +49,7 @@ class AABB2
         }
         return true;
     }
-    bool Includes(const Vector2<T> &point) const
+    bool Includes(const Vector2<T>& point) const
     {
         if ((point.x < boxPoint1.x) || (point.x > boxPoint2.x) ||
             (point.y < boxPoint1.y) || (point.y > boxPoint2.y))
@@ -58,11 +58,11 @@ class AABB2
         }
         return 1;
     }
-    bool Includes(const AABB2<T> &aabb) const
+    bool Includes(const AABB2<T>& aabb) const
     {
         return Includes(aabb.boxPoint1) && Includes(aabb.boxPoint2);
     }
-    void Set(const Vector2<T> &_boxPoint1, const Vector2<T> &_boxPoint2)
+    void Set(const Vector2<T>& _boxPoint1, const Vector2<T>& _boxPoint2)
     {
         boxPoint1 = _boxPoint1;
         boxPoint2 = _boxPoint2;
@@ -72,7 +72,7 @@ class AABB2
         boxPoint1 = Vector2<T>::zeroVector();
         boxPoint2 = Vector2<T>::zeroVector();
     }
-    void Expand(const Vector2<T> &additionalPoint)
+    void Expand(const Vector2<T>& additionalPoint)
     {
         boxPoint1.x = Min(boxPoint1.x, additionalPoint.x);
         boxPoint1.y = Min(boxPoint1.y, additionalPoint.y);
@@ -80,7 +80,7 @@ class AABB2
         boxPoint2.x = Max(boxPoint2.x, additionalPoint.x);
         boxPoint2.y = Max(boxPoint2.y, additionalPoint.y);
     }
-    void Expand(const AABB2<T> &internalAABB)
+    void Expand(const AABB2<T>& internalAABB)
     {
         Expand(internalAABB.boxPoint1);
         Expand(internalAABB.boxPoint2);

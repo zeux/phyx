@@ -24,7 +24,7 @@ struct PhysSystem
         Solve_SoAPacked_FMA,
     };
 
-    RigidBody *AddBody(Coords2f coords, Vector2f size)
+    RigidBody* AddBody(Coords2f coords, Vector2f size)
     {
         RigidBody newbie(coords, size, 1e-5f);
         newbie.index = bodies.size();
@@ -32,7 +32,7 @@ struct PhysSystem
         return &(bodies[bodies.size() - 1]);
     }
 
-    void Update(WorkQueue &queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount)
+    void Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount)
     {
         collisionTime = mergeTime = solveTime = 0;
 
@@ -71,11 +71,11 @@ struct PhysSystem
             iterations = solver.SolveJointsSoA_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
-    #ifdef __AVX2__
+#ifdef __AVX2__
         case Solve_SoA_AVX2:
             iterations = solver.SolveJointsSoA_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
-    #endif
+#endif
 
         case Solve_SoAPacked_Scalar:
             iterations = solver.SolveJointsSoAPacked_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
@@ -85,17 +85,17 @@ struct PhysSystem
             iterations = solver.SolveJointsSoAPacked_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
 
-    #ifdef __AVX2__
+#ifdef __AVX2__
         case Solve_SoAPacked_AVX2:
             iterations = solver.SolveJointsSoAPacked_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
-    #endif
+#endif
 
-    #if defined(__AVX2__) && defined(__FMA__)
+#if defined(__AVX2__) && defined(__FMA__)
         case Solve_SoAPacked_FMA:
             iterations = solver.SolveJointsSoAPacked_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
             break;
-    #endif
+#endif
 
         default:
             iterations = solver.SolveJoints(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
@@ -135,11 +135,11 @@ struct PhysSystem
 
         for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
         {
-            Manifold &man = collider.manifolds[manifoldIndex];
+            Manifold& man = collider.manifolds[manifoldIndex];
 
             for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
             {
-                Collision &col = man.collisions[collisionIndex];
+                Collision& col = man.collisions[collisionIndex];
 
                 if (col.solverIndex < 0)
                 {
@@ -147,7 +147,7 @@ struct PhysSystem
                 }
                 else
                 {
-                    ContactJoint &joint = solver.contactJoints[col.solverIndex];
+                    ContactJoint& joint = solver.contactJoints[col.solverIndex];
 
                     assert(joint.body1 == man.body1);
                     assert(joint.body2 == man.body2);
@@ -159,7 +159,7 @@ struct PhysSystem
 
         for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size();)
         {
-            ContactJoint &joint = solver.contactJoints[jointIndex];
+            ContactJoint& joint = solver.contactJoints[jointIndex];
 
             if (!joint.collision)
             {
@@ -178,7 +178,7 @@ struct PhysSystem
     {
         return bodies.size();
     }
-    RigidBody *GetBody(int index)
+    RigidBody* GetBody(int index)
     {
         return &(bodies[index]);
     }
@@ -186,7 +186,7 @@ struct PhysSystem
     {
         return solver.contactJoints.size();
     }
-    Collider *GetCollider()
+    Collider* GetCollider()
     {
         return &collider;
     }

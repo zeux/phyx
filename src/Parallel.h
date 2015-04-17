@@ -3,7 +3,7 @@
 #include "WorkQueue.h"
 
 template <typename T, typename F>
-inline void ParallelFor(WorkQueue &queue, T *data, unsigned int count, unsigned int groupSize, F func)
+inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
 {
     if (queue.getWorkerCount() == 1)
     {
@@ -15,16 +15,16 @@ inline void ParallelFor(WorkQueue &queue, T *data, unsigned int count, unsigned 
 
     struct Item : WorkQueue::Item
     {
-        WorkQueue *queue;
+        WorkQueue* queue;
 
-        std::atomic<unsigned int> *counter;
-        std::atomic<unsigned int> *ready;
+        std::atomic<unsigned int>* counter;
+        std::atomic<unsigned int>* ready;
 
-        T *data;
+        T* data;
         unsigned int count;
         unsigned int groupSize;
 
-        F *func;
+        F* func;
 
         void run(int worker) override
         {

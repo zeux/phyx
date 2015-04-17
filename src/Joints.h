@@ -20,13 +20,13 @@ struct Limiter
     float compInvMass;
     float accumulatedImpulse;
 
-    inline void Refresh(const Vector2f &n1, const Vector2f &n2, const Vector2f &w1, const Vector2f &w2, RigidBody *body1, RigidBody *body2)
+    inline void Refresh(const Vector2f& n1, const Vector2f& n2, const Vector2f& w1, const Vector2f& w2, RigidBody* body1, RigidBody* body2)
     {
         SetJacobian(n1, n2, n1 ^ w1, n2 ^ w2, body1, body2);
     }
     inline void SetJacobian(
-        const Vector2f &normalProjector1, const Vector2f &normalProjector2, const float &angularProjector1, const float &angularProjector2,
-        RigidBody *body1, RigidBody *body2)
+        const Vector2f& normalProjector1, const Vector2f& normalProjector2, const float& angularProjector1, const float& angularProjector2,
+        RigidBody* body1, RigidBody* body2)
     {
         this->normalProjector1 = normalProjector1;
         this->normalProjector2 = normalProjector2;
@@ -56,17 +56,17 @@ struct Limiter
             this->compInvMass = 0.0f;
     }
 
-    void PreStep(RigidBody *body1, RigidBody *body2)
+    void PreStep(RigidBody* body1, RigidBody* body2)
     {
         ApplyImpulse(body1->velocity, body1->angularVelocity, body2->velocity, body2->angularVelocity, accumulatedImpulse);
     }
 
-    float ComputeDeltaImpulse(RigidBody *body1, RigidBody *body2, float dstVelocity)
+    float ComputeDeltaImpulse(RigidBody* body1, RigidBody* body2, float dstVelocity)
     {
         return Limiter::ComputeDeltaImpulse(
             body1->velocity, body2->velocity, body1->angularVelocity, body2->angularVelocity, dstVelocity);
     }
-    void ApplyImpulse(RigidBody *body1, RigidBody *body2, float deltaImpulse)
+    void ApplyImpulse(RigidBody* body1, RigidBody* body2, float deltaImpulse)
     {
         Limiter::ApplyImpulse(
             body1->velocity,
@@ -78,8 +78,8 @@ struct Limiter
 
   protected:
     inline void ApplyImpulse(
-        Vector2f &body1Velocity, float &body1AngularVelocity,
-        Vector2f &body2Velocity, float &body2AngularVelocity, const float deltaImpulse)
+        Vector2f& body1Velocity, float& body1AngularVelocity,
+        Vector2f& body2Velocity, float& body2AngularVelocity, const float deltaImpulse)
     {
         body1Velocity += compMass1_linear * deltaImpulse;
         body1AngularVelocity += compMass1_angular * deltaImpulse;
@@ -107,7 +107,7 @@ struct Limiter
 
 struct FrictionLimiter : public Limiter
 {
-    void Refresh(const Vector2f &fdir, const Vector2f &point1, const Vector2f &point2, RigidBody *body1, RigidBody *body2)
+    void Refresh(const Vector2f& fdir, const Vector2f& point1, const Vector2f& point2, RigidBody* body1, RigidBody* body2)
     {
         Vector2f w1 = point1 - body1->coords.pos;
         Vector2f w2 = point1 - body2->coords.pos;
@@ -123,8 +123,8 @@ struct NormalLimiter : public Limiter
         accumulatedDisplacingImpulse = 0.0f;
     }
     inline void Refresh(
-        const Vector2f &normal, const Vector2f &point1, const Vector2f &point2,
-        RigidBody *body1, RigidBody *body2, const float bounce, const float deltaVelocity, const float maxPenetrationVelocity, float deltaDepth, float errorReduction)
+        const Vector2f& normal, const Vector2f& point1, const Vector2f& point2,
+        RigidBody* body1, RigidBody* body2, const float bounce, const float deltaVelocity, const float maxPenetrationVelocity, float deltaDepth, float errorReduction)
     {
         Vector2f w1 = point1 - body1->coords.pos;
         Vector2f w2 = point1 - body2->coords.pos;
@@ -150,12 +150,12 @@ struct NormalLimiter : public Limiter
         accumulatedDisplacingImpulse = 0;
     }
 
-    float ComputeDeltaDisplacingImpulse(RigidBody *body1, RigidBody *body2)
+    float ComputeDeltaDisplacingImpulse(RigidBody* body1, RigidBody* body2)
     {
         return Limiter::ComputeDeltaImpulse(
             body1->displacingVelocity, body2->displacingVelocity, body1->displacingAngularVelocity, body2->displacingAngularVelocity, 0);
     }
-    void ApplyDisplacingImpulse(RigidBody *body1, RigidBody *body2, float deltaImpulse)
+    void ApplyDisplacingImpulse(RigidBody* body1, RigidBody* body2, float deltaImpulse)
     {
         Limiter::ApplyImpulse(
             body1->displacingVelocity,
@@ -165,7 +165,7 @@ struct NormalLimiter : public Limiter
             deltaImpulse);
     }
 
-    float SolveImpulse(RigidBody *body1, RigidBody *body2)
+    float SolveImpulse(RigidBody* body1, RigidBody* body2)
     {
         float deltaImpulse = Limiter::ComputeDeltaImpulse(body1, body2, dstVelocity);
         if (deltaImpulse + accumulatedImpulse < 0.0f) deltaImpulse = -accumulatedImpulse;
@@ -173,7 +173,7 @@ struct NormalLimiter : public Limiter
         accumulatedImpulse += deltaImpulse;
         return deltaImpulse;
     }
-    float SolveDisplacingImpulse(RigidBody *body1, RigidBody *body2)
+    float SolveDisplacingImpulse(RigidBody* body1, RigidBody* body2)
     {
         float deltaDisplacingImpulse = Limiter::ComputeDeltaImpulse(
             body1->displacingVelocity,
@@ -198,7 +198,7 @@ struct NormalLimiter : public Limiter
 
 struct ContactJoint
 {
-    ContactJoint(RigidBody *body1, RigidBody *body2, Collision *collision, int solverIndex)
+    ContactJoint(RigidBody* body1, RigidBody* body2, Collision* collision, int solverIndex)
     {
         this->collision = collision;
         this->body1 = body1;
@@ -256,9 +256,9 @@ struct ContactJoint
     {
         return normalLimiter.SolveDisplacingImpulse(body1, body2);
     }
-    Collision *collision;
-    RigidBody *body1;
-    RigidBody *body2;
+    Collision* collision;
+    RigidBody* body1;
+    RigidBody* body2;
     unsigned int body1Index;
     unsigned int body2Index;
     NormalLimiter normalLimiter;

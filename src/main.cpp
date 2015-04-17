@@ -9,7 +9,7 @@ sf::Vector2f ConvertVector(Vector2f vec)
     return sf::Vector2f(vec.x, vec.y);
 }
 
-void RenderBox(std::vector<sf::Vertex> &vertices, Coords2f coords, Vector2f size, sf::Color color)
+void RenderBox(std::vector<sf::Vertex>& vertices, Coords2f coords, Vector2f size, sf::Color color)
 {
     Vector2f axisX = coords.xVector * size.x;
     Vector2f axisY = coords.yVector * size.y;
@@ -36,8 +36,12 @@ float random(float min, float max)
     return min + (max - min) * (float(rand()) / float(RAND_MAX));
 }
 
-const struct { PhysSystem::SolveMode mode; const char *name; } kModes[] =
+const struct
 {
+    PhysSystem::SolveMode mode;
+    const char* name;
+} kModes[] =
+    {
      {PhysSystem::Solve_Baseline, "Baseline"},
      {PhysSystem::Solve_AoS, "AoS"},
      {PhysSystem::Solve_SoA_Scalar, "SoA Scalar"},
@@ -59,14 +63,14 @@ const struct { PhysSystem::SolveMode mode; const char *name; } kModes[] =
 #endif
 };
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     int windowWidth = 1280, windowHeight = 1024;
 
     std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount()));
 
     PhysSystem physSystem;
-    RigidBody *groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
+    RigidBody* groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
     groundBody->invInertia = 0.0f;
     groundBody->invMass = 0.0f;
 
@@ -79,7 +83,7 @@ int main(int argc, char **argv)
 
     float physicsTime = 0.0f;
 
-    RigidBody *draggedBody = physSystem.AddBody(
+    RigidBody* draggedBody = physSystem.AddBody(
         Coords2f(Vector2f(windowWidth * 0.1f, windowHeight * 0.7f), 0.0f), Vector2f(30.0f, 30.0f));
 
     float bodyRadius = 2.f;
@@ -87,7 +91,7 @@ int main(int argc, char **argv)
 
     for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
     {
-        RigidBody *testBody = physSystem.AddBody(
+        RigidBody* testBody = physSystem.AddBody(
             Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(bodyRadius * 2.f, bodyRadius * 2.f));
         //testBody->invInertia = 0;
         testBody->velocity = Vector2f(10.0f, 0.0f);
@@ -101,9 +105,9 @@ int main(int argc, char **argv)
 
             for (int i = 0; i < physSystem.GetBodiesCount(); ++i)
             {
-                RigidBody *body = physSystem.GetBody(i);
+                RigidBody* body = physSystem.GetBody(i);
 
-                RigidBody *testBody = testSystem.AddBody(body->coords, body->geom.size);
+                RigidBody* testBody = testSystem.AddBody(body->coords, body->geom.size);
                 testBody->velocity = body->velocity;
             }
 
@@ -131,7 +135,7 @@ int main(int argc, char **argv)
     sf::Font font;
     font.loadFromFile("DroidSansMono.ttf");
 
-    sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(windowWidth, windowHeight), "This is awesome!");
+    sf::RenderWindow* window = new sf::RenderWindow(sf::VideoMode(windowWidth, windowHeight), "This is awesome!");
 
     sf::Clock clock;
 
@@ -179,13 +183,13 @@ int main(int argc, char **argv)
                 }
                 for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
                 {
-                    RigidBody *body = physSystem.GetBody(bodyIndex);
+                    RigidBody* body = physSystem.GetBody(bodyIndex);
                     if (body->invMass > 0.0f)
                     {
                         physSystem.GetBody(bodyIndex)->acceleration += Vector2f(0.0f, gravity);
                     }
                 }
-                RigidBody *draggedBody = physSystem.GetBody(1);
+                RigidBody* draggedBody = physSystem.GetBody(1);
                 Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
                 draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
@@ -196,7 +200,7 @@ int main(int argc, char **argv)
 
         for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
         {
-            RigidBody *body = physSystem.GetBody(bodyIndex);
+            RigidBody* body = physSystem.GetBody(bodyIndex);
             Coords2f bodyCoords = body->coords;
             Vector2f size = body->geom.size;
 
@@ -214,7 +218,7 @@ int main(int argc, char **argv)
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::V))
             for (size_t manifoldIndex = 0; manifoldIndex < physSystem.GetCollider()->manifolds.size(); manifoldIndex++)
             {
-                Manifold &man = physSystem.GetCollider()->manifolds[manifoldIndex];
+                Manifold& man = physSystem.GetCollider()->manifolds[manifoldIndex];
 
                 for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
                 {

@@ -6,7 +6,7 @@
 struct RigidBody;
 struct Geom
 {
-    Vector2f GetClippingVertex(const Vector2f &axis) const
+    Vector2f GetClippingVertex(const Vector2f& axis) const
     {
         Vector2f xdim = coords.xVector * size.x;
         Vector2f ydim = coords.yVector * size.y;
@@ -17,7 +17,7 @@ struct Geom
         return coords.pos + xsgn * xdim + ysgn * ydim;
     }
 
-    bool GetClippingEdge(const Vector2f &axis, Vector2f &edgepoint1, Vector2f &edgepoint2) const
+    bool GetClippingEdge(const Vector2f& axis, Vector2f& edgepoint1, Vector2f& edgepoint2) const
     {
         edgepoint1 = coords.pos;
         edgepoint2 = coords.pos;
@@ -62,7 +62,7 @@ struct Geom
         return 1;
     }
 
-    int GetSupportPointSet(const Vector2f &axis, Vector2f *supportPoints)
+    int GetSupportPointSet(const Vector2f& axis, Vector2f* supportPoints)
     {
         if ((fabsf(axis * coords.xVector) < 0.1f) ||
             (fabsf(axis * coords.yVector) < 0.1f))
@@ -75,7 +75,7 @@ struct Geom
         return 1;
     }
 
-    void GetAxisProjectionRange(const Vector2f &axis, float &min, float &max) const
+    void GetAxisProjectionRange(const Vector2f& axis, float& min, float& max) const
     {
         float sqrlen = axis.SquareLen();
         float invsqrlen = 1.0f;
