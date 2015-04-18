@@ -1,6 +1,7 @@
 #pragma once
 
 #include <limits>
+#include <cmath>
 
 template <typename T>
 struct Vector2

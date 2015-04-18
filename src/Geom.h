@@ -2,6 +2,7 @@
 #include "Vector2.h"
 #include "Coords2.h"
 #include "AABB2.h"
+#include <cmath>
 
 struct RigidBody;
 struct Geom
