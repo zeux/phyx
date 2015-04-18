@@ -3,6 +3,7 @@
 #include <vector>
 #include <cassert>
 #include <utility>
+#include <functional>
 
 // Internal implementation of DenseHashSet and DenseHashMap
 namespace detail

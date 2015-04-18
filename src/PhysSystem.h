@@ -6,7 +6,7 @@
 #include "Collider.h"
 #include "Solver.h"
 #include <vector>
-#include <SFML/Graphics.hpp>
+
 #include "WorkQueue.h"
 
 struct PhysSystem
@@ -40,29 +40,19 @@ struct PhysSystem
     {
         collisionTime = mergeTime = solveTime = 0;
 
-        sf::Clock clock;
-
         ApplyGravity();
         IntegrateVelocity(dt);
 
-        mergeTime += clock.getElapsedTime().asSeconds();
-        clock.restart();
 
         collider.UpdateBroadphase(bodies.data(), bodies.size());
         collider.UpdatePairs(queue, bodies.data(), bodies.size());
         collider.UpdateManifolds(queue);
         collider.PackManifolds();
 
-        collisionTime += clock.getElapsedTime().asSeconds();
-        clock.restart();
-
         RefreshContactJoints();
 
         solver.RefreshJoints(queue);
         solver.PreStepJoints();
-
-        mergeTime += clock.getElapsedTime().asSeconds();
-        clock.restart();
 
         switch (mode)
         {
@@ -108,13 +98,7 @@ struct PhysSystem
             iterations = solver.SolveJoints(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
         }
 
-        solveTime += clock.getElapsedTime().asSeconds();
-        clock.restart();
-
         IntegratePosition(dt);
-
-        mergeTime += clock.getElapsedTime().asSeconds();
-        clock.restart();
     }
 
     NOINLINE void ApplyGravity()

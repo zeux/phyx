@@ -1,33 +1,36 @@
-#include <SFML/Graphics.hpp>
+#include <GLFW/glfw3.h>
+
 #include "PhysSystem.h"
-#include <sstream>
-#include <iomanip>
-#include <string.h>
 
-sf::Vector2f ConvertVector(Vector2f vec)
+struct Vertex
 {
-    return sf::Vector2f(vec.x, vec.y);
-}
+    Vector2f position;
+    unsigned char r, g, b, a;
 
-void RenderBox(std::vector<sf::Vertex>& vertices, Coords2f coords, Vector2f size, sf::Color color)
+};
+
+void RenderBox(std::vector<Vertex>& vertices, Coords2f coords, Vector2f size, int r, int g, int b)
 {
     Vector2f axisX = coords.xVector * size.x;
     Vector2f axisY = coords.yVector * size.y;
 
-    sf::Vertex v;
+    Vertex v;
 
-    v.color = color;
+    v.r = r;
+    v.g = g;
+    v.b = b;
+    v.a = 255;
 
-    v.position = ConvertVector(coords.pos - axisX - axisY);
+    v.position = coords.pos - axisX - axisY;
     vertices.push_back(v);
 
-    v.position = ConvertVector(coords.pos + axisX - axisY);
+    v.position = coords.pos + axisX - axisY;
     vertices.push_back(v);
 
-    v.position = ConvertVector(coords.pos + axisX + axisY);
+    v.position = coords.pos + axisX + axisY;
     vertices.push_back(v);
 
-    v.position = ConvertVector(coords.pos - axisX + axisY);
+    v.position = coords.pos - axisX + axisY;
     vertices.push_back(v);
 }
 
@@ -63,6 +66,17 @@ const struct
 #endif
 };
 
+static void errorCallback(int error, const char* description)
+{
+    fputs(description, stderr);
+}
+
+static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+}
+
 int main(int argc, char** argv)
 {
     int windowWidth = 1280, windowHeight = 1024;
@@ -71,13 +85,13 @@ int main(int argc, char** argv)
 
     PhysSystem physSystem;
 
-    RigidBody* groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
+    RigidBody* groundBody = physSystem.AddBody(Coords2f(Vector2f(0, 0), 0.0f), Vector2f(10000.f, 10.0f));
     groundBody->invInertia = 0.0f;
     groundBody->invMass = 0.0f;
 
     int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
 
-    const float gravity = 200.0f;
+    const float gravity = -200.0f;
     const float integrationTime = 1 / 60.f;
     const int contactIterationsCount = 15;
     const int penetrationIterationsCount = 15;
@@ -87,14 +101,14 @@ int main(int argc, char** argv)
     float physicsTime = 0.0f;
 
     RigidBody* draggedBody = physSystem.AddBody(
-        Coords2f(Vector2f(windowWidth * 0.1f, windowHeight * 0.7f), 0.0f), Vector2f(30.0f, 30.0f));
+        Coords2f(Vector2f(-500, 500), 0.0f), Vector2f(30.0f, 30.0f));
 
     float bodyRadius = 2.f;
     int bodyCount = 10000;
 
     for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
     {
-        Vector2f pos = Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f));
+        Vector2f pos = Vector2f(random(-250.0f, 250.0f), random(50.f, 1000.0f));
         Vector2f size(bodyRadius * 2.f, bodyRadius * 2.f);
 
         physSystem.AddBody(Coords2f(pos, 0.f), size);
@@ -136,62 +150,55 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    sf::Font font;
-    font.loadFromFile("DroidSansMono.ttf");
+    glfwSetErrorCallback(errorCallback);
 
-    sf::RenderWindow* window = new sf::RenderWindow(sf::VideoMode(windowWidth, windowHeight), "This is awesome!");
+    if (!glfwInit()) return 1;
 
-    sf::Clock clock;
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "PhyX", NULL, NULL);
+    if (!window) return 1;
 
-    float prevUpdateTime = 0.0f;
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(0);
+    glfwSetKeyCallback(window, keyCallback);
 
-    bool paused = 0;
+    double prevUpdateTime = 0.0f;
 
-    std::vector<sf::Vertex> vertices;
+    bool paused = false;
 
-    while (window->isOpen())
+    std::vector<Vertex> vertices;
+
+    while (!glfwWindowShouldClose(window))
     {
-        sf::Event event;
-        while (window->pollEvent(event))
-        {
-            if (event.type == sf::Event::Closed)
-                window->close();
-            else if (event.type == sf::Event::Resized)
-            {
-                sf::Vector2u size = window->getSize();
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
 
-                window->setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(size.x), static_cast<float>(size.y))));
-            }
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
-                currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::P)
-                paused = !paused;
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::C)
-            {
-                size_t workers =
-                    (queue->getWorkerCount() == WorkQueue::getIdealWorkerCount())
-                    ? 1
-                    : std::min(queue->getWorkerCount() * 2, WorkQueue::getIdealWorkerCount());
+        float ratio = float(width) / float(height);
 
-                queue.reset(new WorkQueue(workers));
-            }
-        }
-        Vector2f mousePos = Vector2f(sf::Mouse::getPosition(*window).x, sf::Mouse::getPosition(*window).y);
-        window->clear(sf::Color(50, 50, 50, 255));
+        glViewport(0, 0, width, height);
+        glClearColor(0.2f, 0.2f, 0.2f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        float offsetx = -width / 2;
+        float offsety = -40;
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(offsetx, width + offsetx, offsety, height + offsety, 1.f, -1.f);
+
         vertices.clear();
-        if (clock.getElapsedTime().asSeconds() > prevUpdateTime + integrationTime)
+
+        if (glfwGetTime() > prevUpdateTime + integrationTime)
         {
-            sf::Clock physicsClock;
             prevUpdateTime += integrationTime;
 
-            float time = (paused && !sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) ? 0 : integrationTime;
+            // float time = (paused && !sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) ? 0 : integrationTime;
+            float time = integrationTime;
 
             RigidBody* draggedBody = &physSystem.bodies[1];
-            Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
-            draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
+            // Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
+            // draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
             physSystem.Update(*queue, time, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
-            physicsTime = physicsClock.getElapsedTime().asSeconds();
         }
 
         for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
@@ -201,16 +208,21 @@ int main(int argc, char** argv)
             Vector2f size = body->geom.size;
 
             float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
-            sf::Color color = sf::Color(char(50 * colorMult), char(125 * colorMult), char(218 * colorMult));
+            int r = 50 * colorMult;
+            int g = 125 * colorMult;
+            int b = 218 * colorMult;
 
             if (bodyIndex == 1) //dragged body
             {
-                color = sf::Color(242, 236, 164, 255);
+                r = 242;
+                g = 236;
+                b = 164;
             }
 
-            RenderBox(vertices, bodyCoords, size, color);
+            RenderBox(vertices, bodyCoords, size, r, g, b);
         }
 
+        /*
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::V))
             for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
             {
@@ -239,27 +251,65 @@ int main(int argc, char** argv)
         if (vertices.size() > 0)
             window->draw(&vertices[0], vertices.size(), sf::Quads);
 
-        std::stringstream debugTextStream;
-        debugTextStream.precision(2);
-        debugTextStream
-            << "Bodies: " << physSystem.bodies.size()
-            << " Contacts: " << physSystem.solver.contactJoints.size()
-            << " Iterations: " << physSystem.iterations;
-        sf::Text text(debugTextStream.str().c_str(), font, 20);
-        text.setPosition(sf::Vector2f(10.0f, 30.0f));
-        window->draw(text);
-
-        std::stringstream debugTextStream2;
-        debugTextStream2 << std::fixed;
-        debugTextStream2.precision(2);
-        debugTextStream2
-            << queue->getWorkerCount() << " cores; "
-            << "Mode: " << kModes[currentMode].name << "; "
-            << "Physics time: " << std::setw(5) << physicsTime * 1000.0f << "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << "ms, s: " << std::setw(5) << physSystem.solveTime * 1000.0f << "ms)";
-        sf::Text text2(debugTextStream2.str().c_str(), font, 20);
-        text2.setPosition(sf::Vector2f(10.0f, 50.0f));
         window->draw(text2);
 
         window->display();
+        */
+
+        if (!vertices.empty())
+        {
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+
+            glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
+            glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &vertices[0].position);
+            glDrawArrays(GL_QUADS, 0, vertices.size());
+
+            glDisableClientState(GL_VERTEX_ARRAY);
+            glDisableClientState(GL_COLOR_ARRAY);
+        }
+
+        /*
+            << "Bodies: " << physSystem.bodies.size()
+            << " Contacts: " << physSystem.solver.contactJoints.size()
+            << " Iterations: " << physSystem.iterations;
+
+            << queue->getWorkerCount() << " cores; "
+            << "Mode: " << kModes[currentMode].name << "; "
+            << "Physics time: " << std::setw(5) << physicsTime * 1000.0f << "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << "ms, s: " << std::setw(5) << physSystem.solveTime * 1000.0f << "ms)";
+        */
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+
+        /*
+        while (window->pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+                window->close();
+            else if (event.type == sf::Event::Resized)
+            {
+                sf::Vector2u size = window->getSize();
+
+                window->setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(size.x), static_cast<float>(size.y))));
+            }
+            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
+                currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
+            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::P)
+                paused = !paused;
+            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::C)
+            {
+                size_t workers =
+                    (queue->getWorkerCount() == WorkQueue::getIdealWorkerCount())
+                    ? 1
+                    : std::min(queue->getWorkerCount() * 2, WorkQueue::getIdealWorkerCount());
+
+                queue.reset(new WorkQueue(workers));
+            }
+        }
+        */
     }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
 }

@@ -9,7 +9,7 @@ OBJECTS=$(SOURCES:%=$(BUILD)/%.o)
 EXECUTABLE=$(BUILD)/phyx
 
 CXXFLAGS=-g -Wall -std=c++11 -O3 -DNDEBUG -mavx2 -mfma -ffast-math
-LDFLAGS=-lsfml-window -lsfml-graphics -lsfml-system
+LDFLAGS=-lglfw3 -framework OpenGL
 
 all: $(EXECUTABLE)
 	./$(EXECUTABLE)
