@@ -69,6 +69,54 @@ const struct
 #endif
 };
 
+const char* resetWorld(PhysSystem& world, int scene)
+{
+    world.bodies.clear();
+    world.collider.manifolds.clear();
+    world.collider.manifoldMap.clear();
+    world.solver.contactJoints.clear();
+
+    RigidBody* groundBody = world.AddBody(Coords2f(Vector2f(0, 0), 0.0f), Vector2f(10000.f, 10.0f));
+    groundBody->invInertia = 0.0f;
+    groundBody->invMass = 0.0f;
+
+    world.AddBody(Coords2f(Vector2f(-1000, 1000), 0.0f), Vector2f(30.0f, 30.0f));
+
+    switch (scene % 2)
+    {
+    case 0:
+    {
+        for (int bodyIndex = 0; bodyIndex < 20000; bodyIndex++)
+        {
+            Vector2f pos = Vector2f(random(-500.0f, 500.0f), random(50.f, 1000.0f));
+            Vector2f size(4.f, 4.f);
+
+            world.AddBody(Coords2f(pos, 0.f), size);
+        }
+
+        return "Falling";
+    }
+
+    case 1:
+    {
+        for (int left = -100; left <= 100; left++)
+        {
+            for (int bodyIndex = 0; bodyIndex < 100; bodyIndex++)
+            {
+                Vector2f pos = Vector2f(left * 20, 10 + bodyIndex * 10);
+                Vector2f size(10, 5);
+
+                world.AddBody(Coords2f(pos, 0.f), size);
+            }
+        }
+
+        return "Wall";
+    }
+    }
+
+    return "Empty";
+}
+
 bool keyPressed[GLFW_KEY_LAST + 1];
 int mouseScrollDelta = 0;
 
@@ -101,11 +149,10 @@ int main(int argc, char** argv)
 
     PhysSystem physSystem;
 
-    RigidBody* groundBody = physSystem.AddBody(Coords2f(Vector2f(0, 0), 0.0f), Vector2f(10000.f, 10.0f));
-    groundBody->invInertia = 0.0f;
-    groundBody->invMass = 0.0f;
-
     int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
+    int currentScene = 0;
+
+    const char* currentSceneName = resetWorld(physSystem, currentScene);
 
     const float gravity = -200.0f;
     const float integrationTime = 1 / 60.f;
@@ -113,19 +160,6 @@ int main(int argc, char** argv)
     const int penetrationIterationsCount = 15;
 
     physSystem.gravity = gravity;
-
-    physSystem.AddBody(Coords2f(Vector2f(-500, 500), 0.0f), Vector2f(30.0f, 30.0f));
-
-    float bodyRadius = 2.f;
-    int bodyCount = 20000;
-
-    for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
-    {
-        Vector2f pos = Vector2f(random(-500.0f, 500.0f), random(50.f, 1000.0f));
-        Vector2f size(bodyRadius * 2.f, bodyRadius * 2.f);
-
-        physSystem.AddBody(Coords2f(pos, 0.f), size);
-    }
 
     if (argc > 1 && strcmp(argv[1], "profile") == 0)
     {
@@ -177,12 +211,16 @@ int main(int argc, char** argv)
 
     MicroProfileDrawInit();
 
+    bool paused = false;
+
     double prevUpdateTime = 0.0f;
 
     std::vector<Vertex> vertices;
 
     while (!glfwWindowShouldClose(window))
     {
+        MicroProfileFlip();
+
         MICROPROFILE_SCOPEI("MAIN", "Frame", 0xffee00);
 
         int width, height;
@@ -212,85 +250,21 @@ int main(int argc, char** argv)
         {
             prevUpdateTime += integrationTime;
 
-            float time = integrationTime;
-
-            Vector2f mousePos = Vector2f(mouseX + offsetx, height + offsety - mouseY) / scale;
-
-            RigidBody* draggedBody = &physSystem.bodies[1];
-            Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
-            draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
-
-            physSystem.Update(*queue, time, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
-        }
-
-        {
-            MICROPROFILE_SCOPEI("Render", "Prepare", 0xff0000);
-
-            for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
+            if (!paused)
             {
-                RigidBody* body = &physSystem.bodies[bodyIndex];
-                Coords2f bodyCoords = body->coords;
-                Vector2f size = body->geom.size;
+                Vector2f mousePos = Vector2f(mouseX + offsetx, height + offsety - mouseY) / scale;
 
-                float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
-                int r = 50 * colorMult;
-                int g = 125 * colorMult;
-                int b = 218 * colorMult;
+                RigidBody* draggedBody = &physSystem.bodies[1];
+                Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
+                draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-                if (bodyIndex == 1) //dragged body
-                {
-                    r = 242;
-                    g = 236;
-                    b = 164;
-                }
-
-                RenderBox(vertices, bodyCoords, size, r, g, b, 255);
-            }
-
-            if (glfwGetKey(window, GLFW_KEY_V))
-            {
-                for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
-                {
-                    Manifold& man = physSystem.collider.manifolds[manifoldIndex];
-
-                    for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
-                    {
-                        Coords2f coords = Coords2f(Vector2f(0.0f, 0.0f), 3.1415f / 4.0f);
-
-                        coords.pos = man.body1->coords.pos + man.collisions[collisionNumber].delta1;
-
-                        float redMult = man.collisions[collisionNumber].isNewlyCreated ? 0.5f : 1.0f;
-
-                        RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 100, 100 * redMult, 100 * redMult, 100);
-
-                        coords.pos = man.body2->coords.pos + man.collisions[collisionNumber].delta2;
-
-                        RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 150, 150 * redMult, 150 * redMult, 100);
-                    }
-                }
-            }
-        }
-
-        {
-            MICROPROFILE_SCOPEI("Render", "Perform", 0xff0000);
-
-            if (!vertices.empty())
-            {
-                glEnableClientState(GL_VERTEX_ARRAY);
-                glEnableClientState(GL_COLOR_ARRAY);
-
-                glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &vertices[0].position);
-                glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
-
-                glDrawArrays(GL_QUADS, 0, vertices.size());
-
-                glDisableClientState(GL_VERTEX_ARRAY);
-                glDisableClientState(GL_COLOR_ARRAY);
+                physSystem.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
             }
         }
 
         char stats[256];
-        sprintf(stats, "Bodies: %d Manifolds: %d Contacts: %d | Cores: %d; Mode: %s; Iterations: %.2f",
+        sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d | Cores: %d; Mode: %s; Iterations: %.2f",
+            currentSceneName,
             int(physSystem.bodies.size()),
             int(physSystem.collider.manifolds.size()),
             int(physSystem.solver.contactJoints.size()),
@@ -298,25 +272,95 @@ int main(int argc, char** argv)
             kModes[currentMode].name,
             physSystem.iterations);
 
-        MicroProfileFlip();
-
         {
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            glOrtho(0, width, height, 0, 1.f, -1.f);
+            MICROPROFILE_SCOPEI("Render", "Render", 0xff0000);
 
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glDisable(GL_DEPTH_TEST);
+            {
+                MICROPROFILE_SCOPEI("Render", "Prepare", -1);
 
-            MicroProfileBeginDraw();
+                for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
+                {
+                    RigidBody* body = &physSystem.bodies[bodyIndex];
+                    Coords2f bodyCoords = body->coords;
+                    Vector2f size = body->geom.size;
 
-            MicroProfileDraw(width, height);
-            MicroProfileDrawText(2, height - 12, 0xffffffff, stats, strlen(stats));
+                    float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
+                    int r = 50 * colorMult;
+                    int g = 125 * colorMult;
+                    int b = 218 * colorMult;
 
-            MicroProfileEndDraw();
+                    if (bodyIndex == 1) //dragged body
+                    {
+                        r = 242;
+                        g = 236;
+                        b = 164;
+                    }
 
-            glDisable(GL_BLEND);
+                    RenderBox(vertices, bodyCoords, size, r, g, b, 255);
+                }
+
+                if (glfwGetKey(window, GLFW_KEY_V))
+                {
+                    for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
+                    {
+                        Manifold& man = physSystem.collider.manifolds[manifoldIndex];
+
+                        for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
+                        {
+                            Coords2f coords = Coords2f(Vector2f(0.0f, 0.0f), 3.1415f / 4.0f);
+
+                            coords.pos = man.body1->coords.pos + man.collisions[collisionNumber].delta1;
+
+                            float redMult = man.collisions[collisionNumber].isNewlyCreated ? 0.5f : 1.0f;
+
+                            RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 100, 100 * redMult, 100 * redMult, 100);
+
+                            coords.pos = man.body2->coords.pos + man.collisions[collisionNumber].delta2;
+
+                            RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 150, 150 * redMult, 150 * redMult, 100);
+                        }
+                    }
+                }
+            }
+
+            {
+                MICROPROFILE_SCOPEI("Render", "Perform", -1);
+
+                if (!vertices.empty())
+                {
+                    glEnableClientState(GL_VERTEX_ARRAY);
+                    glEnableClientState(GL_COLOR_ARRAY);
+
+                    glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &vertices[0].position);
+                    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
+
+                    glDrawArrays(GL_QUADS, 0, vertices.size());
+
+                    glDisableClientState(GL_VERTEX_ARRAY);
+                    glDisableClientState(GL_COLOR_ARRAY);
+                }
+            }
+
+            {
+                MICROPROFILE_SCOPEI("Render", "Profile", -1);
+
+                glMatrixMode(GL_PROJECTION);
+                glLoadIdentity();
+                glOrtho(0, width, height, 0, 1.f, -1.f);
+
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glDisable(GL_DEPTH_TEST);
+
+                MicroProfileBeginDraw();
+
+                MicroProfileDraw(width, height);
+                MicroProfileDrawText(2, height - 12, 0xffffffff, stats, strlen(stats));
+
+                MicroProfileEndDraw();
+
+                glDisable(GL_BLEND);
+            }
         }
 
         {
@@ -348,10 +392,19 @@ int main(int argc, char** argv)
                 MicroProfileToggleDisplayMode();
 
             if (keyPressed[GLFW_KEY_P])
+            {
+                paused = !paused;
                 MicroProfileTogglePause();
+            }
 
             if (keyPressed[GLFW_KEY_M])
                 currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
+
+            if (keyPressed[GLFW_KEY_R])
+                currentSceneName = resetWorld(physSystem, currentScene);
+
+            if (keyPressed[GLFW_KEY_S])
+                currentSceneName = resetWorld(physSystem, ++currentScene);
 
             if (keyPressed[GLFW_KEY_C])
             {
