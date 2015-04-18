@@ -1,6 +1,7 @@
 #pragma once
 #include "Vector2.h"
 #include "Geom.h"
+#include "RigidBody.h"
 
 struct Collision
 {

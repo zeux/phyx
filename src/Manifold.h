@@ -1,8 +1,12 @@
 #pragma once
+
 #include "Vector2.h"
 #include "Geom.h"
 #include "Collision.h"
+
 #include <limits>
+#include <cassert>
+
 struct Manifold
 {
     Manifold()
