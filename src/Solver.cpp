@@ -77,14 +77,14 @@ inline __m256 _mm256_load2_m128(const float* aaddr, const float* baddr)
 
 NOINLINE void Solver::RefreshJoints(WorkQueue& queue)
 {
-    MICROPROFILE_SCOPEI("Physics", "RefreshJoints", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
 
     ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
 }
 
 NOINLINE void Solver::PreStepJoints()
 {
-    MICROPROFILE_SCOPEI("Physics", "PreStepJoints", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "PreStepJoints", -1);
 
     for (auto& joint: contactJoints)
     {
@@ -94,7 +94,7 @@ NOINLINE void Solver::PreStepJoints()
 
 NOINLINE float Solver::SolveJoints(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJoints", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJoints", -1);
 
     SolvePrepareAoS(bodies, bodiesCount);
 
@@ -149,12 +149,12 @@ NOINLINE float Solver::SolveJoints(RigidBody* bodies, int bodiesCount, int conta
 
 NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsAoS", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsAoS", -1);
 
     SolvePrepareAoS(bodies, bodiesCount);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -165,7 +165,7 @@ NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int co
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -180,12 +180,12 @@ NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int co
 
 NOINLINE float Solver::SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_Scalar", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_Scalar", -1);
 
     SolvePrepareSoA(bodies, bodiesCount, 1);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -196,7 +196,7 @@ NOINLINE float Solver::SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount,
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -211,12 +211,12 @@ NOINLINE float Solver::SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount,
 
 NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_SSE2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_SSE2", -1);
 
     int groupOffset = SolvePrepareSoA(bodies, bodiesCount, 4);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -230,7 +230,7 @@ NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, i
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -249,12 +249,12 @@ NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, i
 #ifdef __AVX2__
 NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_AVX2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_AVX2", -1);
 
     int groupOffset = SolvePrepareSoA(bodies, bodiesCount, 8);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -268,7 +268,7 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -287,12 +287,12 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
 
 NOINLINE float Solver::SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_Scalar", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_Scalar", -1);
 
     SolvePrepareSoAPacked(joint_packed4, bodies, bodiesCount, 1);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -303,7 +303,7 @@ NOINLINE float Solver::SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodies
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -318,12 +318,12 @@ NOINLINE float Solver::SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodies
 
 NOINLINE float Solver::SolveJointsSoAPacked_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_SSE2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_SSE2", -1);
 
     int groupOffset = SolvePrepareSoAPacked(joint_packed4, bodies, bodiesCount, 4);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -337,7 +337,7 @@ NOINLINE float Solver::SolveJointsSoAPacked_SSE2(RigidBody* bodies, int bodiesCo
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -356,12 +356,12 @@ NOINLINE float Solver::SolveJointsSoAPacked_SSE2(RigidBody* bodies, int bodiesCo
 #ifdef __AVX2__
 NOINLINE float Solver::SolveJointsSoAPacked_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_AVX2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_AVX2", -1);
 
     int groupOffset = SolvePrepareSoAPacked(joint_packed8, bodies, bodiesCount, 8);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -375,7 +375,7 @@ NOINLINE float Solver::SolveJointsSoAPacked_AVX2(RigidBody* bodies, int bodiesCo
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -395,12 +395,12 @@ NOINLINE float Solver::SolveJointsSoAPacked_AVX2(RigidBody* bodies, int bodiesCo
 #if defined(__AVX2__) && defined(__FMA__)
 NOINLINE float Solver::SolveJointsSoAPacked_FMA(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_FMA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoAPacked_FMA", -1);
 
     int groupOffset = SolvePrepareSoAPacked(joint_packed16, bodies, bodiesCount, 16);
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -414,7 +414,7 @@ NOINLINE float Solver::SolveJointsSoAPacked_FMA(RigidBody* bodies, int bodiesCou
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
         for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
         {
@@ -433,7 +433,7 @@ NOINLINE float Solver::SolveJointsSoAPacked_FMA(RigidBody* bodies, int bodiesCou
 
 NOINLINE int Solver::SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareIndicesSoA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolvePrepareIndicesSoA", -1);
 
     int jointCount = contactJoints.size();
 
@@ -504,7 +504,7 @@ NOINLINE int Solver::SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget
 
 NOINLINE void Solver::SolvePrepareAoS(RigidBody* bodies, int bodiesCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareAoS", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolvePrepareAoS", -1);
 
     for (int bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
     {
@@ -515,7 +515,7 @@ NOINLINE void Solver::SolvePrepareAoS(RigidBody* bodies, int bodiesCount)
 
 NOINLINE float Solver::SolveFinishAoS()
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveFinishAoS", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveFinishAoS", -1);
 
     int iterationSum = 0;
 
@@ -532,7 +532,7 @@ NOINLINE float Solver::SolveFinishAoS()
 
 NOINLINE int Solver::SolvePrepareSoA(RigidBody* bodies, int bodiesCount, int groupSizeTarget)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareSoA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolvePrepareSoA", -1);
 
     solveBodiesImpulse.resize(bodiesCount);
     solveBodiesDisplacement.resize(bodiesCount);
@@ -645,7 +645,7 @@ NOINLINE int Solver::SolvePrepareSoAPacked(
     AlignedArray<ContactJointPacked<N>>& joint_packed,
     RigidBody* bodies, int bodiesCount, int groupSizeTarget)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareSoAPacked", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolvePrepareSoAPacked", -1);
 
     solveBodiesImpulse.resize(bodiesCount);
     solveBodiesDisplacement.resize(bodiesCount);
@@ -721,7 +721,7 @@ NOINLINE int Solver::SolvePrepareSoAPacked(
 
 NOINLINE float Solver::SolveFinishSoA(RigidBody* bodies, int bodiesCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveFinishSoA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveFinishSoA", -1);
 
     for (int i = 0; i < bodiesCount; ++i)
     {
@@ -762,7 +762,7 @@ NOINLINE float Solver::SolveFinishSoAPacked(
     AlignedArray<ContactJointPacked<N>>& joint_packed,
     RigidBody* bodies, int bodiesCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveFinishSoAPacked", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveFinishSoAPacked", -1);
 
     for (int i = 0; i < bodiesCount; ++i)
     {
@@ -806,7 +806,7 @@ NOINLINE float Solver::SolveFinishSoAPacked(
 
 NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesAoS", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesAoS", -1);
 
     bool productive = false;
 
@@ -894,7 +894,7 @@ NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointStart, int jointCount, int
 
 NOINLINE bool Solver::SolveJointsImpulsesSoA(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA", -1);
 
     bool productive = false;
 
@@ -982,7 +982,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA(int jointStart, int jointCount, int
 
 NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA_SSE2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA_SSE2", -1);
 
     typedef __m128 Vf;
     typedef __m128i Vi;
@@ -1176,7 +1176,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(int jointStart, int jointCount
 #ifdef __AVX2__
 NOINLINE bool Solver::SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA_AVX2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA_AVX2", -1);
 
     typedef __m256 Vf;
     typedef __m256i Vi;
@@ -1378,7 +1378,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount
 
 NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementAoS", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementAoS", -1);
 
     bool productive = false;
 
@@ -1430,7 +1430,7 @@ NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointStart, int jointCount,
 
 NOINLINE bool Solver::SolveJointsDisplacementSoA(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA", -1);
 
     bool productive = false;
 
@@ -1482,7 +1482,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA(int jointStart, int jointCount,
 
 NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA_SSE2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA_SSE2", -1);
 
     typedef __m128 Vf;
     typedef __m128i Vi;
@@ -1619,7 +1619,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(int jointStart, int jointC
 #ifdef __AVX2__
 NOINLINE bool Solver::SolveJointsDisplacementSoA_AVX2(int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA_AVX2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA_AVX2", -1);
 
     typedef __m256 Vf;
     typedef __m256i Vi;
@@ -1765,7 +1765,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_AVX2(int jointStart, int jointC
 template <int N>
 NOINLINE bool Solver::SolveJointsImpulsesSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked", -1);
 
     bool productive_any = false;
 
@@ -1856,7 +1856,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoAPacked(ContactJointPacked<N>* joint_
 
 NOINLINE bool Solver::SolveJointsImpulsesSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked_SSE2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked_SSE2", -1);
 
     typedef __m128 Vf;
     typedef __m128i Vi;
@@ -2053,7 +2053,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoAPacked_SSE2(ContactJointPacked<4>* j
 #ifdef __AVX2__
 NOINLINE bool Solver::SolveJointsImpulsesSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked_AVX2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked_AVX2", -1);
 
     typedef __m256 Vf;
     typedef __m256i Vi;
@@ -2259,7 +2259,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoAPacked_AVX2(ContactJointPacked<8>* j
 #if defined(__AVX2__) && defined(__FMA__)
 NOINLINE bool Solver::SolveJointsImpulsesSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked_FMA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoAPacked_FMA", -1);
 
     typedef __m256 Vf;
     typedef __m256i Vi;
@@ -2645,7 +2645,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoAPacked_FMA(ContactJointPacked<16>* j
 template <int N>
 NOINLINE bool Solver::SolveJointsDisplacementSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked", -1);
 
     bool productive_any = false;
 
@@ -2700,7 +2700,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoAPacked(ContactJointPacked<N>* jo
 
 NOINLINE bool Solver::SolveJointsDisplacementSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked_SSE2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked_SSE2", -1);
 
     typedef __m128 Vf;
     typedef __m128i Vi;
@@ -2840,7 +2840,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoAPacked_SSE2(ContactJointPacked<4
 #ifdef __AVX2__
 NOINLINE bool Solver::SolveJointsDisplacementSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked_AVX2", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked_AVX2", -1);
 
     typedef __m256 Vf;
     typedef __m256i Vi;
@@ -2989,7 +2989,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoAPacked_AVX2(ContactJointPacked<8
 #if defined(__AVX2__) && defined(__FMA__)
 NOINLINE bool Solver::SolveJointsDisplacementSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked_FMA", 0x000080);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoAPacked_FMA", -1);
 
     typedef __m256 Vf;
     typedef __m256i Vi;

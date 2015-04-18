@@ -104,7 +104,7 @@ struct PhysSystem
 
     NOINLINE void ApplyGravity()
     {
-        MICROPROFILE_SCOPEI("Physics", "ApplyGravity", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "ApplyGravity", -1);
 
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
         {
@@ -119,7 +119,7 @@ struct PhysSystem
 
     NOINLINE void IntegrateVelocity(float dt)
     {
-        MICROPROFILE_SCOPEI("Physics", "IntegrateVelocity", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "IntegrateVelocity", -1);
 
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
         {
@@ -129,7 +129,7 @@ struct PhysSystem
 
     NOINLINE void IntegratePosition(float dt)
     {
-        MICROPROFILE_SCOPEI("Physics", "IntegratePosition", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "IntegratePosition", -1);
 
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
         {
@@ -139,7 +139,7 @@ struct PhysSystem
 
     NOINLINE void RefreshContactJoints()
     {
-        MICROPROFILE_SCOPEI("Physics", "RefreshContactJoints", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "RefreshContactJoints", -1);
 
         for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
         {

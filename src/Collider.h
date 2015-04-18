@@ -39,7 +39,7 @@ struct Collider
 
     NOINLINE void UpdateBroadphase(RigidBody* bodies, size_t bodiesCount)
     {
-        MICROPROFILE_SCOPEI("Physics", "UpdateBroadphase", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "UpdateBroadphase", -1);
 
         broadphase.clear();
 
@@ -72,7 +72,7 @@ struct Collider
 
     NOINLINE void UpdatePairsSerial(RigidBody* bodies, size_t bodiesCount)
     {
-        MICROPROFILE_SCOPEI("Physics", "UpdatePairsSerial", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "UpdatePairsSerial", -1);
 
         for (size_t bodyIndex1 = 0; bodyIndex1 < bodiesCount; bodyIndex1++)
         {
@@ -96,7 +96,7 @@ struct Collider
 
     NOINLINE void UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies, size_t bodiesCount)
     {
-        MICROPROFILE_SCOPEI("Physics", "UpdatePairsParallel", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "UpdatePairsParallel", -1);
 
         manifoldBuffers.resize(queue.getWorkerCount());
 
@@ -109,7 +109,7 @@ struct Collider
             UpdatePairsOne(bodies, bodyIndex1, bodyIndex1 + 1, bodiesCount, manifoldBuffers[worker]);
         });
 
-        MICROPROFILE_SCOPEI("Physics", "CreateManifolds", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "CreateManifolds", -1);
 
         for (auto& buf : manifoldBuffers)
         {
@@ -147,7 +147,7 @@ struct Collider
 
     NOINLINE void UpdateManifolds(WorkQueue& queue)
     {
-        MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
         ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int) {
             m.Update();
@@ -156,7 +156,7 @@ struct Collider
 
     NOINLINE void PackManifolds()
     {
-        MICROPROFILE_SCOPEI("Physics", "PackManifolds", 0x000080);
+        MICROPROFILE_SCOPEI("Physics", "PackManifolds", -1);
 
         for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size();)
         {
