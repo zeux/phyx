@@ -217,6 +217,10 @@ int main(int argc, char** argv)
 
     std::vector<Vertex> vertices;
 
+    float viewOffsetX = -500;
+    float viewOffsetY = -40;
+    float viewScale = 0.5f;
+
     while (!glfwWindowShouldClose(window))
     {
         MicroProfileFlip();
@@ -236,13 +240,9 @@ int main(int argc, char** argv)
         glClearColor(0.2f, 0.2f, 0.2f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        float offsetx = -width / 2;
-        float offsety = -40;
-        float scale = 0.5f;
-
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        glOrtho(offsetx / scale, width / scale + offsetx / scale, offsety / scale, height / scale + offsety / scale, 1.f, -1.f);
+        glOrtho(viewOffsetX / viewScale, width / viewScale + viewOffsetX / viewScale, viewOffsetY / viewScale, height / viewScale + viewOffsetY / viewScale, 1.f, -1.f);
 
         vertices.clear();
 
@@ -252,7 +252,7 @@ int main(int argc, char** argv)
 
             if (!paused)
             {
-                Vector2f mousePos = Vector2f(mouseX + offsetx, height + offsety - mouseY) / scale;
+                Vector2f mousePos = Vector2f(mouseX + viewOffsetX, height + viewOffsetY - mouseY) / viewScale;
 
                 RigidBody* draggedBody = &physSystem.bodies[1];
                 Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
@@ -415,6 +415,12 @@ int main(int argc, char** argv)
 
                 queue.reset(new WorkQueue(workers));
             }
+
+            if (glfwGetKey(window, GLFW_KEY_LEFT))
+                viewOffsetX -= 1;
+
+            if (glfwGetKey(window, GLFW_KEY_RIGHT))
+                viewOffsetX += 1;
         }
     }
 
