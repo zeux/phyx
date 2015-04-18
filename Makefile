@@ -1,3 +1,6 @@
+.SUFFIXES:
+MAKEFLAGS+=-r
+
 SOURCES=$(wildcard src/*.cpp)
 HEADERS=$(wildcard src/*.h)
 

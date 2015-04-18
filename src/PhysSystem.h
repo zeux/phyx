@@ -24,6 +24,10 @@ struct PhysSystem
         Solve_SoAPacked_FMA,
     };
 
+    PhysSystem(): gravity(0)
+    {
+    }
+
     RigidBody* AddBody(Coords2f coords, Vector2f size)
     {
         RigidBody newbie(coords, size, 1e-5f);
@@ -38,6 +42,7 @@ struct PhysSystem
 
         sf::Clock clock;
 
+        ApplyGravity();
         IntegrateVelocity(dt);
 
         mergeTime += clock.getElapsedTime().asSeconds();
@@ -112,6 +117,19 @@ struct PhysSystem
         clock.restart();
     }
 
+    NOINLINE void ApplyGravity()
+    {
+        for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
+        {
+            RigidBody* body = &bodies[bodyIndex];
+
+            if (body->invMass > 0.0f)
+            {
+                body->acceleration.y += gravity;
+            }
+        }
+    }
+
     NOINLINE void IntegrateVelocity(float dt)
     {
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
@@ -176,30 +194,14 @@ struct PhysSystem
         }
     }
 
-    size_t GetBodiesCount()
-    {
-        return bodies.size();
-    }
-    RigidBody* GetBody(int index)
-    {
-        return &(bodies[index]);
-    }
-    int GetJointsCount()
-    {
-        return solver.contactJoints.size();
-    }
-    Collider* GetCollider()
-    {
-        return &collider;
-    }
-
     float collisionTime;
     float mergeTime;
     float solveTime;
     float iterations;
 
-  private:
     std::vector<RigidBody> bodies;
     Collider collider;
     Solver solver;
+
+    float gravity;
 };

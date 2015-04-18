@@ -70,6 +70,7 @@ int main(int argc, char** argv)
     std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount()));
 
     PhysSystem physSystem;
+
     RigidBody* groundBody = physSystem.AddBody(Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.95f), 0.0f), Vector2f(windowWidth * 10.45f, 10.0f));
     groundBody->invInertia = 0.0f;
     groundBody->invMass = 0.0f;
@@ -81,6 +82,8 @@ int main(int argc, char** argv)
     const int contactIterationsCount = 15;
     const int penetrationIterationsCount = 15;
 
+    physSystem.gravity = gravity;
+
     float physicsTime = 0.0f;
 
     RigidBody* draggedBody = physSystem.AddBody(
@@ -91,10 +94,8 @@ int main(int argc, char** argv)
 
     for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
     {
-        RigidBody* testBody = physSystem.AddBody(
+        physSystem.AddBody(
             Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(bodyRadius * 2.f, bodyRadius * 2.f));
-        //testBody->invInertia = 0;
-        testBody->velocity = Vector2f(10.0f, 0.0f);
     }
 
     if (argc > 1 && strcmp(argv[1], "profile") == 0)
@@ -103,12 +104,13 @@ int main(int argc, char** argv)
         {
             PhysSystem testSystem;
 
-            for (int i = 0; i < physSystem.GetBodiesCount(); ++i)
-            {
-                RigidBody* body = physSystem.GetBody(i);
+            testSystem.gravity = gravity;
 
-                RigidBody* testBody = testSystem.AddBody(body->coords, body->geom.size);
-                testBody->velocity = body->velocity;
+            for (auto& body: physSystem.bodies)
+            {
+                RigidBody* testBody = testSystem.AddBody(body.coords, body.geom.size);
+                testBody->invInertia = body.invInertia;
+                testBody->invMass = body.invMass;
             }
 
             double collisionTime = 0;
@@ -116,9 +118,9 @@ int main(int argc, char** argv)
             double solveTime = 0;
             float iterations = 0;
 
-            for (int i = 0; i < 10; ++i)
+            for (int i = 0; i < 50; ++i)
             {
-                testSystem.Update(*queue, 1.f / 60.f, kModes[mode].mode, contactIterationsCount, penetrationIterationsCount);
+                testSystem.Update(*queue, 1.f / 30.f, kModes[mode].mode, contactIterationsCount, penetrationIterationsCount);
 
                 collisionTime += testSystem.collisionTime;
                 mergeTime += testSystem.mergeTime;
@@ -178,39 +180,24 @@ int main(int argc, char** argv)
         {
             sf::Clock physicsClock;
             prevUpdateTime += integrationTime;
-            float time = 0;
-            if (!paused || sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
-                time = integrationTime;
-            {
-                for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
-                {
-                    physSystem.GetBody(bodyIndex)->acceleration = Vector2f(0.0f, 0.0f);
-                    physSystem.GetBody(bodyIndex)->angularAcceleration = 0.0f;
-                }
-                for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
-                {
-                    RigidBody* body = physSystem.GetBody(bodyIndex);
-                    if (body->invMass > 0.0f)
-                    {
-                        physSystem.GetBody(bodyIndex)->acceleration += Vector2f(0.0f, gravity);
-                    }
-                }
-                RigidBody* draggedBody = physSystem.GetBody(1);
-                Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
-                draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-                physSystem.Update(*queue, time, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
-                physicsTime = physicsClock.getElapsedTime().asSeconds();
-            }
+            float time = (paused && !sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) ? 0 : integrationTime;
+
+            RigidBody* draggedBody = &physSystem.bodies[1];
+            Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
+            draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
+
+            physSystem.Update(*queue, time, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
+            physicsTime = physicsClock.getElapsedTime().asSeconds();
         }
 
-        for (size_t bodyIndex = 0; bodyIndex < physSystem.GetBodiesCount(); bodyIndex++)
+        for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
         {
-            RigidBody* body = physSystem.GetBody(bodyIndex);
+            RigidBody* body = &physSystem.bodies[bodyIndex];
             Coords2f bodyCoords = body->coords;
             Vector2f size = body->geom.size;
 
-            float colorMult = float(bodyIndex) / float(physSystem.GetBodiesCount()) * 0.5f + 0.5f;
+            float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
             sf::Color color = sf::Color(char(50 * colorMult), char(125 * colorMult), char(218 * colorMult));
 
             if (bodyIndex == 1) //dragged body
@@ -222,9 +209,9 @@ int main(int argc, char** argv)
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::V))
-            for (size_t manifoldIndex = 0; manifoldIndex < physSystem.GetCollider()->manifolds.size(); manifoldIndex++)
+            for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
             {
-                Manifold& man = physSystem.GetCollider()->manifolds[manifoldIndex];
+                Manifold& man = physSystem.collider.manifolds[manifoldIndex];
 
                 for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
                 {
@@ -252,8 +239,8 @@ int main(int argc, char** argv)
         std::stringstream debugTextStream;
         debugTextStream.precision(2);
         debugTextStream
-            << "Bodies: " << physSystem.GetBodiesCount()
-            << " Contacts: " << physSystem.GetJointsCount()
+            << "Bodies: " << physSystem.bodies.size()
+            << " Contacts: " << physSystem.solver.contactJoints.size()
             << " Iterations: " << physSystem.iterations;
         sf::Text text(debugTextStream.str().c_str(), font, 20);
         text.setPosition(sf::Vector2f(10.0f, 30.0f));
