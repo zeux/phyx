@@ -166,10 +166,11 @@ int main(int argc, char** argv)
                 paused = !paused;
             else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::C)
             {
-                size_t workers = queue->getWorkerCount();
-                workers *= 2;
-                if (workers > WorkQueue::getIdealWorkerCount())
-                    workers = 1;
+                size_t workers =
+                    (queue->getWorkerCount() == WorkQueue::getIdealWorkerCount())
+                    ? 1
+                    : std::min(queue->getWorkerCount() * 2, WorkQueue::getIdealWorkerCount());
+
                 queue.reset(new WorkQueue(workers));
             }
         }

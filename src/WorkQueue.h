@@ -22,19 +22,19 @@ class WorkQueue
         return std::max(std::thread::hardware_concurrency(), 1u);
     }
 
-    WorkQueue(size_t workerCount)
+    WorkQueue(unsigned int workerCount)
         : signalTriggered(false)
     {
-        for (size_t i = 0; i < workerCount; ++i)
+        for (unsigned int i = 0; i < workerCount; ++i)
             workers.emplace_back(workerThreadFun, this, i);
     }
 
     ~WorkQueue()
     {
-        for (size_t i = 0; i < workers.size(); ++i)
+        for (unsigned int i = 0; i < workers.size(); ++i)
             push(std::unique_ptr<Item>());
 
-        for (size_t i = 0; i < workers.size(); ++i)
+        for (unsigned int i = 0; i < workers.size(); ++i)
             workers[i].join();
     }
 
@@ -56,7 +56,7 @@ class WorkQueue
         push(std::unique_ptr<Item>(std::move(item)));
     }
 
-    size_t getWorkerCount() const
+    unsigned int getWorkerCount() const
     {
         return workers.size();
     }
