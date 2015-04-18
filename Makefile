@@ -3,7 +3,7 @@ MAKEFLAGS+=-r
 
 BUILD=build
 
-SOURCES=$(wildcard src/*.cpp)
+SOURCES=$(wildcard src/*.cpp) src/microprofile/microprofile.cpp
 OBJECTS=$(SOURCES:%=$(BUILD)/%.o)
 
 EXECUTABLE=$(BUILD)/phyx

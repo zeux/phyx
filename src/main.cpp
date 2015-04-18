@@ -2,6 +2,9 @@
 
 #include "PhysSystem.h"
 
+#include "microprofile/microprofile.h"
+#include "microprofile/microprofileui.h"
+
 struct Vertex
 {
     Vector2f position;
@@ -66,6 +69,8 @@ const struct
 #endif
 };
 
+int mouseScrollDelta = 0;
+
 static void errorCallback(int error, const char* description)
 {
     fputs(description, stderr);
@@ -77,8 +82,19 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
         glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
+static void scrollCallback(GLFWwindow* window, double x, double y)
+{
+    mouseScrollDelta = y;
+}
+
+void MicroProfileDrawInit();
+void MicroProfileBeginDraw();
+void MicroProfileEndDraw();
+
 int main(int argc, char** argv)
 {
+    MicroProfileOnThreadCreate("Main");
+
     int windowWidth = 1280, windowHeight = 1024;
 
     std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount()));
@@ -160,6 +176,10 @@ int main(int argc, char** argv)
     glfwMakeContextCurrent(window);
     glfwSwapInterval(0);
     glfwSetKeyCallback(window, keyCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+
+    MicroProfileDrawInit();
+    MicroProfileToggleDisplayMode();
 
     double prevUpdateTime = 0.0f;
 
@@ -170,20 +190,22 @@ int main(int argc, char** argv)
     while (!glfwWindowShouldClose(window))
     {
         int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
+        glfwGetWindowSize(window, &width, &height);
 
-        float ratio = float(width) / float(height);
+        int frameWidth, frameHeight;
+        glfwGetFramebufferSize(window, &frameWidth, &frameHeight);
 
-        glViewport(0, 0, width, height);
+        glViewport(0, 0, frameWidth, frameHeight);
         glClearColor(0.2f, 0.2f, 0.2f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         float offsetx = -width / 2;
         float offsety = -40;
+        float scale = 0.5f;
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        glOrtho(offsetx, width + offsetx, offsety, height + offsety, 1.f, -1.f);
+        glOrtho(offsetx / scale, width / scale + offsetx / scale, offsety / scale, height / scale + offsety / scale, 1.f, -1.f);
 
         vertices.clear();
 
@@ -261,8 +283,9 @@ int main(int argc, char** argv)
             glEnableClientState(GL_VERTEX_ARRAY);
             glEnableClientState(GL_COLOR_ARRAY);
 
-            glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
             glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &vertices[0].position);
+            glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
+
             glDrawArrays(GL_QUADS, 0, vertices.size());
 
             glDisableClientState(GL_VERTEX_ARRAY);
@@ -279,8 +302,39 @@ int main(int argc, char** argv)
             << "Physics time: " << std::setw(5) << physicsTime * 1000.0f << "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << "ms, s: " << std::setw(5) << physSystem.solveTime * 1000.0f << "ms)";
         */
 
+        MicroProfileFlip();
+
+        {
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            glOrtho(0, width, height, 0, 1.f, -1.f);
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDisable(GL_DEPTH_TEST);
+
+            MicroProfileBeginDraw();
+            MicroProfileDraw(width, height);
+            MicroProfileEndDraw();
+
+            glDisable(GL_BLEND);
+        }
+
+        MICROPROFILE_SCOPEI("MAIN", "Flip", 0xffee00);
+
         glfwSwapBuffers(window);
+
         glfwPollEvents();
+
+        double mouseX, mouseY;
+        glfwGetCursorPos(window, &mouseX, &mouseY);
+
+        bool mouseDown0 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+        bool mouseDown1 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+
+        MicroProfileMouseButton(mouseDown0, mouseDown1);
+        MicroProfileMousePosition(mouseX, mouseY, mouseScrollDelta);
+        mouseScrollDelta = 0;
 
         /*
         while (window->pollEvent(event))
