@@ -126,11 +126,11 @@ int main(int argc, char** argv)
         Coords2f(Vector2f(-500, 500), 0.0f), Vector2f(30.0f, 30.0f));
 
     float bodyRadius = 2.f;
-    int bodyCount = 10000;
+    int bodyCount = 20000;
 
     for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
     {
-        Vector2f pos = Vector2f(random(-250.0f, 250.0f), random(50.f, 1000.0f));
+        Vector2f pos = Vector2f(random(-500.0f, 500.0f), random(50.f, 1000.0f));
         Vector2f size(bodyRadius * 2.f, bodyRadius * 2.f);
 
         physSystem.AddBody(Coords2f(pos, 0.f), size);
@@ -350,14 +350,6 @@ int main(int argc, char** argv)
         /*
         while (window->pollEvent(event))
         {
-            if (event.type == sf::Event::Closed)
-                window->close();
-            else if (event.type == sf::Event::Resized)
-            {
-                sf::Vector2u size = window->getSize();
-
-                window->setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(size.x), static_cast<float>(size.y))));
-            }
             else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
                 currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
             else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::P)
