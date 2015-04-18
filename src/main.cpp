@@ -176,7 +176,6 @@ int main(int argc, char** argv)
     glfwSetScrollCallback(window, scrollCallback);
 
     MicroProfileDrawInit();
-    MicroProfileToggleDisplayMode();
 
     double prevUpdateTime = 0.0f;
 
@@ -290,16 +289,14 @@ int main(int argc, char** argv)
             }
         }
 
-//MICROPROFILEUI_API void MicroProfileDrawText(int nX, int nY, uint32_t nColor, const char* pText, uint32_t nNumCharacters);
-        /*
-            << "Bodies: " << physSystem.bodies.size()
-            << " Contacts: " << physSystem.solver.contactJoints.size()
-            << " Iterations: " << physSystem.iterations;
-
-            << queue->getWorkerCount() << " cores; "
-            << "Mode: " << kModes[currentMode].name << "; "
-            << "Physics time: " << std::setw(5) << physicsTime * 1000.0f << "ms (c: " << std::setw(5) << physSystem.collisionTime * 1000.0f << "ms, m: " << std::setw(5) << physSystem.mergeTime * 1000.0f << "ms, s: " << std::setw(5) << physSystem.solveTime * 1000.0f << "ms)";
-        */
+        char stats[256];
+        sprintf(stats, "Bodies: %d Manifolds: %d Contacts: %d | Cores: %d; Mode: %s; Iterations: %.2f",
+            int(physSystem.bodies.size()),
+            int(physSystem.collider.manifolds.size()),
+            int(physSystem.solver.contactJoints.size()),
+            int(queue->getWorkerCount()),
+            kModes[currentMode].name,
+            physSystem.iterations);
 
         MicroProfileFlip();
 
@@ -315,6 +312,7 @@ int main(int argc, char** argv)
             MicroProfileBeginDraw();
 
             MicroProfileDraw(width, height);
+            MicroProfileDrawText(2, height - 12, 0xffffffff, stats, strlen(stats));
 
             MicroProfileEndDraw();
 
