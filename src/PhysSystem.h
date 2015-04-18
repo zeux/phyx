@@ -38,11 +38,12 @@ struct PhysSystem
 
     void Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount)
     {
+        MICROPROFILE_SCOPEI("Physics", "Update", 0x00ff00);
+
         collisionTime = mergeTime = solveTime = 0;
 
         ApplyGravity();
         IntegrateVelocity(dt);
-
 
         collider.UpdateBroadphase(bodies.data(), bodies.size());
         collider.UpdatePairs(queue, bodies.data(), bodies.size());
@@ -103,6 +104,8 @@ struct PhysSystem
 
     NOINLINE void ApplyGravity()
     {
+        MICROPROFILE_SCOPEI("Physics", "ApplyGravity", 0x000080);
+
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
         {
             RigidBody* body = &bodies[bodyIndex];
@@ -116,6 +119,8 @@ struct PhysSystem
 
     NOINLINE void IntegrateVelocity(float dt)
     {
+        MICROPROFILE_SCOPEI("Physics", "IntegrateVelocity", 0x000080);
+
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
         {
             bodies[bodyIndex].IntegrateVelocity(dt);
@@ -124,6 +129,8 @@ struct PhysSystem
 
     NOINLINE void IntegratePosition(float dt)
     {
+        MICROPROFILE_SCOPEI("Physics", "IntegratePosition", 0x000080);
+
         for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
         {
             bodies[bodyIndex].IntegratePosition(dt);
@@ -132,6 +139,8 @@ struct PhysSystem
 
     NOINLINE void RefreshContactJoints()
     {
+        MICROPROFILE_SCOPEI("Physics", "RefreshContactJoints", 0x000080);
+
         for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
         {
             solver.contactJoints[jointIndex].collision = 0;

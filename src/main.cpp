@@ -12,7 +12,7 @@ struct Vertex
 
 };
 
-void RenderBox(std::vector<Vertex>& vertices, Coords2f coords, Vector2f size, int r, int g, int b)
+void RenderBox(std::vector<Vertex>& vertices, Coords2f coords, Vector2f size, int r, int g, int b, int a)
 {
     Vector2f axisX = coords.xVector * size.x;
     Vector2f axisY = coords.yVector * size.y;
@@ -22,7 +22,7 @@ void RenderBox(std::vector<Vertex>& vertices, Coords2f coords, Vector2f size, in
     v.r = r;
     v.g = g;
     v.b = b;
-    v.a = 255;
+    v.a = a;
 
     v.position = coords.pos - axisX - axisY;
     vertices.push_back(v);
@@ -80,6 +80,12 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
+
+    if (key == GLFW_KEY_O && action == GLFW_PRESS)
+        MicroProfileToggleDisplayMode();
+
+    if (key == GLFW_KEY_P && action == GLFW_PRESS)
+        MicroProfileTogglePause();
 }
 
 static void scrollCallback(GLFWwindow* window, double x, double y)
@@ -189,11 +195,16 @@ int main(int argc, char** argv)
 
     while (!glfwWindowShouldClose(window))
     {
+        MICROPROFILE_SCOPEI("MAIN", "Frame", 0xffee00);
+
         int width, height;
         glfwGetWindowSize(window, &width, &height);
 
         int frameWidth, frameHeight;
         glfwGetFramebufferSize(window, &frameWidth, &frameHeight);
+
+        double mouseX, mouseY;
+        glfwGetCursorPos(window, &mouseX, &mouseY);
 
         glViewport(0, 0, frameWidth, frameHeight);
         glClearColor(0.2f, 0.2f, 0.2f, 1.f);
@@ -213,85 +224,84 @@ int main(int argc, char** argv)
         {
             prevUpdateTime += integrationTime;
 
-            // float time = (paused && !sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) ? 0 : integrationTime;
             float time = integrationTime;
 
+            Vector2f mousePos = Vector2f(mouseX + offsetx, height + offsety - mouseY) / scale;
+
             RigidBody* draggedBody = &physSystem.bodies[1];
-            // Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
-            // draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
+            Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
+            draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
             physSystem.Update(*queue, time, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
         }
 
-        for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
         {
-            RigidBody* body = &physSystem.bodies[bodyIndex];
-            Coords2f bodyCoords = body->coords;
-            Vector2f size = body->geom.size;
+            MICROPROFILE_SCOPEI("Render", "Prepare", 0xff0000);
 
-            float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
-            int r = 50 * colorMult;
-            int g = 125 * colorMult;
-            int b = 218 * colorMult;
-
-            if (bodyIndex == 1) //dragged body
+            for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
             {
-                r = 242;
-                g = 236;
-                b = 164;
+                RigidBody* body = &physSystem.bodies[bodyIndex];
+                Coords2f bodyCoords = body->coords;
+                Vector2f size = body->geom.size;
+
+                float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
+                int r = 50 * colorMult;
+                int g = 125 * colorMult;
+                int b = 218 * colorMult;
+
+                if (bodyIndex == 1) //dragged body
+                {
+                    r = 242;
+                    g = 236;
+                    b = 164;
+                }
+
+                RenderBox(vertices, bodyCoords, size, r, g, b, 255);
             }
 
-            RenderBox(vertices, bodyCoords, size, r, g, b);
-        }
-
-        /*
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::V))
-            for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
+            if (glfwGetKey(window, GLFW_KEY_C))
             {
-                Manifold& man = physSystem.collider.manifolds[manifoldIndex];
-
-                for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
+                for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
                 {
-                    Coords2f coords = Coords2f(Vector2f(0.0f, 0.0f), 3.1415f / 4.0f);
+                    Manifold& man = physSystem.collider.manifolds[manifoldIndex];
 
-                    coords.pos = man.body1->coords.pos + man.collisions[collisionNumber].delta1;
+                    for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
+                    {
+                        Coords2f coords = Coords2f(Vector2f(0.0f, 0.0f), 3.1415f / 4.0f);
 
-                    float redMult = 1.0f;
-                    if (man.collisions[collisionNumber].isNewlyCreated)
-                        redMult = 0.5f;
+                        coords.pos = man.body1->coords.pos + man.collisions[collisionNumber].delta1;
 
-                    sf::Color color1(100, char(100 * redMult), char(100 * redMult), 100);
-                    RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), color1);
+                        float redMult = man.collisions[collisionNumber].isNewlyCreated ? 0.5f : 1.0f;
 
-                    coords.pos = man.body2->coords.pos + man.collisions[collisionNumber].delta2;
-                    sf::Color color2(150, char(150 * redMult), char(150 * redMult), 100);
+                        RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 100, 100 * redMult, 100 * redMult, 100);
 
-                    RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), color2);
+                        coords.pos = man.body2->coords.pos + man.collisions[collisionNumber].delta2;
+
+                        RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 150, 150 * redMult, 150 * redMult, 100);
+                    }
                 }
             }
-
-        if (vertices.size() > 0)
-            window->draw(&vertices[0], vertices.size(), sf::Quads);
-
-        window->draw(text2);
-
-        window->display();
-        */
-
-        if (!vertices.empty())
-        {
-            glEnableClientState(GL_VERTEX_ARRAY);
-            glEnableClientState(GL_COLOR_ARRAY);
-
-            glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &vertices[0].position);
-            glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
-
-            glDrawArrays(GL_QUADS, 0, vertices.size());
-
-            glDisableClientState(GL_VERTEX_ARRAY);
-            glDisableClientState(GL_COLOR_ARRAY);
         }
 
+        {
+            MICROPROFILE_SCOPEI("Render", "Perform", 0xff0000);
+
+            if (!vertices.empty())
+            {
+                glEnableClientState(GL_VERTEX_ARRAY);
+                glEnableClientState(GL_COLOR_ARRAY);
+
+                glVertexPointer(2, GL_FLOAT, sizeof(Vertex), &vertices[0].position);
+                glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Vertex), &vertices[0].r);
+
+                glDrawArrays(GL_QUADS, 0, vertices.size());
+
+                glDisableClientState(GL_VERTEX_ARRAY);
+                glDisableClientState(GL_COLOR_ARRAY);
+            }
+        }
+
+//MICROPROFILEUI_API void MicroProfileDrawText(int nX, int nY, uint32_t nColor, const char* pText, uint32_t nNumCharacters);
         /*
             << "Bodies: " << physSystem.bodies.size()
             << " Contacts: " << physSystem.solver.contactJoints.size()
@@ -314,7 +324,9 @@ int main(int argc, char** argv)
             glDisable(GL_DEPTH_TEST);
 
             MicroProfileBeginDraw();
+
             MicroProfileDraw(width, height);
+
             MicroProfileEndDraw();
 
             glDisable(GL_BLEND);
@@ -326,14 +338,13 @@ int main(int argc, char** argv)
 
         glfwPollEvents();
 
-        double mouseX, mouseY;
-        glfwGetCursorPos(window, &mouseX, &mouseY);
-
         bool mouseDown0 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
         bool mouseDown1 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
 
         MicroProfileMouseButton(mouseDown0, mouseDown1);
         MicroProfileMousePosition(mouseX, mouseY, mouseScrollDelta);
+        MicroProfileModKey(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS);
+
         mouseScrollDelta = 0;
 
         /*

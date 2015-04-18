@@ -4,9 +4,13 @@
 
 #include <atomic>
 
+#include "microprofile.h"
+
 template <typename T, typename F>
 inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
 {
+    MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
+
     if (queue.getWorkerCount() == 1)
     {
         for (unsigned int i = 0; i < count; ++i)
@@ -34,6 +38,8 @@ inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
             {
                 unsigned int index = (*counter)++ * groupSize;
                 if (index >= count) break;
+
+                MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x909090);
 
                 unsigned int end = std::min(count, index + groupSize);
 

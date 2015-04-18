@@ -7,6 +7,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "microprofile.h"
+
 class WorkQueue
 {
   public:
@@ -93,6 +95,10 @@ class WorkQueue
 
     static void workerThreadFun(WorkQueue* queue, int worker)
     {
+        char name[16];
+        sprintf(name, "Worker %d", worker);
+        MicroProfileOnThreadCreate(name);
+
         for (;;)
         {
             std::unique_ptr<Item> item;
@@ -107,6 +113,8 @@ class WorkQueue
             }
 
             if (!item) break;
+
+            MICROPROFILE_SCOPEI("WorkQueue", "JobRun", 0x606060);
 
             item->run(worker);
         }
