@@ -94,8 +94,10 @@ int main(int argc, char** argv)
 
     for (int bodyIndex = 0; bodyIndex < bodyCount; bodyIndex++)
     {
-        physSystem.AddBody(
-            Coords2f(Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f)), 0.0f), Vector2f(bodyRadius * 2.f, bodyRadius * 2.f));
+        Vector2f pos = Vector2f(windowWidth * 0.5f, windowHeight * 0.6f) + Vector2f(random(-250.0f, 250.0f), random(-650.0f, 250.0f));
+        Vector2f size(bodyRadius * 2.f, bodyRadius * 2.f);
+
+        physSystem.AddBody(Coords2f(pos, 0.f), size);
     }
 
     if (argc > 1 && strcmp(argv[1], "profile") == 0)
