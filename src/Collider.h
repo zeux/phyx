@@ -51,7 +51,7 @@ struct Collider
         {
             const AABB2f& aabb = bodies[bodyIndex].geom.aabb;
 
-            broadphaseSort[0][bodyIndex].value = RadixFloatPredicate()(aabb.boxPoint1.y);
+            broadphaseSort[0][bodyIndex].value = RadixFloatPredicate()(aabb.boxPoint1.x);
             broadphaseSort[0][bodyIndex].index = bodyIndex;
         }
 
@@ -65,9 +65,9 @@ struct Collider
 
             BroadphaseEntry e =
                 {
-                 aabb.boxPoint1.y, aabb.boxPoint2.y,
-                 (aabb.boxPoint1.x + aabb.boxPoint2.x) * 0.5f,
-                 (aabb.boxPoint2.x - aabb.boxPoint1.x) * 0.5f,
+                 aabb.boxPoint1.x, aabb.boxPoint2.x,
+                 (aabb.boxPoint1.y + aabb.boxPoint2.y) * 0.5f,
+                 (aabb.boxPoint2.y - aabb.boxPoint1.y) * 0.5f,
                  unsigned(bodyIndex)};
 
             broadphase[i] = e;
