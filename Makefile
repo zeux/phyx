@@ -1,18 +1,28 @@
 .SUFFIXES:
 MAKEFLAGS+=-r
 
+BUILD=build
+
 SOURCES=$(wildcard src/*.cpp)
-HEADERS=$(wildcard src/*.h)
+OBJECTS=$(SOURCES:%=$(BUILD)/%.o)
 
-all: bin/phyx
+EXECUTABLE=$(BUILD)/phyx
 
-bin/phyx: $(SOURCES) $(HEADERS)
-	c++ -g -O3 -std=c++11 -DNDEBUG -mavx2 -mfma -ffast-math $(SOURCES) -lsfml-window -lsfml-graphics -lsfml-system -o bin/phyx
+CXXFLAGS=-g -Wall -Wextra -std=c++11 -O3 -DNDEBUG -mavx2 -mfma -ffast-math
+LDFLAGS=-lsfml-window -lsfml-graphics -lsfml-system
 
-run: bin/phyx
-	cd bin && ./phyx
+all: $(EXECUTABLE)
+	./$(EXECUTABLE)
 
-profile: bin/phyx
-	cd bin && ./phyx profile
+$(EXECUTABLE): $(OBJECTS)
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
 
-.PHONY: all run profile
+$(BUILD)/%.o: %
+	@mkdir -p $(dir $@)
+	$(CXX) $< $(CXXFLAGS) -c -MMD -MP -o $@
+
+-include $(OBJECTS:.o=.d)
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all clean
