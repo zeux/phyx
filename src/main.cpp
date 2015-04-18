@@ -1,6 +1,8 @@
 #include <GLFW/glfw3.h>
 
-#include "PhysSystem.h"
+#include "World.h"
+
+#include "WorkQueue.h"
 
 #include "microprofile/microprofile.h"
 #include "microprofile/microprofileui.h"
@@ -44,32 +46,32 @@ float random(float min, float max)
 
 const struct
 {
-    PhysSystem::SolveMode mode;
+    World::SolveMode mode;
     const char* name;
 } kModes[] =
     {
-     {PhysSystem::Solve_Baseline, "Baseline"},
-     {PhysSystem::Solve_AoS, "AoS"},
-     {PhysSystem::Solve_SoA_Scalar, "SoA Scalar"},
-     {PhysSystem::Solve_SoA_SSE2, "SoA SSE2"},
+     {World::Solve_Baseline, "Baseline"},
+     {World::Solve_AoS, "AoS"},
+     {World::Solve_SoA_Scalar, "SoA Scalar"},
+     {World::Solve_SoA_SSE2, "SoA SSE2"},
 
 #ifdef __AVX2__
-     {PhysSystem::Solve_SoA_AVX2, "SoA AVX2"},
+     {World::Solve_SoA_AVX2, "SoA AVX2"},
 #endif
 
-     {PhysSystem::Solve_SoAPacked_Scalar, "SoA Packed Scalar"},
-     {PhysSystem::Solve_SoAPacked_SSE2, "SoA Packed SSE2"},
+     {World::Solve_SoAPacked_Scalar, "SoA Packed Scalar"},
+     {World::Solve_SoAPacked_SSE2, "SoA Packed SSE2"},
 
 #ifdef __AVX2__
-     {PhysSystem::Solve_SoAPacked_AVX2, "SoA Packed AVX2"},
+     {World::Solve_SoAPacked_AVX2, "SoA Packed AVX2"},
 #endif
 
 #if defined(__AVX2__) && defined(__FMA__)
-     {PhysSystem::Solve_SoAPacked_FMA, "SoA Packed FMA"},
+     {World::Solve_SoAPacked_FMA, "SoA Packed FMA"},
 #endif
 };
 
-const char* resetWorld(PhysSystem& world, int scene)
+const char* resetWorld(World& world, int scene)
 {
     world.bodies.clear();
     world.collider.manifolds.clear();
@@ -147,55 +149,19 @@ int main(int argc, char** argv)
 
     std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount()));
 
-    PhysSystem physSystem;
+    World world;
 
     int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
     int currentScene = 0;
 
-    const char* currentSceneName = resetWorld(physSystem, currentScene);
+    const char* currentSceneName = resetWorld(world, currentScene);
 
     const float gravity = -200.0f;
     const float integrationTime = 1 / 60.f;
     const int contactIterationsCount = 15;
     const int penetrationIterationsCount = 15;
 
-    physSystem.gravity = gravity;
-
-    if (argc > 1 && strcmp(argv[1], "profile") == 0)
-    {
-        for (int mode = 0; mode < sizeof(kModes) / sizeof(kModes[0]); ++mode)
-        {
-            PhysSystem testSystem;
-
-            testSystem.gravity = gravity;
-
-            for (auto& body: physSystem.bodies)
-            {
-                RigidBody* testBody = testSystem.AddBody(body.coords, body.geom.size);
-                testBody->invInertia = body.invInertia;
-                testBody->invMass = body.invMass;
-            }
-
-            double collisionTime = 0;
-            double mergeTime = 0;
-            double solveTime = 0;
-            float iterations = 0;
-
-            for (int i = 0; i < 50; ++i)
-            {
-                testSystem.Update(*queue, 1.f / 30.f, kModes[mode].mode, contactIterationsCount, penetrationIterationsCount);
-
-                collisionTime += testSystem.collisionTime;
-                mergeTime += testSystem.mergeTime;
-                solveTime += testSystem.solveTime;
-                iterations += testSystem.iterations;
-            }
-
-            printf("%s: collision %.2f ms, merge %.2f ms, solve %.2f ms, %.2f iterations\n", kModes[mode].name, collisionTime * 1000, mergeTime * 1000, solveTime * 1000, iterations);
-        }
-
-        return 0;
-    }
+    world.gravity = gravity;
 
     glfwSetErrorCallback(errorCallback);
 
@@ -254,23 +220,23 @@ int main(int argc, char** argv)
             {
                 Vector2f mousePos = Vector2f(mouseX + viewOffsetX, height + viewOffsetY - mouseY) / viewScale;
 
-                RigidBody* draggedBody = &physSystem.bodies[1];
+                RigidBody* draggedBody = &world.bodies[1];
                 Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
                 draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-                physSystem.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
+                world.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
             }
         }
 
         char stats[256];
         sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d | Cores: %d; Mode: %s; Iterations: %.2f",
             currentSceneName,
-            int(physSystem.bodies.size()),
-            int(physSystem.collider.manifolds.size()),
-            int(physSystem.solver.contactJoints.size()),
+            int(world.bodies.size()),
+            int(world.collider.manifolds.size()),
+            int(world.solver.contactJoints.size()),
             int(queue->getWorkerCount()),
             kModes[currentMode].name,
-            physSystem.iterations);
+            world.iterations);
 
         {
             MICROPROFILE_SCOPEI("Render", "Render", 0xff0000);
@@ -278,13 +244,13 @@ int main(int argc, char** argv)
             {
                 MICROPROFILE_SCOPEI("Render", "Prepare", -1);
 
-                for (size_t bodyIndex = 0; bodyIndex < physSystem.bodies.size(); bodyIndex++)
+                for (size_t bodyIndex = 0; bodyIndex < world.bodies.size(); bodyIndex++)
                 {
-                    RigidBody* body = &physSystem.bodies[bodyIndex];
+                    RigidBody* body = &world.bodies[bodyIndex];
                     Coords2f bodyCoords = body->coords;
                     Vector2f size = body->geom.size;
 
-                    float colorMult = float(bodyIndex) / float(physSystem.bodies.size()) * 0.5f + 0.5f;
+                    float colorMult = float(bodyIndex) / float(world.bodies.size()) * 0.5f + 0.5f;
                     int r = 50 * colorMult;
                     int g = 125 * colorMult;
                     int b = 218 * colorMult;
@@ -301,9 +267,9 @@ int main(int argc, char** argv)
 
                 if (glfwGetKey(window, GLFW_KEY_V))
                 {
-                    for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
+                    for (size_t manifoldIndex = 0; manifoldIndex < world.collider.manifolds.size(); manifoldIndex++)
                     {
-                        Manifold& man = physSystem.collider.manifolds[manifoldIndex];
+                        Manifold& man = world.collider.manifolds[manifoldIndex];
 
                         for (int collisionNumber = 0; collisionNumber < man.collisionsCount; collisionNumber++)
                         {
@@ -401,10 +367,10 @@ int main(int argc, char** argv)
                 currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
 
             if (keyPressed[GLFW_KEY_R])
-                currentSceneName = resetWorld(physSystem, currentScene);
+                currentSceneName = resetWorld(world, currentScene);
 
             if (keyPressed[GLFW_KEY_S])
-                currentSceneName = resetWorld(physSystem, ++currentScene);
+                currentSceneName = resetWorld(world, ++currentScene);
 
             if (keyPressed[GLFW_KEY_C])
             {
