@@ -118,6 +118,8 @@ class WorkQueue
 
             item->run(worker);
         }
+
+        MicroProfileOnThreadExit();
     }
 
     struct ItemFunction: Item
