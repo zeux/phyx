@@ -41,6 +41,7 @@ namespace detail
         DenseHashTable(const Key& empty_key, const Key& dead_key, size_t buckets)
             : data(buckets, Item(empty_key))
             , count(0)
+            , tombstones(0)
             , empty_key(empty_key)
             , dead_key(dead_key)
         {
@@ -72,10 +73,19 @@ namespace detail
                 Item& probe_item = data[bucket];
 
                 // Element does not exist, insert here
-                if (eq(probe_item.key, empty_key) || eq(probe_item.key, dead_key))
+                if (eq(probe_item.key, empty_key))
                 {
                     probe_item.key = key;
                     count++;
+                    return std::make_pair(&probe_item, true);
+                }
+
+                // Element has a tombstone, insert here
+                if (eq(probe_item.key, dead_key))
+                {
+                    probe_item.key = key;
+                    count++;
+                    tombstones--;
                     return std::make_pair(&probe_item, true);
                 }
 
@@ -96,6 +106,11 @@ namespace detail
 
         void erase(const Key& key)
         {
+            if (tombstones > data.size() / 4)
+            {
+                rehash();
+            }
+
             // It is invalid to erase from the table that can't differentiate between empty and dead keys
             assert(!eq(empty_key, dead_key));
 
@@ -113,6 +128,11 @@ namespace detail
                 if (eq(probe_item.key, key))
                 {
                     probe_item = dead_key;
+
+                    assert(count > 0);
+                    count--;
+                    tombstones++;
+
                     return;
                 }
 
@@ -249,6 +269,7 @@ namespace detail
     private:
         std::vector<Item> data;
         size_t count;
+        size_t tombstones;
         Key empty_key;
         Key dead_key;
         Hash hasher;
@@ -256,14 +277,22 @@ namespace detail
 
         void rehash()
         {
-            size_t newsize = data.empty() ? 16 : data.size() * 2;
+            size_t newsize = 16;
+            while (newsize < count * 2) newsize *= 2;
+
             DenseHashTable newtable(empty_key, dead_key, newsize);
 
             for (size_t i = 0; i < data.size(); ++i)
-                if (!eq(data[i].key, empty_key))
-                    *newtable.insert(data[i].key).first = data[i];
+            {
+                const Item& item = data[i];
+
+                if (!eq(item.key, empty_key) && !eq(item.key, dead_key))
+                    *newtable.insert(item.key).first = item;
+            }
 
             assert(count == newtable.count);
+            tombstones = 0;
+
             data.swap(newtable.data);
         }
     };
