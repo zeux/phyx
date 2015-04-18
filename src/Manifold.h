@@ -129,7 +129,7 @@ struct Manifold
         Vector2f supportPoints2[maxSupportPoints];
 
         float linearTolerance = 2.0f;
-        float angularTolerance = 0.05f;
+
         int supportPointsCount1 = body1->geom.GetSupportPointSet(-separatingAxis, supportPoints1);
         int supportPointsCount2 = body2->geom.GetSupportPointSet(separatingAxis, supportPoints2);
 

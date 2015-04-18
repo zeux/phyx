@@ -277,7 +277,7 @@ struct Solver
 
     NOINLINE float SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
     {
-        int groupOffset = SolvePrepareSoA(bodies, bodiesCount, 1);
+        SolvePrepareSoA(bodies, bodiesCount, 1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -354,7 +354,7 @@ struct Solver
 
     NOINLINE float SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
     {
-        int groupOffset = SolvePrepareSoAPacked(joint_packed4, bodies, bodiesCount, 1);
+        SolvePrepareSoAPacked(joint_packed4, bodies, bodiesCount, 1);
 
         for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
         {
@@ -1499,8 +1499,6 @@ struct Solver
         {
             int i = jointIndex;
 
-            Vf zero = _mm_setzero_ps();
-
             __m128 row0, row1, row2, row3;
 
             static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Loading assumes fixed layout");
@@ -1635,8 +1633,6 @@ struct Solver
         for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 8)
         {
             int i = jointIndex;
-
-            Vf zero = _mm256_setzero_ps();
 
             Vf row0, row1, row2, row3, row4, row5, row6, row7;
 
@@ -2710,8 +2706,6 @@ struct Solver
             ContactJointPacked<4>& jointP = joint_packed[i >> 2];
             int iP = 0;
 
-            Vf zero = _mm_setzero_ps();
-
             __m128 row0, row1, row2, row3;
 
             static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Loading assumes fixed layout");
@@ -2849,8 +2843,6 @@ struct Solver
 
             ContactJointPacked<8>& jointP = joint_packed[i >> 3];
             int iP = 0;
-
-            Vf zero = _mm256_setzero_ps();
 
             Vf row0, row1, row2, row3, row4, row5, row6, row7;
 
