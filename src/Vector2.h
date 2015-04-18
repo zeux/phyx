@@ -187,8 +187,7 @@ inline Vector2<T> operator*(const T& d, const Vector2<T>& V)
 template <typename T>
 inline Vector2<T> operator/(const Vector2<T>& V, const T& d)
 {
-    T invd;
-    if (fabs(d) > T(1e-8)) invd = T(1.0) / d;
+    T invd = T(1.0) / d;
     return Vector2<T>(V.x * invd, V.y * invd);
 }
 

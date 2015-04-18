@@ -69,6 +69,7 @@ const struct
 #endif
 };
 
+bool keyPressed[GLFW_KEY_LAST + 1];
 int mouseScrollDelta = 0;
 
 static void errorCallback(int error, const char* description)
@@ -78,14 +79,7 @@ static void errorCallback(int error, const char* description)
 
 static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GL_TRUE);
-
-    if (key == GLFW_KEY_O && action == GLFW_PRESS)
-        MicroProfileToggleDisplayMode();
-
-    if (key == GLFW_KEY_P && action == GLFW_PRESS)
-        MicroProfileTogglePause();
+    keyPressed[key] = (action == GLFW_PRESS);
 }
 
 static void scrollCallback(GLFWwindow* window, double x, double y)
@@ -120,10 +114,7 @@ int main(int argc, char** argv)
 
     physSystem.gravity = gravity;
 
-    float physicsTime = 0.0f;
-
-    RigidBody* draggedBody = physSystem.AddBody(
-        Coords2f(Vector2f(-500, 500), 0.0f), Vector2f(30.0f, 30.0f));
+    physSystem.AddBody(Coords2f(Vector2f(-500, 500), 0.0f), Vector2f(30.0f, 30.0f));
 
     float bodyRadius = 2.f;
     int bodyCount = 20000;
@@ -188,8 +179,6 @@ int main(int argc, char** argv)
     MicroProfileToggleDisplayMode();
 
     double prevUpdateTime = 0.0f;
-
-    bool paused = false;
 
     std::vector<Vertex> vertices;
 
@@ -259,7 +248,7 @@ int main(int argc, char** argv)
                 RenderBox(vertices, bodyCoords, size, r, g, b, 255);
             }
 
-            if (glfwGetKey(window, GLFW_KEY_C))
+            if (glfwGetKey(window, GLFW_KEY_V))
             {
                 for (size_t manifoldIndex = 0; manifoldIndex < physSystem.collider.manifolds.size(); manifoldIndex++)
                 {
@@ -332,29 +321,41 @@ int main(int argc, char** argv)
             glDisable(GL_BLEND);
         }
 
-        MICROPROFILE_SCOPEI("MAIN", "Flip", 0xffee00);
-
-        glfwSwapBuffers(window);
-
-        glfwPollEvents();
-
-        bool mouseDown0 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-        bool mouseDown1 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
-
-        MicroProfileMouseButton(mouseDown0, mouseDown1);
-        MicroProfileMousePosition(mouseX, mouseY, mouseScrollDelta);
-        MicroProfileModKey(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS);
-
-        mouseScrollDelta = 0;
-
-        /*
-        while (window->pollEvent(event))
         {
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::M)
+            MICROPROFILE_SCOPEI("MAIN", "Flip", 0xffee00);
+
+            glfwSwapBuffers(window);
+        }
+
+        {
+            MICROPROFILE_SCOPEI("MAIN", "Input", 0xffee00);
+
+            // Handle input
+            memset(keyPressed, 0, sizeof(keyPressed));
+            mouseScrollDelta = 0;
+
+            glfwPollEvents();
+
+            bool mouseDown0 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+            bool mouseDown1 = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+
+            MicroProfileMouseButton(mouseDown0, mouseDown1);
+            MicroProfileMousePosition(mouseX, mouseY, mouseScrollDelta);
+            MicroProfileModKey(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS);
+
+            if (keyPressed[GLFW_KEY_ESCAPE])
+                break;
+
+            if (keyPressed[GLFW_KEY_O])
+                MicroProfileToggleDisplayMode();
+
+            if (keyPressed[GLFW_KEY_P])
+                MicroProfileTogglePause();
+
+            if (keyPressed[GLFW_KEY_M])
                 currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::P)
-                paused = !paused;
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::C)
+
+            if (keyPressed[GLFW_KEY_C])
             {
                 size_t workers =
                     (queue->getWorkerCount() == WorkQueue::getIdealWorkerCount())
@@ -364,7 +365,6 @@ int main(int argc, char** argv)
                 queue.reset(new WorkQueue(workers));
             }
         }
-        */
     }
 
     glfwDestroyWindow(window);
