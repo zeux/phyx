@@ -148,11 +148,6 @@ void MicroProfileDrawInit()
     }
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FONT_TEX_X, FONT_TEX_Y, 0, GL_RGBA, GL_UNSIGNED_BYTE, &p4[0]);
 	glBindTexture(GL_TEXTURE_2D, 0);
-
-	// Settings
-	MicroProfileInitUI();
-
-	g_MicroProfileUI.nOpacityBackground = 0x80 << 24;
 }
 
 void MicroProfileBeginDraw()
@@ -170,8 +165,6 @@ void MicroProfileFlush()
 
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, g_FontTexture);
-
-	// glTexITEXTURE_ENV_MODE
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);

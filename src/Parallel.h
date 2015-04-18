@@ -39,8 +39,6 @@ inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
                 unsigned int index = (*counter)++ * groupSize;
                 if (index >= count) break;
 
-                MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x909090);
-
                 unsigned int end = std::min(count, index + groupSize);
 
                 for (unsigned int i = index; i < end; ++i)
