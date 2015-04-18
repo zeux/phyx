@@ -15,6 +15,8 @@
 
 #include "microprofile.h"
 
+#include "RadixSort.h"
+
 namespace std
 {
 template <>
@@ -41,10 +43,24 @@ struct Collider
     {
         MICROPROFILE_SCOPEI("Physics", "UpdateBroadphase", -1);
 
-        broadphase.clear();
+        broadphase.resize(bodiesCount);
+        broadphaseSort[0].resize(bodiesCount);
+        broadphaseSort[1].resize(bodiesCount);
 
         for (size_t bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
         {
+            const AABB2f& aabb = bodies[bodyIndex].geom.aabb;
+
+            broadphaseSort[0][bodyIndex].value = RadixFloatPredicate()(aabb.boxPoint1.y);
+            broadphaseSort[0][bodyIndex].index = bodyIndex;
+        }
+
+        radixSort3(broadphaseSort[0].data(), broadphaseSort[1].data(), bodiesCount, [](const BroadphaseSortEntry& e) { return e.value; });
+
+        for (size_t i = 0; i < bodiesCount; ++i)
+        {
+            unsigned int bodyIndex = broadphaseSort[1][i].index;
+
             const AABB2f& aabb = bodies[bodyIndex].geom.aabb;
 
             BroadphaseEntry e =
@@ -54,10 +70,8 @@ struct Collider
                  (aabb.boxPoint2.x - aabb.boxPoint1.x) * 0.5f,
                  unsigned(bodyIndex)};
 
-            broadphase.push_back(e);
+            broadphase[i] = e;
         }
-
-        std::sort(broadphase.begin(), broadphase.end());
     }
 
     NOINLINE void UpdatePairs(WorkQueue& queue, RigidBody* bodies, size_t bodiesCount)
@@ -192,5 +206,13 @@ struct Collider
         }
     };
 
+    struct BroadphaseSortEntry
+    {
+        unsigned int value;
+        unsigned int index;
+    };
+
     std::vector<BroadphaseEntry> broadphase;
+
+    std::vector<BroadphaseSortEntry> broadphaseSort[2];
 };
