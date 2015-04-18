@@ -53,7 +53,7 @@ class WorkQueue
         std::unique_ptr<ItemFunction> item(new ItemFunction());
         item->function = std::move(fun);
 
-        push(std::move(item));
+        push(std::unique_ptr<Item>(std::move(item)));
     }
 
     size_t getWorkerCount() const

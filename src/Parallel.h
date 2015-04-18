@@ -2,6 +2,8 @@
 
 #include "WorkQueue.h"
 
+#include <atomic>
+
 template <typename T, typename F>
 inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
 {

@@ -114,6 +114,28 @@ struct ContactJointPacked
     float frictionLimiter_accumulatedImpulse[N];
 };
 
+inline __m128i Vfi(__m128 v)
+{
+    return _mm_castps_si128(v);
+}
+
+inline __m128 Vif(__m128i v)
+{
+    return _mm_castsi128_ps(v);
+}
+
+#ifdef __AVX2__
+inline __m256i Vfi(__m256 v)
+{
+    return _mm256_castps_si256(v);
+}
+
+inline __m256 Vif(__m256i v)
+{
+    return _mm256_castsi256_ps(v);
+}
+#endif
+
 #ifdef __AVX2__
 // http://stackoverflow.com/questions/25622745/transpose-an-8x8-float-using-avx-avx2
 #define _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7) \
@@ -1001,7 +1023,7 @@ struct Solver
             Vf body1_velocityX = row0;
             Vf body1_velocityY = row1;
             Vf body1_angularVelocity = row2;
-            Vi body1_lastIteration = row3;
+            Vi body1_lastIteration = Vfi(row3);
 
             row0 = _mm_load_ps(&solveBodiesImpulse[joint_body2Index[i + 0]].velocity.x);
             row1 = _mm_load_ps(&solveBodiesImpulse[joint_body2Index[i + 1]].velocity.x);
@@ -1013,7 +1035,7 @@ struct Solver
             Vf body2_velocityX = row0;
             Vf body2_velocityY = row1;
             Vf body2_angularVelocity = row2;
-            Vi body2_lastIteration = row3;
+            Vi body2_lastIteration = Vfi(row3);
 
             Vi body1_productive = _mm_cmpgt_epi32(body1_lastIteration, iterationIndex2);
             Vi body2_productive = _mm_cmpgt_epi32(body2_lastIteration, iterationIndex2);
@@ -1120,7 +1142,7 @@ struct Solver
 
             Vf cumulativeImpulse = _mm_max_ps(_mm_andnot_ps(sign, normalDeltaImpulse), _mm_andnot_ps(sign, frictionDeltaImpulse));
 
-            Vf productive = _mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse));
+            Vi productive = Vfi(_mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse)));
 
             productive_any = _mm_or_si128(productive_any, productive);
 
@@ -1133,7 +1155,7 @@ struct Solver
             row0 = body1_velocityX;
             row1 = body1_velocityY;
             row2 = body1_angularVelocity;
-            row3 = body1_lastIteration;
+            row3 = Vif(body1_lastIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -1145,7 +1167,7 @@ struct Solver
             row0 = body2_velocityX;
             row1 = body2_velocityY;
             row2 = body2_angularVelocity;
-            row3 = body2_lastIteration;
+            row3 = Vif(body2_lastIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -1197,12 +1219,12 @@ struct Solver
             Vf body1_velocityX = row0;
             Vf body1_velocityY = row1;
             Vf body1_angularVelocity = row2;
-            Vi body1_lastIteration = row3;
+            Vi body1_lastIteration = Vfi(row3);
 
             Vf body2_velocityX = row4;
             Vf body2_velocityY = row5;
             Vf body2_angularVelocity = row6;
-            Vi body2_lastIteration = row7;
+            Vi body2_lastIteration = Vfi(row7);
 
             Vi body_lastIteration = _mm256_max_epi32(body1_lastIteration, body2_lastIteration);
             Vi body_productive = _mm256_cmpgt_epi32(body_lastIteration, iterationIndex2);
@@ -1308,7 +1330,7 @@ struct Solver
 
             Vf cumulativeImpulse = _mm256_max_ps(_mm256_andnot_ps(sign, normalDeltaImpulse), _mm256_andnot_ps(sign, frictionDeltaImpulse));
 
-            Vf productive = _mm256_cmp_ps(cumulativeImpulse, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
+            Vi productive = Vfi(_mm256_cmp_ps(cumulativeImpulse, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ));
 
             productive_any = _mm256_or_si256(productive_any, productive);
 
@@ -1321,12 +1343,12 @@ struct Solver
             row0 = body1_velocityX;
             row1 = body1_velocityY;
             row2 = body1_angularVelocity;
-            row3 = body1_lastIteration;
+            row3 = Vif(body1_lastIteration);
 
             row4 = body2_velocityX;
             row5 = body2_velocityY;
             row6 = body2_angularVelocity;
-            row7 = body2_lastIteration;
+            row7 = Vif(body2_lastIteration);
 
             _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
@@ -1493,7 +1515,7 @@ struct Solver
             Vf body1_displacingVelocityX = row0;
             Vf body1_displacingVelocityY = row1;
             Vf body1_displacingAngularVelocity = row2;
-            Vi body1_lastDisplacementIteration = row3;
+            Vi body1_lastDisplacementIteration = Vfi(row3);
 
             row0 = _mm_load_ps(&solveBodiesDisplacement[joint_body2Index[i + 0]].velocity.x);
             row1 = _mm_load_ps(&solveBodiesDisplacement[joint_body2Index[i + 1]].velocity.x);
@@ -1505,7 +1527,7 @@ struct Solver
             Vf body2_displacingVelocityX = row0;
             Vf body2_displacingVelocityY = row1;
             Vf body2_displacingAngularVelocity = row2;
-            Vi body2_lastDisplacementIteration = row3;
+            Vi body2_lastDisplacementIteration = Vfi(row3);
 
             Vi body1_productive = _mm_cmpgt_epi32(body1_lastDisplacementIteration, iterationIndex2);
             Vi body2_productive = _mm_cmpgt_epi32(body2_lastDisplacementIteration, iterationIndex2);
@@ -1557,7 +1579,7 @@ struct Solver
 
             _mm_store_ps(&joint_normalLimiter_accumulatedDisplacingImpulse[i], j_normalLimiter_accumulatedDisplacingImpulse);
 
-            Vf productive = _mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse));
+            Vi productive = Vfi(_mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse)));
 
             productive_any = _mm_or_si128(productive_any, productive);
 
@@ -1570,7 +1592,7 @@ struct Solver
             row0 = body1_displacingVelocityX;
             row1 = body1_displacingVelocityY;
             row2 = body1_displacingAngularVelocity;
-            row3 = body1_lastDisplacementIteration;
+            row3 = Vif(body1_lastDisplacementIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -1582,7 +1604,7 @@ struct Solver
             row0 = body2_displacingVelocityX;
             row1 = body2_displacingVelocityY;
             row2 = body2_displacingAngularVelocity;
-            row3 = body2_lastDisplacementIteration;
+            row3 = Vif(body2_lastDisplacementIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -1634,12 +1656,12 @@ struct Solver
             Vf body1_displacingVelocityX = row0;
             Vf body1_displacingVelocityY = row1;
             Vf body1_displacingAngularVelocity = row2;
-            Vi body1_lastDisplacementIteration = row3;
+            Vi body1_lastDisplacementIteration = Vfi(row3);
 
             Vf body2_displacingVelocityX = row4;
             Vf body2_displacingVelocityY = row5;
             Vf body2_displacingAngularVelocity = row6;
-            Vi body2_lastDisplacementIteration = row7;
+            Vi body2_lastDisplacementIteration = Vfi(row7);
 
             Vi body_lastDisplacementIteration = _mm256_max_epi32(body1_lastDisplacementIteration, body2_lastDisplacementIteration);
             Vi body_productive = _mm256_cmpgt_epi32(body_lastDisplacementIteration, iterationIndex2);
@@ -1690,7 +1712,7 @@ struct Solver
 
             _mm256_store_ps(&joint_normalLimiter_accumulatedDisplacingImpulse[i], j_normalLimiter_accumulatedDisplacingImpulse);
 
-            Vf productive = _mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
+            Vi productive = Vfi(_mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ));
 
             productive_any = _mm256_or_si256(productive_any, productive);
 
@@ -1703,12 +1725,12 @@ struct Solver
             row0 = body1_displacingVelocityX;
             row1 = body1_displacingVelocityY;
             row2 = body1_displacingAngularVelocity;
-            row3 = body1_lastDisplacementIteration;
+            row3 = Vif(body1_lastDisplacementIteration);
 
             row4 = body2_displacingVelocityX;
             row5 = body2_displacingVelocityY;
             row6 = body2_displacingAngularVelocity;
-            row7 = body2_lastDisplacementIteration;
+            row7 = Vif(body2_lastDisplacementIteration);
 
             _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
@@ -1868,7 +1890,7 @@ struct Solver
             Vf body1_velocityX = row0;
             Vf body1_velocityY = row1;
             Vf body1_angularVelocity = row2;
-            Vi body1_lastIteration = row3;
+            Vi body1_lastIteration = Vfi(row3);
 
             row0 = _mm_load_ps(&solveBodiesImpulse[jointP.body2Index[iP + 0]].velocity.x);
             row1 = _mm_load_ps(&solveBodiesImpulse[jointP.body2Index[iP + 1]].velocity.x);
@@ -1880,7 +1902,7 @@ struct Solver
             Vf body2_velocityX = row0;
             Vf body2_velocityY = row1;
             Vf body2_angularVelocity = row2;
-            Vi body2_lastIteration = row3;
+            Vi body2_lastIteration = Vfi(row3);
 
             Vi body1_productive = _mm_cmpgt_epi32(body1_lastIteration, iterationIndex2);
             Vi body2_productive = _mm_cmpgt_epi32(body2_lastIteration, iterationIndex2);
@@ -1987,7 +2009,7 @@ struct Solver
 
             Vf cumulativeImpulse = _mm_max_ps(_mm_andnot_ps(sign, normalDeltaImpulse), _mm_andnot_ps(sign, frictionDeltaImpulse));
 
-            Vf productive = _mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse));
+            Vi productive = Vfi(_mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse)));
 
             productive_any = _mm_or_si128(productive_any, productive);
 
@@ -2000,7 +2022,7 @@ struct Solver
             row0 = body1_velocityX;
             row1 = body1_velocityY;
             row2 = body1_angularVelocity;
-            row3 = body1_lastIteration;
+            row3 = Vif(body1_lastIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -2012,7 +2034,7 @@ struct Solver
             row0 = body2_velocityX;
             row1 = body2_velocityY;
             row2 = body2_angularVelocity;
-            row3 = body2_lastIteration;
+            row3 = Vif(body2_lastIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -2067,12 +2089,12 @@ struct Solver
             Vf body1_velocityX = row0;
             Vf body1_velocityY = row1;
             Vf body1_angularVelocity = row2;
-            Vi body1_lastIteration = row3;
+            Vi body1_lastIteration = Vfi(row3);
 
             Vf body2_velocityX = row4;
             Vf body2_velocityY = row5;
             Vf body2_angularVelocity = row6;
-            Vi body2_lastIteration = row7;
+            Vi body2_lastIteration = Vfi(row7);
 
             Vi body_lastIteration = _mm256_max_epi32(body1_lastIteration, body2_lastIteration);
             Vi body_productive = _mm256_cmpgt_epi32(body_lastIteration, iterationIndex2);
@@ -2178,7 +2200,7 @@ struct Solver
 
             Vf cumulativeImpulse = _mm256_max_ps(_mm256_andnot_ps(sign, normalDeltaImpulse), _mm256_andnot_ps(sign, frictionDeltaImpulse));
 
-            Vf productive = _mm256_cmp_ps(cumulativeImpulse, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
+            Vi productive = Vfi(_mm256_cmp_ps(cumulativeImpulse, _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ));
 
             productive_any = _mm256_or_si256(productive_any, productive);
 
@@ -2191,12 +2213,12 @@ struct Solver
             row0 = body1_velocityX;
             row1 = body1_velocityY;
             row2 = body1_angularVelocity;
-            row3 = body1_lastIteration;
+            row3 = Vif(body1_lastIteration);
 
             row4 = body2_velocityX;
             row5 = body2_velocityY;
             row6 = body2_angularVelocity;
-            row7 = body2_lastIteration;
+            row7 = Vif(body2_lastIteration);
 
             _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
@@ -2704,7 +2726,7 @@ struct Solver
             Vf body1_displacingVelocityX = row0;
             Vf body1_displacingVelocityY = row1;
             Vf body1_displacingAngularVelocity = row2;
-            Vi body1_lastDisplacementIteration = row3;
+            Vi body1_lastDisplacementIteration = Vfi(row3);
 
             row0 = _mm_load_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 0]].velocity.x);
             row1 = _mm_load_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 1]].velocity.x);
@@ -2716,7 +2738,7 @@ struct Solver
             Vf body2_displacingVelocityX = row0;
             Vf body2_displacingVelocityY = row1;
             Vf body2_displacingAngularVelocity = row2;
-            Vi body2_lastDisplacementIteration = row3;
+            Vi body2_lastDisplacementIteration = Vfi(row3);
 
             Vi body1_productive = _mm_cmpgt_epi32(body1_lastDisplacementIteration, iterationIndex2);
             Vi body2_productive = _mm_cmpgt_epi32(body2_lastDisplacementIteration, iterationIndex2);
@@ -2768,7 +2790,7 @@ struct Solver
 
             _mm_store_ps(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP], j_normalLimiter_accumulatedDisplacingImpulse);
 
-            Vf productive = _mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse));
+            Vi productive = Vfi(_mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse)));
 
             productive_any = _mm_or_si128(productive_any, productive);
 
@@ -2781,7 +2803,7 @@ struct Solver
             row0 = body1_displacingVelocityX;
             row1 = body1_displacingVelocityY;
             row2 = body1_displacingAngularVelocity;
-            row3 = body1_lastDisplacementIteration;
+            row3 = Vif(body1_lastDisplacementIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -2793,7 +2815,7 @@ struct Solver
             row0 = body2_displacingVelocityX;
             row1 = body2_displacingVelocityY;
             row2 = body2_displacingAngularVelocity;
-            row3 = body2_lastDisplacementIteration;
+            row3 = Vif(body2_lastDisplacementIteration);
 
             _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
 
@@ -2848,12 +2870,12 @@ struct Solver
             Vf body1_displacingVelocityX = row0;
             Vf body1_displacingVelocityY = row1;
             Vf body1_displacingAngularVelocity = row2;
-            Vi body1_lastDisplacementIteration = row3;
+            Vi body1_lastDisplacementIteration = Vfi(row3);
 
             Vf body2_displacingVelocityX = row4;
             Vf body2_displacingVelocityY = row5;
             Vf body2_displacingAngularVelocity = row6;
-            Vi body2_lastDisplacementIteration = row7;
+            Vi body2_lastDisplacementIteration = Vfi(row7);
 
             Vi body_lastDisplacementIteration = _mm256_max_epi32(body1_lastDisplacementIteration, body2_lastDisplacementIteration);
             Vi body_productive = _mm256_cmpgt_epi32(body_lastDisplacementIteration, iterationIndex2);
@@ -2904,7 +2926,7 @@ struct Solver
 
             _mm256_store_ps(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP], j_normalLimiter_accumulatedDisplacingImpulse);
 
-            Vf productive = _mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ);
+            Vi productive = Vfi(_mm256_cmp_ps(_mm256_andnot_ps(sign, displacingDeltaImpulse), _mm256_set1_ps(kProductiveImpulse), _CMP_GT_OQ));
 
             productive_any = _mm256_or_si256(productive_any, productive);
 
@@ -2917,12 +2939,12 @@ struct Solver
             row0 = body1_displacingVelocityX;
             row1 = body1_displacingVelocityY;
             row2 = body1_displacingAngularVelocity;
-            row3 = body1_lastDisplacementIteration;
+            row3 = Vif(body1_lastDisplacementIteration);
 
             row4 = body2_displacingVelocityX;
             row5 = body2_displacingVelocityY;
             row6 = body2_displacingAngularVelocity;
-            row7 = body2_lastDisplacementIteration;
+            row7 = Vif(body2_lastDisplacementIteration);
 
             _MM_TRANSPOSE8_PS(row0, row1, row2, row3, row4, row5, row6, row7);
 
