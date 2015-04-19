@@ -78,14 +78,10 @@ struct Geom
 
     void GetAxisProjectionRange(const Vector2f& axis, float& min, float& max) const
     {
-        float sqrlen = axis.SquareLen();
-        float invsqrlen = 1.0f;
-        invsqrlen = 1.0f / sqrlen;
-
         float diff =
-            fabsf(coords.xVector * axis) * size.x * invsqrlen +
-            fabsf(coords.yVector * axis) * size.y * invsqrlen;
-        float base = coords.pos * axis * invsqrlen;
+            fabsf(coords.xVector * axis) * size.x +
+            fabsf(coords.yVector * axis) * size.y;
+        float base = coords.pos * axis;
         min = base - diff;
         max = base + diff;
     }

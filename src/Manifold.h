@@ -85,7 +85,6 @@ struct Manifold
   private:
     bool ComputeSeparatingAxis(Vector2f& separatingAxis)
     {
-
         Vector2f axis[4];
         axis[0] = body1->coords.xVector;
         axis[1] = body1->coords.yVector;
@@ -96,8 +95,6 @@ struct Manifold
         float bestquaddepth = 1e5f;
         Vector2f bestaxis;
 
-        float min0;
-        float max0;
         for (int i = 0; i < 4; i++)
         {
             float min1, max1;
@@ -108,11 +105,8 @@ struct Manifold
             {
                 return 0;
             }
-            min0 = std::max(min1, min2);
-            max0 = std::min(max1, max2);
-            if (min0 > max0) return 0;
 
-            float delta = (std::min(max2 - min1, max1 - min2) * axis[i]).SquareLen();
+            float delta = fabsf(std::min(max2 - min1, max1 - min2));
             if (bestquaddepth > delta)
             {
                 bestquaddepth = delta;
