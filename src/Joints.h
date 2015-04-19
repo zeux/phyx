@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RigidBody.h"
-#include "Collision.h"
+#include "Manifold.h"
 #include <algorithm>
 struct Limiter
 {
@@ -198,7 +198,7 @@ struct NormalLimiter : public Limiter
 
 struct ContactJoint
 {
-    ContactJoint(RigidBody* body1, RigidBody* body2, Collision* collision, int solverIndex)
+    ContactJoint(RigidBody* body1, RigidBody* body2, ContactPoint* collision, int solverIndex)
     {
         this->collision = collision;
         this->body1 = body1;
@@ -256,7 +256,7 @@ struct ContactJoint
     {
         return normalLimiter.SolveDisplacingImpulse(body1, body2);
     }
-    Collision* collision;
+    ContactPoint* collision;
     RigidBody* body1;
     RigidBody* body2;
     unsigned int body1Index;

@@ -130,9 +130,9 @@ NOINLINE void World::RefreshContactJoints()
     {
         Manifold& man = collider.manifolds[manifoldIndex];
 
-        for (int collisionIndex = 0; collisionIndex < man.collisionsCount; collisionIndex++)
+        for (int collisionIndex = 0; collisionIndex < man.pointCount; collisionIndex++)
         {
-            Collision& col = man.collisions[collisionIndex];
+            ContactPoint& col = man.points[collisionIndex];
 
             if (col.solverIndex < 0)
             {

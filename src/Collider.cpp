@@ -103,21 +103,22 @@ static bool ComputeSeparatingAxis_SSE2(RigidBody* body1, RigidBody* body2, Vecto
     return true;
 }
 
-static void MergeCollision(Manifold& m, Collision* newbie)
+static void AddPoint(Manifold& m, ContactPoint& newbie)
 {
-    Collision* closest = 0;
+    ContactPoint* closest = 0;
     float bestdepth = std::numeric_limits<float>::max();
 
-    for (int collisionIndex = 0; collisionIndex < m.collisionsCount; collisionIndex++)
+    for (int collisionIndex = 0; collisionIndex < m.pointCount; collisionIndex++)
     {
-        Collision* col = &m.collisions[collisionIndex];
-        if (newbie->Equals(col, 2.0f))
+        ContactPoint& col = m.points[collisionIndex];
+
+        if (newbie.Equals(col, 2.0f))
         {
-            float depth = (newbie->delta1 - col->delta1).SquareLen() + (newbie->delta2 - col->delta2).SquareLen();
+            float depth = (newbie.delta1 - col.delta1).SquareLen() + (newbie.delta2 - col.delta2).SquareLen();
             if (depth < bestdepth)
             {
                 bestdepth = depth;
-                closest = col;
+                closest = &col;
             }
         }
     }
@@ -126,16 +127,16 @@ static void MergeCollision(Manifold& m, Collision* newbie)
     {
         closest->isMerged = 1;
         closest->isNewlyCreated = 0;
-        closest->normal = newbie->normal;
-        closest->delta1 = newbie->delta1;
-        closest->delta2 = newbie->delta2;
+        closest->normal = newbie.normal;
+        closest->delta1 = newbie.delta1;
+        closest->delta2 = newbie.delta2;
     }
     else
     {
-        assert(collisionsCount < 8);
-        newbie->isMerged = 1;
-        newbie->isNewlyCreated = 1;
-        m.collisions[m.collisionsCount++] = *newbie;
+        assert(collisionsCount < 4);
+        newbie.isMerged = 1;
+        newbie.isNewlyCreated = 1;
+        m.points[m.pointCount++] = newbie;
     }
 }
 
@@ -173,8 +174,8 @@ static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
         //float eps = (delta ^ separatingAxis).SquareLen();
         if (delta * separatingAxis > 0.0f)
         {
-            Collision newbie(supportPoints1[0], supportPoints2[0], separatingAxis, body1, body2);
-            MergeCollision(m, &newbie);
+            ContactPoint newbie(supportPoints1[0], supportPoints2[0], separatingAxis, body1, body2);
+            AddPoint(m, newbie);
         }
     }
     else if ((supportPointsCount1 == 1) && (supportPointsCount2 == 2))
@@ -186,8 +187,8 @@ static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
         if ((((point - supportPoints2[0]) * (supportPoints2[1] - supportPoints2[0])) > 0.0f) &&
             (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) > 0.0f))
         {
-            Collision newbie(supportPoints1[0], point, separatingAxis, body1, body2);
-            MergeCollision(m, &newbie);
+            ContactPoint newbie(supportPoints1[0], point, separatingAxis, body1, body2);
+            AddPoint(m, newbie);
         }
     }
     else if ((supportPointsCount1 == 2) && (supportPointsCount2 == 1))
@@ -199,8 +200,8 @@ static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
         if ((((point - supportPoints1[0]) * (supportPoints1[1] - supportPoints1[0])) > 0.0f) &&
             (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) > 0.0f))
         {
-            Collision newbie(point, supportPoints2[0], separatingAxis, body1, body2);
-            MergeCollision(m, &newbie);
+            ContactPoint newbie(point, supportPoints2[0], separatingAxis, body1, body2);
+            AddPoint(m, newbie);
         }
     }
     else if ((supportPointsCount2 == 2) && (supportPointsCount1 == 2))
@@ -225,7 +226,6 @@ static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
                     tempCol[tempCols].point1 = supportPoints1[i];
                     tempCol[tempCols].point2 = point;
                     tempCols++;
-                    //                          TryToAdd(new(collisionManager->GetNewNode()) RigidRigid::Collision(supportPoint1[i], point, separatingAxis, proxy1, proxy2));
                 }
             }
         }
@@ -249,25 +249,25 @@ static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
 
         if (tempCols == 1) //buggy but must work
         {
-            Collision newbie(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
-            MergeCollision(m, &newbie);
+            ContactPoint newbie(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
+            AddPoint(m, newbie);
         }
         if (tempCols >= 2) //means only equality, but clamp to two points
         {
-            Collision newbie1(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
-            MergeCollision(m, &newbie1);
-            Collision newbie2(tempCol[1].point1, tempCol[1].point2, separatingAxis, body1, body2);
-            MergeCollision(m, &newbie2);
+            ContactPoint newbie1(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
+            AddPoint(m, newbie1);
+            ContactPoint newbie2(tempCol[1].point1, tempCol[1].point2, separatingAxis, body1, body2);
+            AddPoint(m, newbie2);
         }
     }
 }
 
 static void UpdateManifold(Manifold& m)
 {
-    for (int collisionIndex = 0; collisionIndex < m.collisionsCount; collisionIndex++)
+    for (int collisionIndex = 0; collisionIndex < m.pointCount; collisionIndex++)
     {
-        m.collisions[collisionIndex].isMerged = 0;
-        m.collisions[collisionIndex].isNewlyCreated = 0;
+        m.points[collisionIndex].isMerged = 0;
+        m.points[collisionIndex].isNewlyCreated = 0;
     }
     Vector2f separatingAxis;
     if (ComputeSeparatingAxis(m.body1, m.body2, separatingAxis))
@@ -275,12 +275,12 @@ static void UpdateManifold(Manifold& m)
         GenerateContacts(m, separatingAxis);
     }
 
-    for (int collisionIndex = 0; collisionIndex < m.collisionsCount;)
+    for (int collisionIndex = 0; collisionIndex < m.pointCount;)
     {
-        if (!m.collisions[collisionIndex].isMerged)
+        if (!m.points[collisionIndex].isMerged)
         {
-            m.collisions[collisionIndex] = m.collisions[m.collisionsCount - 1];
-            m.collisionsCount--;
+            m.points[collisionIndex] = m.points[m.pointCount - 1];
+            m.pointCount--;
         }
         else
         {
@@ -426,7 +426,7 @@ NOINLINE void Collider::PackManifolds()
     {
         Manifold& m = manifolds[manifoldIndex];
 
-        if (m.collisionsCount == 0)
+        if (m.pointCount == 0)
         {
             manifoldMap.erase(std::make_pair(m.body1->index, m.body2->index));
 
