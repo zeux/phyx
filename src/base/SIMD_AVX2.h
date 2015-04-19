@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SIMD_AVX2_Transpose.h"
+
 namespace simd
 {
 	struct V8f
@@ -318,6 +320,69 @@ namespace simd
 	{
 		_mm256_store_si256(reinterpret_cast<__m256i*>(ptr), v.v);
 	}
+
+	SIMD_INLINE void loadindexed4(V8f& v0, V8f& v1, V8f& v2, V8f& v3, const void* base, const int indices[8], unsigned int stride)
+		{
+		const char* ptr = static_cast<const char*>(base);
+
+		__m128 hr0 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[0] * stride));
+		__m128 hr1 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[1] * stride));
+		__m128 hr2 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[2] * stride));
+		__m128 hr3 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[3] * stride));
+		__m128 hr4 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[4] * stride));
+		__m128 hr5 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[5] * stride));
+		__m128 hr6 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[6] * stride));
+		__m128 hr7 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[7] * stride));
+
+		__m256 r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(hr0), hr4, 1);
+		__m256 r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(hr1), hr5, 1);
+		__m256 r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(hr2), hr6, 1);
+		__m256 r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(hr3), hr7, 1);
+
+		_MM_TRANSPOSE8_LANE4_PS(r0, r1, r2, r3);
+
+		v0.v = r0;
+		v1.v = r1;
+		v2.v = r2;
+		v3.v = r3;
+	}
+
+	SIMD_INLINE void storeindexed4(const V8f& v0, const V8f& v1, const V8f& v2, const V8f& v3, void* base, const int indices[8], unsigned int stride)
+	{
+		char* ptr = static_cast<char*>(base);
+
+		__m256 r0 = v0.v;
+		__m256 r1 = v1.v;
+		__m256 r2 = v2.v;
+		__m256 r3 = v3.v;
+
+		_MM_TRANSPOSE8_LANE4_PS(r0, r1, r2, r3);
+
+		__m128 hr0 = _mm256_castps256_ps128(r0);
+		__m128 hr1 = _mm256_castps256_ps128(r1);
+		__m128 hr2 = _mm256_castps256_ps128(r2);
+		__m128 hr3 = _mm256_castps256_ps128(r3);
+		__m128 hr4 = _mm256_extractf128_ps(r0, 1);
+		__m128 hr5 = _mm256_extractf128_ps(r1, 1);
+		__m128 hr6 = _mm256_extractf128_ps(r2, 1);
+		__m128 hr7 = _mm256_extractf128_ps(r3, 1);
+
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[0] * stride), hr0);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[1] * stride), hr1);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[2] * stride), hr2);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[3] * stride), hr3);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[4] * stride), hr4);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[5] * stride), hr5);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[6] * stride), hr6);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[7] * stride), hr7);
+	}
+}
+
+namespace simd
+{
+	template <> struct VNf_<8> { typedef V8f type; };
+	template <> struct VNi_<8> { typedef V8i type; };
+	template <> struct VNb_<8> { typedef V8b type; };
 }
 
 using simd::V8f;

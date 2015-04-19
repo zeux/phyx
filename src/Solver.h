@@ -51,9 +51,7 @@ class WorkQueue;
 
 struct Solver
 {
-    Solver()
-    {
-    }
+    Solver();
 
     void RefreshJoints(WorkQueue& queue);
     void PreStepJoints();
@@ -79,17 +77,17 @@ struct Solver
     bool SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex);
 
     template <int N>
-    bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesSoA_Scalar(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    template <int N>
+    bool SolveJointsImpulsesSoA_SIMD(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
-    bool SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsImpulsesSoA_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex);
     bool SolveJointsImpulsesSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     template <int N>
-    bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsDisplacementSoA_Scalar(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    template <int N>
+    bool SolveJointsDisplacementSoA_SIMD(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
-    bool SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoA_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex);
     bool SolveJointsDisplacementSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     struct SolveBody

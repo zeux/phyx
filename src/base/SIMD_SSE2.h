@@ -362,6 +362,13 @@ namespace simd
 	}
 }
 
+namespace simd
+{
+	template <> struct VNf_<4> { typedef V4f type; };
+	template <> struct VNi_<4> { typedef V4i type; };
+	template <> struct VNb_<4> { typedef V4b type; };
+}
+
 using simd::V4f;
 using simd::V4i;
 using simd::V4b;
