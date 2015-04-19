@@ -45,7 +45,7 @@ struct Limiter
         float compMass2;
         compMass2 = normalProjector2 * compMass2_linear;
         compMass2 += angularProjector2 * compMass2_angular;
-        //compInvMass = 1.0f / (compMass);
+
         float compMass = compMass1 + compMass2;
 
         //accumulatedImpulse = 0;
@@ -58,50 +58,10 @@ struct Limiter
 
     void PreStep(RigidBody* body1, RigidBody* body2)
     {
-        ApplyImpulse(body1->velocity, body1->angularVelocity, body2->velocity, body2->angularVelocity, accumulatedImpulse);
-    }
-
-    float ComputeDeltaImpulse(RigidBody* body1, RigidBody* body2, float dstVelocity)
-    {
-        return Limiter::ComputeDeltaImpulse(
-            body1->velocity, body2->velocity, body1->angularVelocity, body2->angularVelocity, dstVelocity);
-    }
-    void ApplyImpulse(RigidBody* body1, RigidBody* body2, float deltaImpulse)
-    {
-        Limiter::ApplyImpulse(
-            body1->velocity,
-            body1->angularVelocity,
-            body2->velocity,
-            body2->angularVelocity,
-            deltaImpulse);
-    }
-
-  protected:
-    inline void ApplyImpulse(
-        Vector2f& body1Velocity, float& body1AngularVelocity,
-        Vector2f& body2Velocity, float& body2AngularVelocity, const float deltaImpulse)
-    {
-        body1Velocity += compMass1_linear * deltaImpulse;
-        body1AngularVelocity += compMass1_angular * deltaImpulse;
-        body2Velocity += compMass2_linear * deltaImpulse;
-        body2AngularVelocity += compMass2_angular * deltaImpulse;
-    }
-
-    float ComputeDeltaImpulse(
-        Vector2f body1Velocity,
-        Vector2f body2Velocity,
-        float body1AngularVelocity,
-        float body2AngularVelocity,
-        const float dstVelocity)
-    {
-        float dV = 0;
-        dV -= normalProjector1 * body1Velocity;
-        dV -= angularProjector1 * body1AngularVelocity;
-        dV -= normalProjector2 * body2Velocity;
-        dV -= angularProjector2 * body2AngularVelocity;
-        dV += dstVelocity;
-
-        return dV * compInvMass;
+        body1->velocity += compMass1_linear * accumulatedImpulse;
+        body1->angularVelocity += compMass1_angular * accumulatedImpulse;
+        body2->velocity += compMass2_linear * accumulatedImpulse;
+        body2->angularVelocity += compMass2_angular * accumulatedImpulse;
     }
 };
 
@@ -122,7 +82,8 @@ struct NormalLimiter : public Limiter
     {
         accumulatedDisplacingImpulse = 0.0f;
     }
-    inline void Refresh(
+
+    void Refresh(
         const Vector2f& normal, const Vector2f& point1, const Vector2f& point2,
         RigidBody* body1, RigidBody* body2, const float bounce, const float deltaVelocity, const float maxPenetrationVelocity, float deltaDepth, float errorReduction)
     {
@@ -150,47 +111,6 @@ struct NormalLimiter : public Limiter
         accumulatedDisplacingImpulse = 0;
     }
 
-    float ComputeDeltaDisplacingImpulse(RigidBody* body1, RigidBody* body2)
-    {
-        return Limiter::ComputeDeltaImpulse(
-            body1->displacingVelocity, body2->displacingVelocity, body1->displacingAngularVelocity, body2->displacingAngularVelocity, 0);
-    }
-    void ApplyDisplacingImpulse(RigidBody* body1, RigidBody* body2, float deltaImpulse)
-    {
-        Limiter::ApplyImpulse(
-            body1->displacingVelocity,
-            body1->displacingAngularVelocity,
-            body2->displacingVelocity,
-            body2->displacingAngularVelocity,
-            deltaImpulse);
-    }
-
-    float SolveImpulse(RigidBody* body1, RigidBody* body2)
-    {
-        float deltaImpulse = Limiter::ComputeDeltaImpulse(body1, body2, dstVelocity);
-        if (deltaImpulse + accumulatedImpulse < 0.0f) deltaImpulse = -accumulatedImpulse;
-        ApplyImpulse(body1, body2, deltaImpulse);
-        accumulatedImpulse += deltaImpulse;
-        return deltaImpulse;
-    }
-    float SolveDisplacingImpulse(RigidBody* body1, RigidBody* body2)
-    {
-        float deltaDisplacingImpulse = Limiter::ComputeDeltaImpulse(
-            body1->displacingVelocity,
-            body2->displacingVelocity,
-            body1->displacingAngularVelocity,
-            body2->displacingAngularVelocity,
-            dstDisplacingVelocity);
-        if (deltaDisplacingImpulse + accumulatedDisplacingImpulse < 0.0f) deltaDisplacingImpulse = -accumulatedDisplacingImpulse;
-        ApplyImpulse(
-            body1->displacingVelocity,
-            body1->displacingAngularVelocity,
-            body2->displacingVelocity,
-            body2->displacingAngularVelocity,
-            deltaDisplacingImpulse);
-        accumulatedDisplacingImpulse += deltaDisplacingImpulse;
-        return deltaDisplacingImpulse;
-    }
     float dstVelocity;
     float dstDisplacingVelocity;
     float accumulatedDisplacingImpulse;
@@ -207,6 +127,7 @@ struct ContactJoint
         this->body2Index = body2->index;
         collision->solverIndex = solverIndex;
     }
+
     void Refresh()
     {
         Vector2f w1 = collision->delta1;
@@ -220,42 +141,13 @@ struct ContactJoint
         tangent = collision->normal.GetPerpendicular();
         frictionLimiter.Refresh(tangent, point1, point2, body1, body2);
     }
+
     void PreStep()
     {
         normalLimiter.PreStep(body1, body2);
         frictionLimiter.PreStep(body1, body2);
     }
-    float SolveImpulse()
-    {
-        float di = normalLimiter.SolveImpulse(body1, body2);
 
-        float deltaImpulse =
-            frictionLimiter.ComputeDeltaImpulse(body1, body2, 0.0f);
-
-        float reactionForce;
-        float accumulatedImpulse;
-
-        reactionForce = normalLimiter.accumulatedImpulse;
-        accumulatedImpulse = frictionLimiter.accumulatedImpulse;
-
-        float frictionForce = accumulatedImpulse + deltaImpulse;
-        float frictionCoefficient = 0.3f;
-        if (fabs(frictionForce) > (reactionForce * frictionCoefficient))
-        {
-            float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
-            frictionForce = dir * reactionForce * frictionCoefficient;
-            deltaImpulse = frictionForce - accumulatedImpulse;
-        }
-        //totalError = max(totalError, fabsf(fdir1->deltaImpulse));
-        frictionLimiter.accumulatedImpulse += deltaImpulse;
-        frictionLimiter.ApplyImpulse(body1, body2, deltaImpulse);
-
-        return std::max(fabsf(di), fabsf(deltaImpulse));
-    }
-    float SolveDisplacement()
-    {
-        return normalLimiter.SolveDisplacingImpulse(body1, body2);
-    }
     ContactPoint* collision;
     RigidBody* body1;
     RigidBody* body2;
