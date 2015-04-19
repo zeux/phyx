@@ -27,19 +27,24 @@ namespace simd
 			return v;
 		}
 
-		static V4f zero()
+		SIMD_INLINE static V4f zero()
 		{
 			return _mm_setzero_ps();
 		}
 
-		static V4f one(float v)
+		SIMD_INLINE static V4f one(float v)
 		{
 			return _mm_set1_ps(v);
 		}
 
-		static V4f sign()
+		SIMD_INLINE static V4f sign()
 		{
 			return _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
+		}
+
+		SIMD_INLINE static V4f load(const float* ptr)
+		{
+			return _mm_load_ps(ptr);
 		}
 	};
 
@@ -60,14 +65,19 @@ namespace simd
 			return v;
 		}
 
-		static V4i zero()
+		SIMD_INLINE static V4i zero()
 		{
 			return _mm_setzero_si128();
 		}
 
-		static V4i one(int v)
+		SIMD_INLINE static V4i one(int v)
 		{
 			return _mm_set1_epi32(v);
+		}
+
+		SIMD_INLINE static V4i load(const int* ptr)
+		{
+			return _mm_load_si128(reinterpret_cast<const __m128i*>(ptr));
 		}
 	};
 
@@ -92,7 +102,7 @@ namespace simd
 			return v;
 		}
 
-		static V4b zero()
+		SIMD_INLINE static V4b zero()
 		{
 			return _mm_setzero_ps();
 		}
@@ -305,6 +315,50 @@ namespace simd
 	SIMD_INLINE bool all(V4b v)
 	{
 		return _mm_movemask_ps(v.v) == 15;
+	}
+
+	SIMD_INLINE void store(V4f v, float* ptr)
+	{
+		_mm_store_ps(ptr, v.v);
+	}
+
+	SIMD_INLINE void store(V4i v, int* ptr)
+	{
+		_mm_store_si128(reinterpret_cast<__m128i*>(ptr), v.v);
+	}
+
+	SIMD_INLINE void loadindexed4(V4f& v0, V4f& v1, V4f& v2, V4f& v3, const void* base, const int indices[4], unsigned int stride)
+	{
+		const char* ptr = static_cast<const char*>(base);
+
+		__m128 r0 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[0] * stride));
+		__m128 r1 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[1] * stride));
+		__m128 r2 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[2] * stride));
+		__m128 r3 = _mm_load_ps(reinterpret_cast<const float*>(ptr + indices[3] * stride));
+
+		_MM_TRANSPOSE4_PS(r0, r1, r2, r3);
+
+		v0.v = r0;
+		v1.v = r1;
+		v2.v = r2;
+		v3.v = r3;
+	}
+
+	SIMD_INLINE void storeindexed4(const V4f& v0, const V4f& v1, const V4f& v2, const V4f& v3, void* base, const int indices[4], unsigned int stride)
+	{
+		char* ptr = static_cast<char*>(base);
+
+		__m128 r0 = v0.v;
+		__m128 r1 = v1.v;
+		__m128 r2 = v2.v;
+		__m128 r3 = v3.v;
+
+		_MM_TRANSPOSE4_PS(r0, r1, r2, r3);
+
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[0] * stride), r0);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[1] * stride), r1);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[2] * stride), r2);
+		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[3] * stride), r3);
 	}
 }
 

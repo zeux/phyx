@@ -7,8 +7,8 @@
 template <int N>
 struct ContactJointPacked
 {
-    unsigned int body1Index[N];
-    unsigned int body2Index[N];
+    int body1Index[N];
+    int body2Index[N];
 
     float normalLimiter_normalProjector1X[N];
     float normalLimiter_normalProjector1Y[N];

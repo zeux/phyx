@@ -19,19 +19,24 @@ namespace simd
 			return v;
 		}
 
-		static V8f zero()
+		SIMD_INLINE static V8f zero()
 		{
 			return _mm256_setzero_ps();
 		}
 
-		static V8f one(float v)
+		SIMD_INLINE static V8f one(float v)
 		{
 			return _mm256_set1_ps(v);
 		}
 
-		static V8f sign()
+		SIMD_INLINE static V8f sign()
 		{
 			return _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000));
+		}
+
+		SIMD_INLINE static V8f load(const float* ptr)
+		{
+			return _mm256_load_ps(ptr);
 		}
 	};
 
@@ -52,14 +57,19 @@ namespace simd
 			return v;
 		}
 
-		static V8i zero()
+		SIMD_INLINE static V8i zero()
 		{
 			return _mm256_setzero_si256();
 		}
 
-		static V8i one(int v)
+		SIMD_INLINE static V8i one(int v)
 		{
 			return _mm256_set1_epi32(v);
+		}
+
+		SIMD_INLINE static V8i load(const int* ptr)
+		{
+			return _mm256_load_si256(reinterpret_cast<const __m256i*>(ptr));
 		}
 	};
 
@@ -84,7 +94,7 @@ namespace simd
 			return v;
 		}
 
-		static V8b zero()
+		SIMD_INLINE static V8b zero()
 		{
 			return _mm256_setzero_ps();
 		}
@@ -297,6 +307,16 @@ namespace simd
 	SIMD_INLINE bool all(V8b v)
 	{
 		return _mm256_movemask_ps(v.v) == 31;
+	}
+
+	SIMD_INLINE void store(V8f v, float* ptr)
+	{
+		_mm256_store_ps(ptr, v.v);
+	}
+
+	SIMD_INLINE void store(V8i v, int* ptr)
+	{
+		_mm256_store_si256(reinterpret_cast<__m256i*>(ptr), v.v);
 	}
 }
 

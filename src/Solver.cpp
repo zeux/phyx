@@ -721,33 +721,17 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         ContactJointPacked<4>& jointP = joint_packed[i >> 2];
         int iP = 0;
 
-        V4f row0, row1, row2, row3;
+        V4f body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf;
+        V4f body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf;
 
-        static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Loading assumes fixed layout");
+        loadindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+            solveBodiesImpulse.data, jointP.body1Index, sizeof(SolveBody));
 
-        row0 = _mm_load_ps(&solveBodiesImpulse[jointP.body1Index[iP + 0]].velocity.x);
-        row1 = _mm_load_ps(&solveBodiesImpulse[jointP.body1Index[iP + 1]].velocity.x);
-        row2 = _mm_load_ps(&solveBodiesImpulse[jointP.body1Index[iP + 2]].velocity.x);
-        row3 = _mm_load_ps(&solveBodiesImpulse[jointP.body1Index[iP + 3]].velocity.x);
+        loadindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+            solveBodiesImpulse.data, jointP.body2Index, sizeof(SolveBody));
 
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        V4f body1_velocityX = row0;
-        V4f body1_velocityY = row1;
-        V4f body1_angularVelocity = row2;
-        V4i body1_lastIteration = bitcast(row3);
-
-        row0 = _mm_load_ps(&solveBodiesImpulse[jointP.body2Index[iP + 0]].velocity.x);
-        row1 = _mm_load_ps(&solveBodiesImpulse[jointP.body2Index[iP + 1]].velocity.x);
-        row2 = _mm_load_ps(&solveBodiesImpulse[jointP.body2Index[iP + 2]].velocity.x);
-        row3 = _mm_load_ps(&solveBodiesImpulse[jointP.body2Index[iP + 3]].velocity.x);
-
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        V4f body2_velocityX = row0;
-        V4f body2_velocityY = row1;
-        V4f body2_angularVelocity = row2;
-        V4i body2_lastIteration = bitcast(row3);
+        V4i body1_lastIteration = bitcast(body1_lastIterationf);
+        V4i body2_lastIteration = bitcast(body2_lastIterationf);
 
         V4b body1_productive = body1_lastIteration > iterationIndex2;
         V4b body2_productive = body2_lastIteration > iterationIndex2;
@@ -756,38 +740,38 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         if (none(body_productive))
             continue;
 
-        V4f j_normalLimiter_normalProjector1X = _mm_load_ps(&jointP.normalLimiter_normalProjector1X[iP]);
-        V4f j_normalLimiter_normalProjector1Y = _mm_load_ps(&jointP.normalLimiter_normalProjector1Y[iP]);
-        V4f j_normalLimiter_normalProjector2X = _mm_load_ps(&jointP.normalLimiter_normalProjector2X[iP]);
-        V4f j_normalLimiter_normalProjector2Y = _mm_load_ps(&jointP.normalLimiter_normalProjector2Y[iP]);
-        V4f j_normalLimiter_angularProjector1 = _mm_load_ps(&jointP.normalLimiter_angularProjector1[iP]);
-        V4f j_normalLimiter_angularProjector2 = _mm_load_ps(&jointP.normalLimiter_angularProjector2[iP]);
+        V4f j_normalLimiter_normalProjector1X = V4f::load(&jointP.normalLimiter_normalProjector1X[iP]);
+        V4f j_normalLimiter_normalProjector1Y = V4f::load(&jointP.normalLimiter_normalProjector1Y[iP]);
+        V4f j_normalLimiter_normalProjector2X = V4f::load(&jointP.normalLimiter_normalProjector2X[iP]);
+        V4f j_normalLimiter_normalProjector2Y = V4f::load(&jointP.normalLimiter_normalProjector2Y[iP]);
+        V4f j_normalLimiter_angularProjector1 = V4f::load(&jointP.normalLimiter_angularProjector1[iP]);
+        V4f j_normalLimiter_angularProjector2 = V4f::load(&jointP.normalLimiter_angularProjector2[iP]);
 
-        V4f j_normalLimiter_compMass1_linearX = _mm_load_ps(&jointP.normalLimiter_compMass1_linearX[iP]);
-        V4f j_normalLimiter_compMass1_linearY = _mm_load_ps(&jointP.normalLimiter_compMass1_linearY[iP]);
-        V4f j_normalLimiter_compMass2_linearX = _mm_load_ps(&jointP.normalLimiter_compMass2_linearX[iP]);
-        V4f j_normalLimiter_compMass2_linearY = _mm_load_ps(&jointP.normalLimiter_compMass2_linearY[iP]);
-        V4f j_normalLimiter_compMass1_angular = _mm_load_ps(&jointP.normalLimiter_compMass1_angular[iP]);
-        V4f j_normalLimiter_compMass2_angular = _mm_load_ps(&jointP.normalLimiter_compMass2_angular[iP]);
-        V4f j_normalLimiter_compInvMass = _mm_load_ps(&jointP.normalLimiter_compInvMass[iP]);
-        V4f j_normalLimiter_accumulatedImpulse = _mm_load_ps(&jointP.normalLimiter_accumulatedImpulse[iP]);
-        V4f j_normalLimiter_dstVelocity = _mm_load_ps(&jointP.normalLimiter_dstVelocity[iP]);
+        V4f j_normalLimiter_compMass1_linearX = V4f::load(&jointP.normalLimiter_compMass1_linearX[iP]);
+        V4f j_normalLimiter_compMass1_linearY = V4f::load(&jointP.normalLimiter_compMass1_linearY[iP]);
+        V4f j_normalLimiter_compMass2_linearX = V4f::load(&jointP.normalLimiter_compMass2_linearX[iP]);
+        V4f j_normalLimiter_compMass2_linearY = V4f::load(&jointP.normalLimiter_compMass2_linearY[iP]);
+        V4f j_normalLimiter_compMass1_angular = V4f::load(&jointP.normalLimiter_compMass1_angular[iP]);
+        V4f j_normalLimiter_compMass2_angular = V4f::load(&jointP.normalLimiter_compMass2_angular[iP]);
+        V4f j_normalLimiter_compInvMass = V4f::load(&jointP.normalLimiter_compInvMass[iP]);
+        V4f j_normalLimiter_accumulatedImpulse = V4f::load(&jointP.normalLimiter_accumulatedImpulse[iP]);
+        V4f j_normalLimiter_dstVelocity = V4f::load(&jointP.normalLimiter_dstVelocity[iP]);
 
-        V4f j_frictionLimiter_normalProjector1X = _mm_load_ps(&jointP.frictionLimiter_normalProjector1X[iP]);
-        V4f j_frictionLimiter_normalProjector1Y = _mm_load_ps(&jointP.frictionLimiter_normalProjector1Y[iP]);
-        V4f j_frictionLimiter_normalProjector2X = _mm_load_ps(&jointP.frictionLimiter_normalProjector2X[iP]);
-        V4f j_frictionLimiter_normalProjector2Y = _mm_load_ps(&jointP.frictionLimiter_normalProjector2Y[iP]);
-        V4f j_frictionLimiter_angularProjector1 = _mm_load_ps(&jointP.frictionLimiter_angularProjector1[iP]);
-        V4f j_frictionLimiter_angularProjector2 = _mm_load_ps(&jointP.frictionLimiter_angularProjector2[iP]);
+        V4f j_frictionLimiter_normalProjector1X = V4f::load(&jointP.frictionLimiter_normalProjector1X[iP]);
+        V4f j_frictionLimiter_normalProjector1Y = V4f::load(&jointP.frictionLimiter_normalProjector1Y[iP]);
+        V4f j_frictionLimiter_normalProjector2X = V4f::load(&jointP.frictionLimiter_normalProjector2X[iP]);
+        V4f j_frictionLimiter_normalProjector2Y = V4f::load(&jointP.frictionLimiter_normalProjector2Y[iP]);
+        V4f j_frictionLimiter_angularProjector1 = V4f::load(&jointP.frictionLimiter_angularProjector1[iP]);
+        V4f j_frictionLimiter_angularProjector2 = V4f::load(&jointP.frictionLimiter_angularProjector2[iP]);
 
-        V4f j_frictionLimiter_compMass1_linearX = _mm_load_ps(&jointP.frictionLimiter_compMass1_linearX[iP]);
-        V4f j_frictionLimiter_compMass1_linearY = _mm_load_ps(&jointP.frictionLimiter_compMass1_linearY[iP]);
-        V4f j_frictionLimiter_compMass2_linearX = _mm_load_ps(&jointP.frictionLimiter_compMass2_linearX[iP]);
-        V4f j_frictionLimiter_compMass2_linearY = _mm_load_ps(&jointP.frictionLimiter_compMass2_linearY[iP]);
-        V4f j_frictionLimiter_compMass1_angular = _mm_load_ps(&jointP.frictionLimiter_compMass1_angular[iP]);
-        V4f j_frictionLimiter_compMass2_angular = _mm_load_ps(&jointP.frictionLimiter_compMass2_angular[iP]);
-        V4f j_frictionLimiter_compInvMass = _mm_load_ps(&jointP.frictionLimiter_compInvMass[iP]);
-        V4f j_frictionLimiter_accumulatedImpulse = _mm_load_ps(&jointP.frictionLimiter_accumulatedImpulse[iP]);
+        V4f j_frictionLimiter_compMass1_linearX = V4f::load(&jointP.frictionLimiter_compMass1_linearX[iP]);
+        V4f j_frictionLimiter_compMass1_linearY = V4f::load(&jointP.frictionLimiter_compMass1_linearY[iP]);
+        V4f j_frictionLimiter_compMass2_linearX = V4f::load(&jointP.frictionLimiter_compMass2_linearX[iP]);
+        V4f j_frictionLimiter_compMass2_linearY = V4f::load(&jointP.frictionLimiter_compMass2_linearY[iP]);
+        V4f j_frictionLimiter_compMass1_angular = V4f::load(&jointP.frictionLimiter_compMass1_angular[iP]);
+        V4f j_frictionLimiter_compMass2_angular = V4f::load(&jointP.frictionLimiter_compMass2_angular[iP]);
+        V4f j_frictionLimiter_compInvMass = V4f::load(&jointP.frictionLimiter_compInvMass[iP]);
+        V4f j_frictionLimiter_accumulatedImpulse = V4f::load(&jointP.frictionLimiter_accumulatedImpulse[iP]);
 
         V4f normaldV = j_normalLimiter_dstVelocity;
 
@@ -847,8 +831,8 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         body2_velocityY += j_frictionLimiter_compMass2_linearY * frictionDeltaImpulse;
         body2_angularVelocity += j_frictionLimiter_compMass2_angular * frictionDeltaImpulse;
 
-        _mm_store_ps(&jointP.normalLimiter_accumulatedImpulse[iP], j_normalLimiter_accumulatedImpulse);
-        _mm_store_ps(&jointP.frictionLimiter_accumulatedImpulse[iP], j_frictionLimiter_accumulatedImpulse);
+        store(j_normalLimiter_accumulatedImpulse, &jointP.normalLimiter_accumulatedImpulse[iP]);
+        store(j_frictionLimiter_accumulatedImpulse, &jointP.frictionLimiter_accumulatedImpulse[iP]);
 
         V4f cumulativeImpulse = max(abs(normalDeltaImpulse), abs(frictionDeltaImpulse));
 
@@ -859,32 +843,14 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         body1_lastIteration = select(body1_lastIteration, iterationIndex0, productive);
         body2_lastIteration = select(body2_lastIteration, iterationIndex0, productive);
 
-        // this is a bit painful :(
-        static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Storing assumes fixed layout");
+        body1_lastIterationf = bitcast(body1_lastIteration);
+        body2_lastIterationf = bitcast(body2_lastIteration);
 
-        row0 = body1_velocityX;
-        row1 = body1_velocityY;
-        row2 = body1_angularVelocity;
-        row3 = bitcast(body1_lastIteration);
+        storeindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+            solveBodiesImpulse.data, jointP.body1Index, sizeof(SolveBody));
 
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        _mm_store_ps(&solveBodiesImpulse[jointP.body1Index[iP + 0]].velocity.x, row0);
-        _mm_store_ps(&solveBodiesImpulse[jointP.body1Index[iP + 1]].velocity.x, row1);
-        _mm_store_ps(&solveBodiesImpulse[jointP.body1Index[iP + 2]].velocity.x, row2);
-        _mm_store_ps(&solveBodiesImpulse[jointP.body1Index[iP + 3]].velocity.x, row3);
-
-        row0 = body2_velocityX;
-        row1 = body2_velocityY;
-        row2 = body2_angularVelocity;
-        row3 = bitcast(body2_lastIteration);
-
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 0]].velocity.x, row0);
-        _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 1]].velocity.x, row1);
-        _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 2]].velocity.x, row2);
-        _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 3]].velocity.x, row3);
+        storeindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+            solveBodiesImpulse.data, jointP.body2Index, sizeof(SolveBody));
     }
 
     return any(productive_any);
@@ -1546,117 +1512,84 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joi
         ContactJointPacked<4>& jointP = joint_packed[i >> 2];
         int iP = 0;
 
-        V4f row0, row1, row2, row3;
+        V4f body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf;
+        V4f body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf;
 
-        static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Loading assumes fixed layout");
+        loadindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+            solveBodiesDisplacement.data, jointP.body1Index, sizeof(SolveBody));
 
-        row0 = _mm_load_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 0]].velocity.x);
-        row1 = _mm_load_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 1]].velocity.x);
-        row2 = _mm_load_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 2]].velocity.x);
-        row3 = _mm_load_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 3]].velocity.x);
+        loadindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+            solveBodiesDisplacement.data, jointP.body2Index, sizeof(SolveBody));
 
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
+        V4i body1_lastIteration = bitcast(body1_lastIterationf);
+        V4i body2_lastIteration = bitcast(body2_lastIterationf);
 
-        V4f body1_displacingVelocityX = row0;
-        V4f body1_displacingVelocityY = row1;
-        V4f body1_displacingAngularVelocity = row2;
-        V4i body1_lastDisplacementIteration = bitcast(row3);
-
-        row0 = _mm_load_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 0]].velocity.x);
-        row1 = _mm_load_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 1]].velocity.x);
-        row2 = _mm_load_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 2]].velocity.x);
-        row3 = _mm_load_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 3]].velocity.x);
-
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        V4f body2_displacingVelocityX = row0;
-        V4f body2_displacingVelocityY = row1;
-        V4f body2_displacingAngularVelocity = row2;
-        V4i body2_lastDisplacementIteration = bitcast(row3);
-
-        V4b body1_productive = body1_lastDisplacementIteration > iterationIndex2;
-        V4b body2_productive = body2_lastDisplacementIteration > iterationIndex2;
+        V4b body1_productive = body1_lastIteration > iterationIndex2;
+        V4b body2_productive = body2_lastIteration > iterationIndex2;
         V4b body_productive = body1_productive | body2_productive;
 
         if (none(body_productive))
             continue;
 
-        V4f j_normalLimiter_normalProjector1X = _mm_load_ps(&jointP.normalLimiter_normalProjector1X[iP]);
-        V4f j_normalLimiter_normalProjector1Y = _mm_load_ps(&jointP.normalLimiter_normalProjector1Y[iP]);
-        V4f j_normalLimiter_normalProjector2X = _mm_load_ps(&jointP.normalLimiter_normalProjector2X[iP]);
-        V4f j_normalLimiter_normalProjector2Y = _mm_load_ps(&jointP.normalLimiter_normalProjector2Y[iP]);
-        V4f j_normalLimiter_angularProjector1 = _mm_load_ps(&jointP.normalLimiter_angularProjector1[iP]);
-        V4f j_normalLimiter_angularProjector2 = _mm_load_ps(&jointP.normalLimiter_angularProjector2[iP]);
+        V4f j_normalLimiter_normalProjector1X = V4f::load(&jointP.normalLimiter_normalProjector1X[iP]);
+        V4f j_normalLimiter_normalProjector1Y = V4f::load(&jointP.normalLimiter_normalProjector1Y[iP]);
+        V4f j_normalLimiter_normalProjector2X = V4f::load(&jointP.normalLimiter_normalProjector2X[iP]);
+        V4f j_normalLimiter_normalProjector2Y = V4f::load(&jointP.normalLimiter_normalProjector2Y[iP]);
+        V4f j_normalLimiter_angularProjector1 = V4f::load(&jointP.normalLimiter_angularProjector1[iP]);
+        V4f j_normalLimiter_angularProjector2 = V4f::load(&jointP.normalLimiter_angularProjector2[iP]);
 
-        V4f j_normalLimiter_compMass1_linearX = _mm_load_ps(&jointP.normalLimiter_compMass1_linearX[iP]);
-        V4f j_normalLimiter_compMass1_linearY = _mm_load_ps(&jointP.normalLimiter_compMass1_linearY[iP]);
-        V4f j_normalLimiter_compMass2_linearX = _mm_load_ps(&jointP.normalLimiter_compMass2_linearX[iP]);
-        V4f j_normalLimiter_compMass2_linearY = _mm_load_ps(&jointP.normalLimiter_compMass2_linearY[iP]);
-        V4f j_normalLimiter_compMass1_angular = _mm_load_ps(&jointP.normalLimiter_compMass1_angular[iP]);
-        V4f j_normalLimiter_compMass2_angular = _mm_load_ps(&jointP.normalLimiter_compMass2_angular[iP]);
-        V4f j_normalLimiter_compInvMass = _mm_load_ps(&jointP.normalLimiter_compInvMass[iP]);
-        V4f j_normalLimiter_dstDisplacingVelocity = _mm_load_ps(&jointP.normalLimiter_dstDisplacingVelocity[iP]);
-        V4f j_normalLimiter_accumulatedDisplacingImpulse = _mm_load_ps(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP]);
+        V4f j_normalLimiter_compMass1_linearX = V4f::load(&jointP.normalLimiter_compMass1_linearX[iP]);
+        V4f j_normalLimiter_compMass1_linearY = V4f::load(&jointP.normalLimiter_compMass1_linearY[iP]);
+        V4f j_normalLimiter_compMass2_linearX = V4f::load(&jointP.normalLimiter_compMass2_linearX[iP]);
+        V4f j_normalLimiter_compMass2_linearY = V4f::load(&jointP.normalLimiter_compMass2_linearY[iP]);
+        V4f j_normalLimiter_compMass1_angular = V4f::load(&jointP.normalLimiter_compMass1_angular[iP]);
+        V4f j_normalLimiter_compMass2_angular = V4f::load(&jointP.normalLimiter_compMass2_angular[iP]);
+        V4f j_normalLimiter_compInvMass = V4f::load(&jointP.normalLimiter_compInvMass[iP]);
+        V4f j_normalLimiter_dstDisplacingVelocity = V4f::load(&jointP.normalLimiter_dstDisplacingVelocity[iP]);
+        V4f j_normalLimiter_accumulatedDisplacingImpulse = V4f::load(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP]);
 
         V4f dV = j_normalLimiter_dstDisplacingVelocity;
 
-        dV -= j_normalLimiter_normalProjector1X * body1_displacingVelocityX;
-        dV -= j_normalLimiter_normalProjector1Y * body1_displacingVelocityY;
-        dV -= j_normalLimiter_angularProjector1 * body1_displacingAngularVelocity;
+        dV -= j_normalLimiter_normalProjector1X * body1_velocityX;
+        dV -= j_normalLimiter_normalProjector1Y * body1_velocityY;
+        dV -= j_normalLimiter_angularProjector1 * body1_angularVelocity;
 
-        dV -= j_normalLimiter_normalProjector2X * body2_displacingVelocityX;
-        dV -= j_normalLimiter_normalProjector2Y * body2_displacingVelocityY;
-        dV -= j_normalLimiter_angularProjector2 * body2_displacingAngularVelocity;
+        dV -= j_normalLimiter_normalProjector2X * body2_velocityX;
+        dV -= j_normalLimiter_normalProjector2Y * body2_velocityY;
+        dV -= j_normalLimiter_angularProjector2 * body2_angularVelocity;
 
         V4f displacingDeltaImpulse = dV * j_normalLimiter_compInvMass;
 
         displacingDeltaImpulse = max(displacingDeltaImpulse, -j_normalLimiter_accumulatedDisplacingImpulse);
 
-        body1_displacingVelocityX += j_normalLimiter_compMass1_linearX * displacingDeltaImpulse;
-        body1_displacingVelocityY += j_normalLimiter_compMass1_linearY * displacingDeltaImpulse;
-        body1_displacingAngularVelocity += j_normalLimiter_compMass1_angular * displacingDeltaImpulse;
+        body1_velocityX += j_normalLimiter_compMass1_linearX * displacingDeltaImpulse;
+        body1_velocityY += j_normalLimiter_compMass1_linearY * displacingDeltaImpulse;
+        body1_angularVelocity += j_normalLimiter_compMass1_angular * displacingDeltaImpulse;
 
-        body2_displacingVelocityX += j_normalLimiter_compMass2_linearX * displacingDeltaImpulse;
-        body2_displacingVelocityY += j_normalLimiter_compMass2_linearY * displacingDeltaImpulse;
-        body2_displacingAngularVelocity += j_normalLimiter_compMass2_angular * displacingDeltaImpulse;
+        body2_velocityX += j_normalLimiter_compMass2_linearX * displacingDeltaImpulse;
+        body2_velocityY += j_normalLimiter_compMass2_linearY * displacingDeltaImpulse;
+        body2_angularVelocity += j_normalLimiter_compMass2_angular * displacingDeltaImpulse;
 
         j_normalLimiter_accumulatedDisplacingImpulse += displacingDeltaImpulse;
 
-        _mm_store_ps(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP], j_normalLimiter_accumulatedDisplacingImpulse);
+        store(j_normalLimiter_accumulatedDisplacingImpulse, &jointP.normalLimiter_accumulatedDisplacingImpulse[iP]);
 
         V4b productive = abs(displacingDeltaImpulse) > V4f::one(kProductiveImpulse);
 
         productive_any |= productive;
 
-        body1_lastDisplacementIteration = select(body1_lastDisplacementIteration, iterationIndex0, productive);
-        body2_lastDisplacementIteration = select(body2_lastDisplacementIteration, iterationIndex0, productive);
+        body1_lastIteration = select(body1_lastIteration, iterationIndex0, productive);
+        body2_lastIteration = select(body2_lastIteration, iterationIndex0, productive);
 
         // this is a bit painful :(
-        static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Storing assumes fixed layout");
+        body1_lastIterationf = bitcast(body1_lastIteration);
+        body2_lastIterationf = bitcast(body2_lastIteration);
 
-        row0 = body1_displacingVelocityX;
-        row1 = body1_displacingVelocityY;
-        row2 = body1_displacingAngularVelocity;
-        row3 = bitcast(body1_lastDisplacementIteration);
+        storeindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+            solveBodiesDisplacement.data, jointP.body1Index, sizeof(SolveBody));
 
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 0]].velocity.x, row0);
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 1]].velocity.x, row1);
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 2]].velocity.x, row2);
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body1Index[iP + 3]].velocity.x, row3);
-
-        row0 = body2_displacingVelocityX;
-        row1 = body2_displacingVelocityY;
-        row2 = body2_displacingAngularVelocity;
-        row3 = bitcast(body2_lastDisplacementIteration);
-
-        _MM_TRANSPOSE4_PS(row0, row1, row2, row3);
-
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 0]].velocity.x, row0);
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 1]].velocity.x, row1);
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 2]].velocity.x, row2);
-        _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 3]].velocity.x, row3);
+        storeindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+            solveBodiesDisplacement.data, jointP.body2Index, sizeof(SolveBody));
     }
 
     return any(productive_any);
