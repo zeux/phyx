@@ -76,16 +76,6 @@ struct Geom
         return 1;
     }
 
-    void GetAxisProjectionRange(const Vector2f& axis, float& min, float& max) const
-    {
-        float diff =
-            fabsf(coords.xVector * axis) * size.x +
-            fabsf(coords.yVector * axis) * size.y;
-        float base = coords.pos * axis;
-        min = base - diff;
-        max = base + diff;
-    }
-
     void RecomputeAABB()
     {
         Vector2f diff = Vector2f(

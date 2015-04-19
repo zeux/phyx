@@ -5,43 +5,10 @@
 
 #include "microprofile.h"
 
-static bool ComputeSeparatingAxis(RigidBody* body1, RigidBody* body2, Vector2f& separatingAxis)
+static NOINLINE bool ComputeSeparatingAxis(RigidBody* body1, RigidBody* body2, Vector2f& separatingAxis)
 {
-    Vector2f axis[4];
-    axis[0] = body1->coords.xVector;
-    axis[1] = body1->coords.yVector;
-    axis[2] = body2->coords.xVector;
-    axis[3] = body2->coords.yVector;
-
-    bool found = 0;
-    float bestquaddepth = 1e5f;
-    Vector2f bestaxis;
-
-    for (int i = 0; i < 4; i++)
-    {
-        float min1, max1;
-        float min2, max2;
-        body1->geom.GetAxisProjectionRange(axis[i], min1, max1);
-        body2->geom.GetAxisProjectionRange(axis[i], min2, max2);
-        if ((min1 > max2) || (min2 > max1))
-        {
-            return 0;
-        }
-
-        float delta = std::min(max2 - min1, max1 - min2);
-        if (bestquaddepth > delta)
-        {
-            bestquaddepth = delta;
-            bestaxis = axis[i];
-            found = 1;
-        }
-    }
-    separatingAxis = bestaxis;
-    return found;
-}
-
-static bool ComputeSeparatingAxis_SSE2(RigidBody* body1, RigidBody* body2, Vector2f& separatingAxis)
-{
+    // http://www.geometrictools.com/Source/Intersection2D.html#PlanarPlanar
+    // Adapted to return axis with least amount of penetration
     const Vector2f* A0 = &body1->coords.xVector;
     const Vector2f* A1 = &body2->coords.xVector;
     const Vector2f& E0 = body1->geom.size;
@@ -49,55 +16,39 @@ static bool ComputeSeparatingAxis_SSE2(RigidBody* body1, RigidBody* body2, Vecto
 
     Vector2f D = body1->coords.pos - body2->coords.pos;
 
-    float absA0dA1[2][2], rSum, pd;
+    float Adot[2][2];
 
-    float bestpd;
-    Vector2f bestaxis;
+    // Test axis box0.axis[0]
+    Adot[0][0] = fabsf(A0[0] * A1[0]);
+    Adot[0][1] = fabsf(A0[0] * A1[1]);
 
-    // Test axis box0.axis[0].
-    absA0dA1[0][0] = std::abs(A0[0] * A1[0]);
-    absA0dA1[0][1] = std::abs(A0[0] * A1[1]);
-    rSum = E0.x + E1.x * absA0dA1[0][0] + E1.y * absA0dA1[0][1];
-    pd = std::abs(A0[0] * D) - rSum;
-    if (pd > 0) return false;
+    float rSum0 = E0.x + E1.x * Adot[0][0] + E1.y * Adot[0][1];
+    float dist0 = fabsf(A0[0] * D) - rSum0;
+    if (dist0 > 0) return false;
 
-    bestpd = pd;
-    bestaxis = A0[0];
+    float bestdist = dist0;
+    Vector2f bestaxis = A0[0];
 
     // Test axis box0.axis[1].
-    absA0dA1[1][0] = std::abs(A0[1] * A1[0]);
-    absA0dA1[1][1] = std::abs(A0[1] * A1[1]);
-    rSum = E0.y + E1.x * absA0dA1[1][0] + E1.y * absA0dA1[1][1];
-    pd = std::abs(A0[1] * D) - rSum;
-    if (pd > 0) return false;
+    Adot[1][0] = fabsf(A0[1] * A1[0]);
+    Adot[1][1] = fabsf(A0[1] * A1[1]);
 
-    if (pd > bestpd)
-    {
-        bestpd = pd;
-        bestaxis = A0[1];
-    }
+    float rSum1 = E0.y + E1.x * Adot[1][0] + E1.y * Adot[1][1];
+    float dist1 = fabsf(A0[1] * D) - rSum1;
+    if (dist1 > 0) return false;
+    if (dist1 > bestdist) { bestdist = dist1; bestaxis = A0[1]; }
 
     // Test axis box1.axis[0].
-    rSum = E1.x + E0.x * absA0dA1[0][0] + E0.y * absA0dA1[1][0];
-    pd = std::abs(A1[0] * D) - rSum;
-    if (pd > 0) return false;
-
-    if (pd > bestpd)
-    {
-        bestpd = pd;
-        bestaxis = A1[0];
-    }
+    float rSum2 = E1.x + E0.x * Adot[0][0] + E0.y * Adot[1][0];
+    float dist2 = fabsf(A1[0] * D) - rSum2;
+    if (dist2 > 0) return false;
+    if (dist2 > bestdist) { bestdist = dist2; bestaxis = A1[0]; }
 
     // Test axis box1.axis[1].
-    rSum = E1.y + E0.x * absA0dA1[0][1] + E0.y * absA0dA1[1][1];
-    pd = std::abs(A1[1] * D) - rSum;
-    if (pd > 0) return false;
-
-    if (pd > bestpd)
-    {
-        bestpd = pd;
-        bestaxis = A1[1];
-    }
+    float rSum3 = E1.y + E0.x * Adot[0][1] + E0.y * Adot[1][1];
+    float dist3 = fabsf(A1[1] * D) - rSum3;
+    if (dist3 > 0) return false;
+    if (dist3 > bestdist) { bestdist = dist3; bestaxis = A1[1]; }
 
     separatingAxis = bestaxis;
     return true;
@@ -140,7 +91,7 @@ static void AddPoint(Manifold& m, ContactPoint& newbie)
     }
 }
 
-static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
+static void NOINLINE GenerateContacts(Manifold& m, Vector2f separatingAxis)
 {
     RigidBody* body1 = m.body1;
     RigidBody* body2 = m.body2;
@@ -269,6 +220,7 @@ static void UpdateManifold(Manifold& m)
         m.points[collisionIndex].isMerged = 0;
         m.points[collisionIndex].isNewlyCreated = 0;
     }
+
     Vector2f separatingAxis;
     if (ComputeSeparatingAxis(m.body1, m.body2, separatingAxis))
     {
