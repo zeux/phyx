@@ -5,6 +5,285 @@
 
 #include "microprofile.h"
 
+static bool ComputeSeparatingAxis(RigidBody* body1, RigidBody* body2, Vector2f& separatingAxis)
+{
+    Vector2f axis[4];
+    axis[0] = body1->coords.xVector;
+    axis[1] = body1->coords.yVector;
+    axis[2] = body2->coords.xVector;
+    axis[3] = body2->coords.yVector;
+
+    bool found = 0;
+    float bestquaddepth = 1e5f;
+    Vector2f bestaxis;
+
+    for (int i = 0; i < 4; i++)
+    {
+        float min1, max1;
+        float min2, max2;
+        body1->geom.GetAxisProjectionRange(axis[i], min1, max1);
+        body2->geom.GetAxisProjectionRange(axis[i], min2, max2);
+        if ((min1 > max2) || (min2 > max1))
+        {
+            return 0;
+        }
+
+        float delta = std::min(max2 - min1, max1 - min2);
+        if (bestquaddepth > delta)
+        {
+            bestquaddepth = delta;
+            bestaxis = axis[i];
+            found = 1;
+        }
+    }
+    separatingAxis = bestaxis;
+    return found;
+}
+
+static bool ComputeSeparatingAxis_SSE2(RigidBody* body1, RigidBody* body2, Vector2f& separatingAxis)
+{
+    const Vector2f* A0 = &body1->coords.xVector;
+    const Vector2f* A1 = &body2->coords.xVector;
+    const Vector2f& E0 = body1->geom.size;
+    const Vector2f& E1 = body2->geom.size;
+
+    Vector2f D = body1->coords.pos - body2->coords.pos;
+
+    float absA0dA1[2][2], rSum, pd;
+
+    float bestpd;
+    Vector2f bestaxis;
+
+    // Test axis box0.axis[0].
+    absA0dA1[0][0] = std::abs(A0[0] * A1[0]);
+    absA0dA1[0][1] = std::abs(A0[0] * A1[1]);
+    rSum = E0.x + E1.x * absA0dA1[0][0] + E1.y * absA0dA1[0][1];
+    pd = std::abs(A0[0] * D) - rSum;
+    if (pd > 0) return false;
+
+    bestpd = pd;
+    bestaxis = A0[0];
+
+    // Test axis box0.axis[1].
+    absA0dA1[1][0] = std::abs(A0[1] * A1[0]);
+    absA0dA1[1][1] = std::abs(A0[1] * A1[1]);
+    rSum = E0.y + E1.x * absA0dA1[1][0] + E1.y * absA0dA1[1][1];
+    pd = std::abs(A0[1] * D) - rSum;
+    if (pd > 0) return false;
+
+    if (pd > bestpd)
+    {
+        bestpd = pd;
+        bestaxis = A0[1];
+    }
+
+    // Test axis box1.axis[0].
+    rSum = E1.x + E0.x * absA0dA1[0][0] + E0.y * absA0dA1[1][0];
+    pd = std::abs(A1[0] * D) - rSum;
+    if (pd > 0) return false;
+
+    if (pd > bestpd)
+    {
+        bestpd = pd;
+        bestaxis = A1[0];
+    }
+
+    // Test axis box1.axis[1].
+    rSum = E1.y + E0.x * absA0dA1[0][1] + E0.y * absA0dA1[1][1];
+    pd = std::abs(A1[1] * D) - rSum;
+    if (pd > 0) return false;
+
+    if (pd > bestpd)
+    {
+        bestpd = pd;
+        bestaxis = A1[1];
+    }
+
+    separatingAxis = bestaxis;
+    return true;
+}
+
+static void MergeCollision(Manifold& m, Collision* newbie)
+{
+    Collision* closest = 0;
+    float bestdepth = std::numeric_limits<float>::max();
+
+    for (int collisionIndex = 0; collisionIndex < m.collisionsCount; collisionIndex++)
+    {
+        Collision* col = &m.collisions[collisionIndex];
+        if (newbie->Equals(col, 2.0f))
+        {
+            float depth = (newbie->delta1 - col->delta1).SquareLen() + (newbie->delta2 - col->delta2).SquareLen();
+            if (depth < bestdepth)
+            {
+                bestdepth = depth;
+                closest = col;
+            }
+        }
+    }
+    if (closest)
+    {
+        closest->Refresh(newbie);
+    }
+    else
+    {
+        assert(collisionsCount < 8);
+        newbie->isMerged = 1;
+        newbie->isNewlyCreated = 1;
+        m.collisions[m.collisionsCount++] = *newbie;
+    }
+}
+
+static void GenerateContacts(Manifold& m, Vector2f separatingAxis)
+{
+    RigidBody* body1 = m.body1;
+    RigidBody* body2 = m.body2;
+
+    if (separatingAxis * (body1->coords.pos - body2->coords.pos) < 0.0f)
+        separatingAxis.Invert();
+
+    const int maxSupportPoints = 2;
+    Vector2f supportPoints1[maxSupportPoints];
+    Vector2f supportPoints2[maxSupportPoints];
+
+    float linearTolerance = 2.0f;
+
+    int supportPointsCount1 = body1->geom.GetSupportPointSet(-separatingAxis, supportPoints1);
+    int supportPointsCount2 = body2->geom.GetSupportPointSet(separatingAxis, supportPoints2);
+
+    if ((supportPointsCount1 == 2) && (((supportPoints1[0] - supportPoints1[1])).SquareLen() < linearTolerance * linearTolerance))
+    {
+        supportPoints1[0] = (supportPoints1[0] + supportPoints1[1]) * 0.5f;
+        supportPointsCount1 = 1;
+    }
+    if ((supportPointsCount2 == 2) && (((supportPoints2[0] - supportPoints2[1])).SquareLen() < linearTolerance * linearTolerance))
+    {
+        supportPoints2[0] = (supportPoints2[0] + supportPoints2[1]) * 0.5f;
+        supportPointsCount2 = 1;
+    }
+
+    if ((supportPointsCount1 == 1) && (supportPointsCount2 == 1))
+    {
+        Vector2f delta = supportPoints2[0] - supportPoints1[0];
+        //float eps = (delta ^ separatingAxis).SquareLen();
+        if (delta * separatingAxis > 0.0f)
+        {
+            Collision newbie(supportPoints1[0], supportPoints2[0], separatingAxis, body1, body2);
+            MergeCollision(m, &newbie);
+        }
+    }
+    else if ((supportPointsCount1 == 1) && (supportPointsCount2 == 2))
+    {
+        Vector2f n = (supportPoints2[1] - supportPoints2[0]).GetPerpendicular();
+        Vector2f point;
+        ProjectPointToLine(supportPoints1[0], supportPoints2[0], n, separatingAxis, point);
+
+        if ((((point - supportPoints2[0]) * (supportPoints2[1] - supportPoints2[0])) > 0.0f) &&
+            (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) > 0.0f))
+        {
+            Collision newbie(supportPoints1[0], point, separatingAxis, body1, body2);
+            MergeCollision(m, &newbie);
+        }
+    }
+    else if ((supportPointsCount1 == 2) && (supportPointsCount2 == 1))
+    {
+        Vector2f n = (supportPoints1[1] - supportPoints1[0]).GetPerpendicular();
+        Vector2f point;
+        ProjectPointToLine(supportPoints2[0], supportPoints1[0], n, separatingAxis, point);
+
+        if ((((point - supportPoints1[0]) * (supportPoints1[1] - supportPoints1[0])) > 0.0f) &&
+            (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) > 0.0f))
+        {
+            Collision newbie(point, supportPoints2[0], separatingAxis, body1, body2);
+            MergeCollision(m, &newbie);
+        }
+    }
+    else if ((supportPointsCount2 == 2) && (supportPointsCount1 == 2))
+    {
+        struct TempColInfo
+        {
+            Vector2f point1, point2;
+        };
+        TempColInfo tempCol[4];
+        int tempCols = 0;
+        for (int i = 0; i < 2; i++)
+        {
+            Vector2f n = (supportPoints2[1] - supportPoints2[0]).GetPerpendicular();
+            if ((supportPoints1[i] - supportPoints2[0]) * n > 0.0)
+            {
+                Vector2f point;
+                ProjectPointToLine(supportPoints1[i], supportPoints2[0], n, separatingAxis, point);
+
+                if ((((point - supportPoints2[0]) * (supportPoints2[1] - supportPoints2[0])) >= 0.0f) &&
+                    (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) > 0.0f))
+                {
+                    tempCol[tempCols].point1 = supportPoints1[i];
+                    tempCol[tempCols].point2 = point;
+                    tempCols++;
+                    //                          TryToAdd(new(collisionManager->GetNewNode()) RigidRigid::Collision(supportPoint1[i], point, separatingAxis, proxy1, proxy2));
+                }
+            }
+        }
+        for (int i = 0; i < 2; i++)
+        {
+            Vector2f n = (supportPoints1[1] - supportPoints1[0]).GetPerpendicular();
+            if ((supportPoints2[i] - supportPoints1[0]) * n > 0.0)
+            {
+                Vector2f point;
+                ProjectPointToLine(supportPoints2[i], supportPoints1[0], n, separatingAxis, point);
+
+                if ((((point - supportPoints1[0]) * (supportPoints1[1] - supportPoints1[0])) >= 0.0f) &&
+                    (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) > 0.0f))
+                {
+                    tempCol[tempCols].point1 = point;
+                    tempCol[tempCols].point2 = supportPoints2[i];
+                    tempCols++;
+                }
+            }
+        }
+
+        if (tempCols == 1) //buggy but must work
+        {
+            Collision newbie(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
+            MergeCollision(m, &newbie);
+        }
+        if (tempCols >= 2) //means only equality, but clamp to two points
+        {
+            Collision newbie1(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
+            MergeCollision(m, &newbie1);
+            Collision newbie2(tempCol[1].point1, tempCol[1].point2, separatingAxis, body1, body2);
+            MergeCollision(m, &newbie2);
+        }
+    }
+}
+
+static void UpdateManifold(Manifold& m)
+{
+    for (int collisionIndex = 0; collisionIndex < m.collisionsCount; collisionIndex++)
+    {
+        m.collisions[collisionIndex].isMerged = 0;
+        m.collisions[collisionIndex].isNewlyCreated = 0;
+    }
+    Vector2f separatingAxis;
+    if (ComputeSeparatingAxis(m.body1, m.body2, separatingAxis))
+    {
+        GenerateContacts(m, separatingAxis);
+    }
+
+    for (int collisionIndex = 0; collisionIndex < m.collisionsCount;)
+    {
+        if (!m.collisions[collisionIndex].isMerged)
+        {
+            m.collisions[collisionIndex] = m.collisions[m.collisionsCount - 1];
+            m.collisionsCount--;
+        }
+        else
+        {
+            collisionIndex++;
+        }
+    }
+}
+
 Collider::Collider()
     : manifoldMap(std::make_pair(~0u, 0), std::make_pair(~0u, 1))
 {
@@ -130,7 +409,7 @@ NOINLINE void Collider::UpdateManifolds(WorkQueue& queue)
     MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
     ParallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int) {
-        m.Update();
+        UpdateManifold(m);
     });
 }
 
