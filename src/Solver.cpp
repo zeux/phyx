@@ -712,7 +712,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
     V4i iterationIndex0 = V4i::one(iterationIndex);
     V4i iterationIndex2 = V4i::one(iterationIndex - 2);
 
-    V4i productive_any = V4i::zero();
+    V4b productive_any = V4b::zero();
 
     for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 4)
     {
@@ -749,11 +749,11 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         V4f body2_angularVelocity = row2;
         V4i body2_lastIteration = bitcast(row3);
 
-        V4i body1_productive = _mm_cmpgt_epi32(body1_lastIteration, iterationIndex2);
-        V4i body2_productive = _mm_cmpgt_epi32(body2_lastIteration, iterationIndex2);
-        V4i body_productive = _mm_or_si128(body1_productive, body2_productive);
+        V4b body1_productive = body1_lastIteration > iterationIndex2;
+        V4b body2_productive = body2_lastIteration > iterationIndex2;
+        V4b body_productive = body1_productive | body2_productive;
 
-        if (_mm_movemask_epi8(body_productive) == 0)
+        if (none(body_productive))
             continue;
 
         V4f j_normalLimiter_normalProjector1X = _mm_load_ps(&jointP.normalLimiter_normalProjector1X[iP]);
@@ -835,9 +835,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         V4f reactionForceScaledSigned = flipsign(reactionForceScaled, frictionForce);
         V4f frictionDeltaImpulseAdjusted = reactionForceScaledSigned - accumulatedImpulse;
 
-        V4f frictionSelector = _mm_cmpgt_ps(frictionForceAbs, reactionForceScaled);
-
-        frictionDeltaImpulse = _mm_or_ps(_mm_andnot_ps(frictionSelector, frictionDeltaImpulse), _mm_and_ps(frictionDeltaImpulseAdjusted, frictionSelector));
+        frictionDeltaImpulse = select(frictionDeltaImpulse, frictionDeltaImpulseAdjusted, frictionForceAbs > reactionForceScaled);
 
         j_frictionLimiter_accumulatedImpulse += frictionDeltaImpulse;
 
@@ -854,12 +852,12 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
 
         V4f cumulativeImpulse = max(abs(normalDeltaImpulse), abs(frictionDeltaImpulse));
 
-        V4i productive = bitcast(V4f(_mm_cmpgt_ps(cumulativeImpulse, _mm_set1_ps(kProductiveImpulse))));
+        V4b productive = cumulativeImpulse > V4f::one(kProductiveImpulse);
 
-        productive_any = _mm_or_si128(productive_any, productive);
+        productive_any |= productive;
 
-        body1_lastIteration = _mm_or_si128(_mm_andnot_si128(productive, body1_lastIteration), _mm_and_si128(iterationIndex0, productive));
-        body2_lastIteration = _mm_or_si128(_mm_andnot_si128(productive, body2_lastIteration), _mm_and_si128(iterationIndex0, productive));
+        body1_lastIteration = select(body1_lastIteration, iterationIndex0, productive);
+        body2_lastIteration = select(body2_lastIteration, iterationIndex0, productive);
 
         // this is a bit painful :(
         static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Storing assumes fixed layout");
@@ -889,7 +887,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_p
         _mm_store_ps(&solveBodiesImpulse[jointP.body2Index[iP + 3]].velocity.x, row3);
     }
 
-    return _mm_movemask_epi8(productive_any) != 0;
+    return any(productive_any);
 }
 
 #ifdef __AVX2__
@@ -1536,12 +1534,10 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joi
 
     assert(jointStart % 4 == 0 && jointCount % 4 == 0);
 
-    V4f sign = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-
     V4i iterationIndex0 = V4i::one(iterationIndex);
     V4i iterationIndex2 = V4i::one(iterationIndex - 2);
 
-    V4i productive_any = _mm_setzero_si128();
+    V4b productive_any = V4b::zero();
 
     for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += 4)
     {
@@ -1578,11 +1574,11 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joi
         V4f body2_displacingAngularVelocity = row2;
         V4i body2_lastDisplacementIteration = bitcast(row3);
 
-        V4i body1_productive = _mm_cmpgt_epi32(body1_lastDisplacementIteration, iterationIndex2);
-        V4i body2_productive = _mm_cmpgt_epi32(body2_lastDisplacementIteration, iterationIndex2);
-        V4i body_productive = _mm_or_si128(body1_productive, body2_productive);
+        V4b body1_productive = body1_lastDisplacementIteration > iterationIndex2;
+        V4b body2_productive = body2_lastDisplacementIteration > iterationIndex2;
+        V4b body_productive = body1_productive | body2_productive;
 
-        if (_mm_movemask_epi8(body_productive) == 0)
+        if (none(body_productive))
             continue;
 
         V4f j_normalLimiter_normalProjector1X = _mm_load_ps(&jointP.normalLimiter_normalProjector1X[iP]);
@@ -1628,12 +1624,12 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joi
 
         _mm_store_ps(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP], j_normalLimiter_accumulatedDisplacingImpulse);
 
-        V4i productive = bitcast(V4f(_mm_cmpgt_ps(_mm_andnot_ps(sign, displacingDeltaImpulse), _mm_set1_ps(kProductiveImpulse))));
+        V4b productive = abs(displacingDeltaImpulse) > V4f::one(kProductiveImpulse);
 
-        productive_any = _mm_or_si128(productive_any, productive);
+        productive_any |= productive;
 
-        body1_lastDisplacementIteration = _mm_or_si128(_mm_andnot_si128(productive, body1_lastDisplacementIteration), _mm_and_si128(iterationIndex0, productive));
-        body2_lastDisplacementIteration = _mm_or_si128(_mm_andnot_si128(productive, body2_lastDisplacementIteration), _mm_and_si128(iterationIndex0, productive));
+        body1_lastDisplacementIteration = select(body1_lastDisplacementIteration, iterationIndex0, productive);
+        body2_lastDisplacementIteration = select(body2_lastDisplacementIteration, iterationIndex0, productive);
 
         // this is a bit painful :(
         static_assert(offsetof(SolveBody, velocity) == 0 && offsetof(SolveBody, angularVelocity) == 8, "Storing assumes fixed layout");
@@ -1663,7 +1659,7 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joi
         _mm_store_ps(&solveBodiesDisplacement[jointP.body2Index[iP + 3]].velocity.x, row3);
     }
 
-    return _mm_movemask_epi8(productive_any) != 0;
+    return any(productive_any);
 }
 
 #ifdef __AVX2__
