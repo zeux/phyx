@@ -1,41 +1,29 @@
 #pragma once
 
-struct RadixUnsignedIntPredicate
+inline unsigned int radixUnsignedInt(unsigned int v)
 {
-	unsigned int operator()(const unsigned int& v) const
-	{
-		return v;
-	}
-};
+	return v;
+}
 
-struct RadixIntPredicate
+inline unsigned int radixInt(int v)
 {
-	unsigned int operator()(const int& v) const
-	{
-		// flip sign bit
-		return *reinterpret_cast<const unsigned int*>(&v) ^ 0x80000000;
-	}
-};
+	// flip sign bit
+	return static_cast<unsigned int>(v) ^ 0x80000000;
+}
 
-struct RadixUnsignedFloatPredicate
+inline unsigned int radixUnsignedFloat(const float& v)
 {
-	unsigned int operator()(const float& v) const
-	{
-		return *reinterpret_cast<const unsigned int*>(&v);
-	}
-};
+	return *reinterpret_cast<const unsigned int*>(&v);
+}
 
-struct RadixFloatPredicate
+inline unsigned int radixFloat(const float& v)
 {
-	unsigned int operator()(const float& v) const
-	{
-		// if sign bit is 0, flip sign bit
-		// if sign bit is 1, flip everything
-		unsigned int f = *reinterpret_cast<const unsigned int*>(&v);
-		unsigned int mask = -int(f >> 31) | 0x80000000;
-		return f ^ mask;
-	}
-};
+	// if sign bit is 0, flip sign bit
+	// if sign bit is 1, flip everything
+	unsigned int f = *reinterpret_cast<const unsigned int*>(&v);
+	unsigned int mask = -int(f >> 31) | 0x80000000;
+	return f ^ mask;
+}
 
 template <typename T, typename Pred> inline T* radixSort3(T* e0, T* e1, size_t count, Pred pred)
 {
@@ -64,40 +52,39 @@ template <typename T, typename Pred> inline T* radixSort3(T* e0, T* e1, size_t c
 	// compute offsets
 	{
 		unsigned int sum0 = 0, sum1 = 0, sum2 = 0;
-		unsigned int tsum;
 
 		for (unsigned int i = 0; i < 2048; ++i)
 		{
-			tsum = h0[i] + sum0;
-			h0[i] = sum0 - 1;
-			sum0 = tsum;
+			unsigned int c0 = h0[i];
+			unsigned int c1 = h1[i];
+			unsigned int c2 = h2[i];
 
-			tsum = h1[i] + sum1;
-			h1[i] = sum1 - 1;
-			sum1 = tsum;
+			h0[i] = sum0;
+			h1[i] = sum1;
+			h2[i] = sum2;
 
-			tsum = h2[i] + sum2;
-			h2[i] = sum2 - 1;
-			sum2 = tsum;
+			sum0 += c0;
+			sum1 += c1;
+			sum2 += c2;
 		}
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e0[i]);
-		e1[++h0[_0(h)]] = e0[i];
+		e1[h0[_0(h)]++] = e0[i];
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e1[i]);
-		e0[++h1[_1(h)]] = e1[i];
+		e0[h1[_1(h)]++] = e1[i];
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e0[i]);
-		e1[++h2[_2(h)]] = e0[i];
+		e1[h2[_2(h)]++] = e0[i];
 	}
 
 	#undef _0
@@ -136,50 +123,48 @@ template <typename T, typename Pred> inline T* radixSort4(T* e0, T* e1, size_t c
 	// compute offsets
 	{
 		unsigned int sum0 = 0, sum1 = 0, sum2 = 0, sum3 = 0;
-		unsigned int tsum;
 
 		for (unsigned int i = 0; i < 256; ++i)
 		{
-			tsum = h0[i] + sum0;
-			h0[i] = sum0 - 1;
-			sum0 = tsum;
+			unsigned int c0 = h0[i];
+			unsigned int c1 = h1[i];
+			unsigned int c2 = h2[i];
+			unsigned int c3 = h3[i];
 
-			tsum = h1[i] + sum1;
-			h1[i] = sum1 - 1;
-			sum1 = tsum;
+			h0[i] = sum0;
+			h1[i] = sum1;
+			h2[i] = sum2;
+			h3[i] = sum3;
 
-			tsum = h2[i] + sum2;
-			h2[i] = sum2 - 1;
-			sum2 = tsum;
-
-			tsum = h3[i] + sum3;
-			h3[i] = sum3 - 1;
-			sum3 = tsum;
+			sum0 += c0;
+			sum1 += c1;
+			sum2 += c2;
+			sum3 += c3;
 		}
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e0[i]);
-		e1[++h0[_0(h)]] = e0[i];
+		e1[h0[_0(h)]++] = e0[i];
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e1[i]);
-		e0[++h1[_1(h)]] = e1[i];
+		e0[h1[_1(h)]++] = e1[i];
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e0[i]);
-		e1[++h2[_2(h)]] = e0[i];
+		e1[h2[_2(h)]++] = e0[i];
 	}
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		unsigned int h = pred(e1[i]);
-		e0[++h3[_3(h)]] = e1[i];
+		e0[h3[_3(h)]++] = e1[i];
 	}
 
 	#undef _0

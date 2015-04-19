@@ -258,7 +258,7 @@ NOINLINE void Collider::UpdateBroadphase(RigidBody* bodies, size_t bodiesCount)
     {
         const AABB2f& aabb = bodies[bodyIndex].geom.aabb;
 
-        broadphaseSort[0][bodyIndex].value = RadixFloatPredicate()(aabb.boxPoint1.x);
+        broadphaseSort[0][bodyIndex].value = radixFloat(aabb.boxPoint1.x);
         broadphaseSort[0][bodyIndex].index = bodyIndex;
     }
 
