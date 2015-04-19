@@ -2,67 +2,7 @@
 #include <assert.h>
 #include <vector>
 
-template <typename T>
-struct AlignedArray
-{
-    T* data;
-    int size;
-    int capacity;
-
-    AlignedArray()
-        : data(0)
-        , size(0)
-        , capacity(0)
-    {
-    }
-
-    ~AlignedArray()
-    {
-        aligned_free(data);
-    }
-
-    T& operator[](int i)
-    {
-        return data[i];
-    }
-
-    void resize(int newsize)
-    {
-        if (newsize > capacity)
-        {
-            int newcapacity = capacity;
-            while (newcapacity < newsize)
-                newcapacity += newcapacity / 2 + 1;
-
-            aligned_free(data);
-
-            data = static_cast<T*>(aligned_alloc(newcapacity * sizeof(T), 32));
-            capacity = newcapacity;
-        }
-
-        size = newsize;
-    }
-
-    static void* aligned_alloc(size_t size, size_t align)
-    {
-#ifdef _MSC_VER
-        return _aligned_malloc(size, align);
-#else
-        void* result = 0;
-        posix_memalign(&result, align, size);
-        return result;
-#endif
-    }
-
-    static void aligned_free(void* ptr)
-    {
-#ifdef _MSC_VER
-        _aligned_free(ptr);
-#else
-        free(ptr);
-#endif
-    }
-};
+#include "base/AlignedArray.h"
 
 template <int N>
 struct ContactJointPacked

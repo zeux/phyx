@@ -1,6 +1,6 @@
 #include "World.h"
 
-#include "WorkQueue.h"
+#include "base/WorkQueue.h"
 #include "microprofile.h"
 
 World::World()

@@ -2,7 +2,7 @@
 
 #include "World.h"
 
-#include "WorkQueue.h"
+#include "base/WorkQueue.h"
 
 #include "microprofile/microprofile.h"
 #include "microprofile/microprofileui.h"

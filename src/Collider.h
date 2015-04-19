@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Manifold.h"
-#include "DenseHash.h"
+#include "base/DenseHash.h"
 
 namespace std
 {

@@ -1,7 +1,7 @@
 #include "Collider.h"
 
-#include "Parallel.h"
-#include "RadixSort.h"
+#include "base/Parallel.h"
+#include "base/RadixSort.h"
 
 #include "microprofile.h"
 

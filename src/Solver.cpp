@@ -1,6 +1,6 @@
 #include "Solver.h"
 
-#include "Parallel.h"
+#include "base/Parallel.h"
 
 #include <immintrin.h>
 
