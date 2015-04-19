@@ -143,7 +143,7 @@ int main(int argc, char** argv)
 
     World world;
 
-    int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
+    int currentMode = 1;// sizeof(kModes) / sizeof(kModes[0]) - 1;
     int currentScene = 0;
 
     const char* currentSceneName = resetWorld(world, currentScene);

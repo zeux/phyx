@@ -34,6 +34,8 @@ namespace simd
 
 #define SIMD_DUMP(v) simd::dump(#v, v)
 
+#include "SIMD_Scalar.h"
+
 #ifdef __SSE2__
 #include "SIMD_SSE2.h"
 #endif

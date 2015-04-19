@@ -76,18 +76,12 @@ struct Solver
     bool SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex);
     bool SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex);
 
-    template <int N>
-    bool SolveJointsImpulsesSoA_Scalar(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    template <int N>
-    bool SolveJointsImpulsesSoA_SIMD(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    template <int VN, int N>
+    bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    template <int VN, int N>
+    bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     bool SolveJointsImpulsesSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-
-    template <int N>
-    bool SolveJointsDisplacementSoA_Scalar(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    template <int N>
-    bool SolveJointsDisplacementSoA_SIMD(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-
     bool SolveJointsDisplacementSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     struct SolveBody

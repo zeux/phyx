@@ -1,13 +1,5 @@
 #pragma once
 
-#include <immintrin.h>
-
-#ifdef _MSC_VER
-#define SIMD_INLINE __forceinline
-#else
-#define SIMD_INLINE __attribute__((always_inline))
-#endif
-
 namespace simd
 {
 	struct V4f
