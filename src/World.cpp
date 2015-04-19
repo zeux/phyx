@@ -55,28 +55,15 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
         break;
 #endif
 
-    case Solve_SoAPacked_Scalar:
-        iterations = solver.SolveJointsSoAPacked_Scalar(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
-        break;
-
-    case Solve_SoAPacked_SSE2:
-        iterations = solver.SolveJointsSoAPacked_SSE2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
-        break;
-
-#ifdef __AVX2__
-    case Solve_SoAPacked_AVX2:
-        iterations = solver.SolveJointsSoAPacked_AVX2(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
-        break;
-#endif
-
 #if defined(__AVX2__) && defined(__FMA__)
-    case Solve_SoAPacked_FMA:
-        iterations = solver.SolveJointsSoAPacked_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+    case Solve_SoA_FMA:
+        iterations = solver.SolveJointsSoA_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
         break;
 #endif
 
     default:
-        iterations = solver.SolveJoints(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+        assert(!"Unknown solver mode");
+        break;
     }
 
     IntegratePosition(dt);

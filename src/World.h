@@ -10,15 +10,11 @@ struct World
 {
     enum SolveMode
     {
-        Solve_Baseline,
         Solve_AoS,
         Solve_SoA_Scalar,
         Solve_SoA_SSE2,
         Solve_SoA_AVX2,
-        Solve_SoAPacked_Scalar,
-        Solve_SoAPacked_SSE2,
-        Solve_SoAPacked_AVX2,
-        Solve_SoAPacked_FMA,
+        Solve_SoA_FMA,
     };
 
     World();

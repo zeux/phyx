@@ -118,54 +118,39 @@ struct Solver
     void RefreshJoints(WorkQueue& queue);
     void PreStepJoints();
 
-    float SolveJoints(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
     float SolveJointsAoS(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
 
     float SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
     float SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
     float SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-
-    float SolveJointsSoAPacked_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-    float SolveJointsSoAPacked_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-    float SolveJointsSoAPacked_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-    float SolveJointsSoAPacked_FMA(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
+    float SolveJointsSoA_FMA(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
 
     int SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget);
 
     void SolvePrepareAoS(RigidBody* bodies, int bodiesCount);
     float SolveFinishAoS();
 
-    int SolvePrepareSoA(RigidBody* bodies, int bodiesCount, int groupSizeTarget);
-    float SolveFinishSoA(RigidBody* bodies, int bodiesCount);
-
     template <int N>
-    int SolvePrepareSoAPacked(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int groupSizeTarget);
+    int SolvePrepareSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int groupSizeTarget);
     template <int N>
-    float SolveFinishSoAPacked(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount);
+    float SolveFinishSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount);
 
     bool SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsImpulsesSoA(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsImpulsesSoA_SSE2(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsImpulsesSoA_AVX2(int jointStart, int jointCount, int iterationIndex);
-
     bool SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoA(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoA_SSE2(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoA_AVX2(int jointStart, int jointCount, int iterationIndex);
 
     template <int N>
-    bool SolveJointsImpulsesSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
-    bool SolveJointsImpulsesSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsImpulsesSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsImpulsesSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesSoA_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesSoA_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     template <int N>
-    bool SolveJointsDisplacementSoAPacked(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
-    bool SolveJointsDisplacementSoAPacked_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoAPacked_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoAPacked_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsDisplacementSoA_SSE2(ContactJointPacked<4>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsDisplacementSoA_AVX2(ContactJointPacked<8>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsDisplacementSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     struct SolveBody
     {
@@ -188,43 +173,4 @@ struct Solver
     AlignedArray<ContactJointPacked<4>> joint_packed4;
     AlignedArray<ContactJointPacked<8>> joint_packed8;
     AlignedArray<ContactJointPacked<16>> joint_packed16;
-
-    AlignedArray<int> joint_body1Index;
-    AlignedArray<int> joint_body2Index;
-
-    AlignedArray<float> joint_normalLimiter_normalProjector1X;
-    AlignedArray<float> joint_normalLimiter_normalProjector1Y;
-    AlignedArray<float> joint_normalLimiter_normalProjector2X;
-    AlignedArray<float> joint_normalLimiter_normalProjector2Y;
-    AlignedArray<float> joint_normalLimiter_angularProjector1;
-    AlignedArray<float> joint_normalLimiter_angularProjector2;
-
-    AlignedArray<float> joint_normalLimiter_compMass1_linearX;
-    AlignedArray<float> joint_normalLimiter_compMass1_linearY;
-    AlignedArray<float> joint_normalLimiter_compMass2_linearX;
-    AlignedArray<float> joint_normalLimiter_compMass2_linearY;
-    AlignedArray<float> joint_normalLimiter_compMass1_angular;
-    AlignedArray<float> joint_normalLimiter_compMass2_angular;
-    AlignedArray<float> joint_normalLimiter_compInvMass;
-    AlignedArray<float> joint_normalLimiter_accumulatedImpulse;
-
-    AlignedArray<float> joint_normalLimiter_dstVelocity;
-    AlignedArray<float> joint_normalLimiter_dstDisplacingVelocity;
-    AlignedArray<float> joint_normalLimiter_accumulatedDisplacingImpulse;
-
-    AlignedArray<float> joint_frictionLimiter_normalProjector1X;
-    AlignedArray<float> joint_frictionLimiter_normalProjector1Y;
-    AlignedArray<float> joint_frictionLimiter_normalProjector2X;
-    AlignedArray<float> joint_frictionLimiter_normalProjector2Y;
-    AlignedArray<float> joint_frictionLimiter_angularProjector1;
-    AlignedArray<float> joint_frictionLimiter_angularProjector2;
-
-    AlignedArray<float> joint_frictionLimiter_compMass1_linearX;
-    AlignedArray<float> joint_frictionLimiter_compMass1_linearY;
-    AlignedArray<float> joint_frictionLimiter_compMass2_linearX;
-    AlignedArray<float> joint_frictionLimiter_compMass2_linearY;
-    AlignedArray<float> joint_frictionLimiter_compMass1_angular;
-    AlignedArray<float> joint_frictionLimiter_compMass2_angular;
-    AlignedArray<float> joint_frictionLimiter_compInvMass;
-    AlignedArray<float> joint_frictionLimiter_accumulatedImpulse;
 };

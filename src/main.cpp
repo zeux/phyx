@@ -50,7 +50,6 @@ const struct
     const char* name;
 } kModes[] =
     {
-     {World::Solve_Baseline, "Baseline"},
      {World::Solve_AoS, "AoS"},
      {World::Solve_SoA_Scalar, "SoA Scalar"},
      {World::Solve_SoA_SSE2, "SoA SSE2"},
@@ -59,15 +58,8 @@ const struct
      {World::Solve_SoA_AVX2, "SoA AVX2"},
 #endif
 
-     {World::Solve_SoAPacked_Scalar, "SoA Packed Scalar"},
-     {World::Solve_SoAPacked_SSE2, "SoA Packed SSE2"},
-
-#ifdef __AVX2__
-     {World::Solve_SoAPacked_AVX2, "SoA Packed AVX2"},
-#endif
-
 #if defined(__AVX2__) && defined(__FMA__)
-     {World::Solve_SoAPacked_FMA, "SoA Packed FMA"},
+     {World::Solve_SoA_FMA, "SoA FMA"},
 #endif
 };
 
