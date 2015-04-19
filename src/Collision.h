@@ -28,15 +28,6 @@ struct Collision
         return 1;
     }
 
-    void Refresh(Collision* col)
-    {
-        isMerged = 1;
-        isNewlyCreated = 0;
-        normal = col->normal;
-        delta1 = col->delta1;
-        delta2 = col->delta2;
-    }
-
     Vector2f delta1, delta2;
     Vector2f normal;
     bool isMerged;

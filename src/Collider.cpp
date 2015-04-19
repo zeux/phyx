@@ -121,9 +121,14 @@ static void MergeCollision(Manifold& m, Collision* newbie)
             }
         }
     }
+
     if (closest)
     {
-        closest->Refresh(newbie);
+        closest->isMerged = 1;
+        closest->isNewlyCreated = 0;
+        closest->normal = newbie->normal;
+        closest->delta1 = newbie->delta1;
+        closest->delta2 = newbie->delta2;
     }
     else
     {
