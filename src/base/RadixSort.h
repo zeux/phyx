@@ -20,8 +20,8 @@ inline unsigned int radixFloat(const float& v)
 {
 	// if sign bit is 0, flip sign bit
 	// if sign bit is 1, flip everything
-	unsigned int f = *reinterpret_cast<const unsigned int*>(&v);
-	unsigned int mask = -int(f >> 31) | 0x80000000;
+	int f = *reinterpret_cast<const int*>(&v);
+	unsigned int mask = int(f >> 31) | 0x80000000;
 	return f ^ mask;
 }
 
