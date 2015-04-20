@@ -19,7 +19,7 @@ struct World
 
     RigidBody* AddBody(Coords2f coords, Vector2f size);
 
-    void Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount);
+    void Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
 
     NOINLINE void ApplyGravity();
     NOINLINE void IntegrateVelocity(float dt);

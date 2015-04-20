@@ -12,35 +12,35 @@ Solver::Solver()
 {
 }
 
-NOINLINE void Solver::SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE void Solver::SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJoints_Scalar", -1);
 
-    SolveJoints(queue, joint_packed1, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+    SolveJoints(queue, joint_packed1, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount, useIslands);
 }
 
-NOINLINE void Solver::SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE void Solver::SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJoints_SSE2", -1);
 
-    SolveJoints(queue, joint_packed4, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+    SolveJoints(queue, joint_packed4, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount, useIslands);
 }
 
 #ifdef __AVX2__
-NOINLINE void Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE void Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJoints_AVX2", -1);
 
-    SolveJoints(queue, joint_packed8, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+    SolveJoints(queue, joint_packed8, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount, useIslands);
 }
 #endif
 
 template <int N>
-void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
 {
     PrepareBodies(bodies, bodiesCount);
 
-    if (false)
+    if (useIslands)
     {
         int jointCountAligned = GatherIslands(bodies, bodiesCount, N);
 
@@ -71,6 +71,9 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
         for (int i = 0; i < bodiesCount; ++i)
             jointGroup_bodies[i] = 0;
 
+        islandCount = 1;
+        islandMaxSize = jointCount;
+
         SolveJointIsland(joint_packed, 0, jointCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
     }
 
@@ -80,6 +83,8 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
 template <int N>
 NOINLINE void Solver::SolveJointIsland(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
+    MICROPROFILE_SCOPEI("Physics", "SolveJointIsland", -1);
+
     int groupOffset = PrepareJoints(joint_packed, jointBegin, jointEnd, N);
 
     {
@@ -326,8 +331,6 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
     {
         MICROPROFILE_SCOPEI("Physics", "Index", -1);
 
-        islandMaxSize = 0;
-
         for (int i = 0; i < islandCount; ++i)
         {
             island_offsettemp[i] = island_offset[i];
@@ -347,9 +350,13 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             joint_index[island_offsettemp[island_indexremap[island_index[island]]]++] = jointIndex;
         }
 
+        islandMaxSize = 0;
+
         for (int i = 0; i < islandCount; ++i)
         {
             assert(island_offsettemp[i] == island_offset[i] + island_size[i]);
+
+            islandMaxSize = std::max(islandMaxSize, island_size[i]);
         }
     }
 

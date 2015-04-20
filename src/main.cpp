@@ -197,6 +197,7 @@ int main(int argc, char** argv)
 
     World world;
 
+    bool useIslands = false;
     int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
     int currentScene = 0;
 
@@ -275,7 +276,7 @@ int main(int argc, char** argv)
                 draggedBody->acceleration.y -= gravity;
                 draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-                world.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);
+                world.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount, useIslands);
             }
         }
 
@@ -417,6 +418,9 @@ int main(int argc, char** argv)
                 paused = !paused;
                 MicroProfileTogglePause();
             }
+
+            if (keyPressed[GLFW_KEY_I])
+                useIslands = !useIslands;
 
             if (keyPressed[GLFW_KEY_M])
                 currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
