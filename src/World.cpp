@@ -97,7 +97,7 @@ NOINLINE void World::RefreshContactJoints()
 
     for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
     {
-        solver.contactJoints[jointIndex].collision = 0;
+        solver.contactJoints[jointIndex].contactPointIndex = -1;
     }
 
     for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
@@ -106,21 +106,23 @@ NOINLINE void World::RefreshContactJoints()
 
         for (int collisionIndex = 0; collisionIndex < man.pointCount; collisionIndex++)
         {
-            ContactPoint& col = collider.contactPoints[man.pointIndex + collisionIndex];
+            int contactPointIndex = man.pointIndex + collisionIndex;
+            ContactPoint& col = collider.contactPoints[contactPointIndex];
 
             if (col.solverIndex < 0)
             {
-                solver.contactJoints.push_back(ContactJoint(man.body1, man.body2, &col, man.pointIndex + collisionIndex, solver.contactJoints.size()));
+                col.solverIndex = solver.contactJoints.size();
+
+                solver.contactJoints.push_back(ContactJoint(man.body1->index, man.body2->index, contactPointIndex));
             }
             else
             {
                 ContactJoint& joint = solver.contactJoints[col.solverIndex];
 
-                assert(joint.body1 == man.body1);
-                assert(joint.body2 == man.body2);
+                assert(joint.body1Index == man.body1->index);
+                assert(joint.body2Index == man.body2->index);
 
-                joint.collision = &col;
-                joint.collisionIndex = man.pointIndex + collisionIndex;
+                joint.contactPointIndex = contactPointIndex;
             }
         }
     }
@@ -129,14 +131,14 @@ NOINLINE void World::RefreshContactJoints()
     {
         ContactJoint& joint = solver.contactJoints[jointIndex];
 
-        if (!joint.collision)
+        if (joint.contactPointIndex < 0)
         {
             joint = solver.contactJoints.back();
             solver.contactJoints.pop_back();
         }
         else
         {
-            joint.collision->solverIndex = jointIndex;
+            collider.contactPoints[joint.contactPointIndex].solverIndex = jointIndex;
             jointIndex++;
         }
     }

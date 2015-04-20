@@ -202,10 +202,10 @@ NOINLINE int Solver::SolvePrepare(
 
             jointP.body1Index[iP] = joint.body1Index;
             jointP.body2Index[iP] = joint.body2Index;
-            jointP.contactPointIndex[iP] = joint.collisionIndex;
+            jointP.contactPointIndex[iP] = joint.contactPointIndex;
 
-            jointP.normalLimiter_accumulatedImpulse[iP] = joint.normalLimiter.accumulatedImpulse;
-            jointP.frictionLimiter_accumulatedImpulse[iP] = joint.frictionLimiter.accumulatedImpulse;
+            jointP.normalLimiter_accumulatedImpulse[iP] = joint.normalLimiter_accumulatedImpulse;
+            jointP.frictionLimiter_accumulatedImpulse[iP] = joint.frictionLimiter_accumulatedImpulse;
         }
     }
 
@@ -237,9 +237,8 @@ NOINLINE float Solver::SolveFinish(
         ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
         int iP = i & (N - 1);
 
-        joint.normalLimiter.accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
-        joint.normalLimiter.accumulatedDisplacingImpulse = jointP.normalLimiter_accumulatedDisplacingImpulse[iP];
-        joint.frictionLimiter.accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
+        joint.normalLimiter_accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
+        joint.frictionLimiter_accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
     }
 
     int iterationSum = 0;
