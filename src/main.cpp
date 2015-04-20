@@ -280,11 +280,13 @@ int main(int argc, char** argv)
         }
 
         char stats[256];
-        sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d | Cores: %d; Mode: %s; Iterations: %.2f",
+        sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d Islands: %d (biggest: %d) | Cores: %d; Mode: %s; Iterations: %.2f",
             currentSceneName,
             int(world.bodies.size()),
             int(world.collider.manifolds.size()),
             int(world.solver.contactJoints.size()),
+            int(world.solver.islandCount),
+            int(world.solver.islandMaxSize),
             int(queue->getWorkerCount() + 1),
             kModes[currentMode].name,
             world.iterations);

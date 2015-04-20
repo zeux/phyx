@@ -36,6 +36,18 @@ NOINLINE float Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int
 template <int N>
 float Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
+    int jointCount = contactJoints.size();
+
+    joint_index.resize(jointCount);
+    joint_packed.resize(jointCount);
+    jointGroup_bodies.resize(bodiesCount);
+    jointGroup_joints.resize(jointCount);
+
+    GatherIslands(bodies, bodiesCount);
+
+    for (int i = 0; i < bodiesCount; ++i)
+        jointGroup_bodies[i] = 0;
+
     int groupOffset = SolvePrepare(joint_packed, bodies, bodiesCount, N);
 
     {
@@ -51,11 +63,11 @@ float Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>&
                 RefreshJoints<N>(joint_packed.data, groupBegin, groupEnd, contactPoints);
             });
 
-            RefreshJoints<1>(joint_packed.data, groupOffset, contactJoints.size(), contactPoints);
+            RefreshJoints<1>(joint_packed.data, groupOffset, jointCount, contactPoints);
         }
 
         PreStepJoints<N>(joint_packed.data, 0, groupOffset);
-        PreStepJoints<1>(joint_packed.data, groupOffset, contactJoints.size());
+        PreStepJoints<1>(joint_packed.data, groupOffset, jointCount);
     }
 
     {
@@ -89,74 +101,196 @@ float Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>&
     return SolveFinish(joint_packed, bodies, bodiesCount);
 }
 
-NOINLINE int Solver::SolvePrepareIndices(int bodiesCount, int groupSizeTarget)
+NOINLINE int Solver::PrepareIndices(int bodiesCount, int groupSizeTarget)
 {
     MICROPROFILE_SCOPEI("Physics", "SolvePrepareIndices", -1);
 
     int jointCount = contactJoints.size();
 
     if (groupSizeTarget == 1)
-    {
-        for (int i = 0; i < jointCount; ++i)
-            joint_index[i] = i;
-
         return jointCount;
-    }
-    else
+
+    for (int i = 0; i < jointCount; ++i)
+        jointGroup_joints[i] = joint_index[i];
+
+    int tag = 0;
+
+    int groupOffset = 0;
+
+    while (jointGroup_joints.size >= groupSizeTarget)
     {
-        jointGroup_bodies.resize(bodiesCount);
-        jointGroup_joints.resize(jointCount);
+        // gather a group of N joints with non-overlapping bodies
+        int groupSize = 0;
 
-        for (int i = 0; i < bodiesCount; ++i)
-            jointGroup_bodies[i] = 0;
+        tag++;
 
-        for (int i = 0; i < jointCount; ++i)
-            jointGroup_joints[i] = i;
-
-        int tag = 0;
-
-        int groupOffset = 0;
-
-        while (jointGroup_joints.size >= groupSizeTarget)
+        for (int i = 0; i < jointGroup_joints.size && groupSize < groupSizeTarget;)
         {
-            // gather a group of N joints with non-overlapping bodies
-            int groupSize = 0;
+            int jointIndex = jointGroup_joints[i];
+            ContactJoint& joint = contactJoints[jointIndex];
 
-            tag++;
-
-            for (int i = 0; i < jointGroup_joints.size && groupSize < groupSizeTarget;)
+            // TODO: race between static bodies from different islands
+            if (jointGroup_bodies[joint.body1Index] < tag && jointGroup_bodies[joint.body2Index] < tag)
             {
-                int jointIndex = jointGroup_joints[i];
-                ContactJoint& joint = contactJoints[jointIndex];
+                jointGroup_bodies[joint.body1Index] = tag;
+                jointGroup_bodies[joint.body2Index] = tag;
 
-                if (jointGroup_bodies[joint.body1Index] < tag && jointGroup_bodies[joint.body2Index] < tag)
-                {
-                    jointGroup_bodies[joint.body1Index] = tag;
-                    jointGroup_bodies[joint.body2Index] = tag;
+                joint_index[groupOffset + groupSize] = jointIndex;
+                groupSize++;
 
-                    joint_index[groupOffset + groupSize] = jointIndex;
-                    groupSize++;
-
-                    jointGroup_joints[i] = jointGroup_joints[jointGroup_joints.size - 1];
-                    jointGroup_joints.size--;
-                }
-                else
-                {
-                    i++;
-                }
+                jointGroup_joints[i] = jointGroup_joints[jointGroup_joints.size - 1];
+                jointGroup_joints.size--;
             }
-
-            groupOffset += groupSize;
-
-            if (groupSize < groupSizeTarget)
-                break;
+            else
+            {
+                i++;
+            }
         }
 
-        // fill in the rest of the joints sequentially - they don't form a group so we'll have to solve them 1 by 1
-        for (int i = 0; i < jointGroup_joints.size; ++i)
-            joint_index[groupOffset + i] = jointGroup_joints[i];
+        groupOffset += groupSize;
 
-        return (groupOffset / groupSizeTarget) * groupSizeTarget;
+        if (groupSize < groupSizeTarget)
+            break;
+    }
+
+    // fill in the rest of the joints sequentially - they don't form a group so we'll have to solve them 1 by 1
+    for (int i = 0; i < jointGroup_joints.size; ++i)
+        joint_index[groupOffset + i] = jointGroup_joints[i];
+
+    return (groupOffset / groupSizeTarget) * groupSizeTarget;
+}
+
+static int remap(AlignedArray<int>& table, int index)
+{
+    int result = index;
+
+    while (result != table[result])
+        result = table[result];
+
+    return result;
+}
+
+NOINLINE void Solver::GatherIslands(RigidBody* bodies, int bodiesCount)
+{
+    MICROPROFILE_SCOPEI("Physics", "GatherIslands", -1);
+
+    int jointCount = contactJoints.size();
+
+    island_remap.resize(bodiesCount);
+    island_index.resize(bodiesCount);
+    island_offset.resize(bodiesCount);
+    island_offsettemp.resize(jointCount);
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
+
+        for (int i = 0; i < bodiesCount; ++i)
+        {
+            island_remap[i] = (bodies[i].invMass == 0) ? -1 : i;
+        }
+    }
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Merge", -1);
+
+        for (ContactJoint& j: contactJoints)
+        {
+            int island1 = island_remap[j.body1Index];
+            int island2 = island_remap[j.body2Index];
+
+            if ((island1 | island2) < 0)
+                continue;
+
+            if (island1 > island2)
+                std::swap(island1, island2);
+
+            island_remap[island2] = island1;
+        }
+    }
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Gather", -1);
+
+        islandCount = 0;
+
+        for (int i = 0; i < bodiesCount; ++i)
+        {
+            island_index[i] = -1;
+        }
+
+        for (int i = 0; i < bodiesCount; ++i)
+        {
+            if (island_remap[i] < 0)
+                continue;
+
+            island_remap[i] = remap(island_remap, i);
+        }
+
+        for (int i = 0; i < bodiesCount; ++i)
+        {
+            if (island_remap[i] < 0)
+                continue;
+
+            int island = island_remap[i];
+
+            if (island_index[island] < 0)
+            {
+                island_index[island] = islandCount;
+                islandCount++;
+            }
+        }
+    }
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Index", -1);
+
+        for (int i = 0; i < islandCount; ++i)
+        {
+            island_offset[i] = 0;
+        }
+
+        for (ContactJoint& j: contactJoints)
+        {
+            int island1 = island_remap[j.body1Index];
+            int island2 = island_remap[j.body2Index];
+
+            // TODO
+            // assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
+            int island = island1 < 0 ? island2 : island1;
+
+            island_offset[island_index[island]]++;
+        }
+
+        islandMaxSize = 0;
+
+        int offset = 0;
+
+        for (int i = 0; i < islandCount; ++i)
+        {
+            int count = island_offset[i];
+
+            islandMaxSize = std::max(islandMaxSize, count);
+
+            island_offset[i] = offset;
+            island_offsettemp[i] = offset;
+            offset += count;
+        }
+
+        assert(offset == jointCount);
+
+        for (int jointIndex = 0; jointIndex < jointCount; ++jointIndex)
+        {
+            ContactJoint& j = contactJoints[jointIndex];
+
+            int island1 = island_remap[j.body1Index];
+            int island2 = island_remap[j.body2Index];
+
+            // TODO
+            // assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
+            int island = island1 < 0 ? island2 : island1;
+
+            joint_index[island_offsettemp[island_index[island]]++] = jointIndex;
+        }
     }
 }
 
@@ -166,6 +300,8 @@ NOINLINE int Solver::SolvePrepare(
     RigidBody* bodies, int bodiesCount, int groupSizeTarget)
 {
     MICROPROFILE_SCOPEI("Physics", "SolvePrepare", -1);
+
+    int jointCount = contactJoints.size();
 
     {
         MICROPROFILE_SCOPEI("Physics", "CopyBodies", -1);
@@ -192,13 +328,7 @@ NOINLINE int Solver::SolvePrepare(
         }
     }
 
-    int jointCount = contactJoints.size();
-
-    joint_index.resize(jointCount);
-
-    joint_packed.resize(jointCount);
-
-    int groupOffset = SolvePrepareIndices(bodiesCount, groupSizeTarget);
+    int groupOffset = PrepareIndices(bodiesCount, groupSizeTarget);
 
     {
         MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);

@@ -381,7 +381,10 @@ NOINLINE void Collider::PackManifolds()
     {
         Manifold& m = manifolds[manifoldIndex];
 
-        if (m.pointCount == 0)
+        // TODO
+        // This reduces broadphase insert/erase operations, which is good
+        // However, current behavior causes issues with DenseHash - is it possible to improve it?
+        if (m.pointCount == 0 && !m.body1->geom.aabb.Intersects(m.body2->geom.aabb))
         {
             manifoldMap.erase(std::make_pair(m.body1->index, m.body2->index));
 
