@@ -219,40 +219,52 @@ NOINLINE float Solver::SolveFinish(
 {
     MICROPROFILE_SCOPEI("Physics", "SolveFinish", -1);
 
-    for (int i = 0; i < bodiesCount; ++i)
     {
-        bodies[i].velocity = solveBodiesImpulse[i].velocity;
-        bodies[i].angularVelocity = solveBodiesImpulse[i].angularVelocity;
+        MICROPROFILE_SCOPEI("Physics", "CopyBodies", -1);
 
-        bodies[i].displacingVelocity = solveBodiesDisplacement[i].velocity;
-        bodies[i].displacingAngularVelocity = solveBodiesDisplacement[i].angularVelocity;
+        for (int i = 0; i < bodiesCount; ++i)
+        {
+            bodies[i].velocity = solveBodiesImpulse[i].velocity;
+            bodies[i].angularVelocity = solveBodiesImpulse[i].angularVelocity;
+
+            bodies[i].displacingVelocity = solveBodiesDisplacement[i].velocity;
+            bodies[i].displacingAngularVelocity = solveBodiesDisplacement[i].angularVelocity;
+        }
     }
 
     int jointCount = contactJoints.size();
 
-    for (int i = 0; i < jointCount; ++i)
     {
-        ContactJoint& joint = contactJoints[joint_index[i]];
+        MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
 
-        ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
-        int iP = i & (N - 1);
+        for (int i = 0; i < jointCount; ++i)
+        {
+            ContactJoint& joint = contactJoints[joint_index[i]];
 
-        joint.normalLimiter_accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
-        joint.frictionLimiter_accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
+            ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+            int iP = i & (N - 1);
+
+            joint.normalLimiter_accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
+            joint.frictionLimiter_accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
+        }
     }
 
     int iterationSum = 0;
 
-    for (int i = 0; i < jointCount; ++i)
     {
-        ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
-        int iP = i & (N - 1);
+        MICROPROFILE_SCOPEI("Physics", "Statistics", -1);
 
-        unsigned int bi1 = jointP.body1Index[iP];
-        unsigned int bi2 = jointP.body2Index[iP];
+        for (int i = 0; i < jointCount; ++i)
+        {
+            ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+            int iP = i & (N - 1);
 
-        iterationSum += std::max(solveBodiesImpulse[bi1].lastIteration, solveBodiesImpulse[bi2].lastIteration) + 2;
-        iterationSum += std::max(solveBodiesDisplacement[bi1].lastIteration, solveBodiesDisplacement[bi2].lastIteration) + 2;
+            unsigned int bi1 = jointP.body1Index[iP];
+            unsigned int bi2 = jointP.body2Index[iP];
+
+            iterationSum += std::max(solveBodiesImpulse[bi1].lastIteration, solveBodiesImpulse[bi2].lastIteration) + 2;
+            iterationSum += std::max(solveBodiesDisplacement[bi1].lastIteration, solveBodiesDisplacement[bi2].lastIteration) + 2;
+        }
     }
 
     return float(iterationSum) / float(jointCount);
