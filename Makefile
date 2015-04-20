@@ -8,7 +8,7 @@ OBJECTS=$(SOURCES:%=$(BUILD)/%.o)
 
 EXECUTABLE=$(BUILD)/phyx
 
-CXXFLAGS=-g -Wall -std=c++11 -O3 -DNDEBUG -mavx2 -mfma -ffast-math -Isrc/microprofile
+CXXFLAGS=-g -Wall -std=c++11 -O3 -D_DEBUG -mavx2 -mfma -ffast-math -Isrc/microprofile
 LDFLAGS=-lglfw3 -framework OpenGL
 
 all: $(EXECUTABLE)
