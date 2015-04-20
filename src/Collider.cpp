@@ -120,7 +120,7 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
     {
         Vector2f delta = supportPoints2[0] - supportPoints1[0];
         //float eps = (delta ^ separatingAxis).SquareLen();
-        if (delta * separatingAxis > 0.0f)
+        if (delta * separatingAxis >= 0.0f)
         {
             ContactPoint newbie(supportPoints1[0], supportPoints2[0], separatingAxis, body1, body2);
             AddPoint(points, pointCount, newbie);
@@ -132,8 +132,8 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
         Vector2f point;
         ProjectPointToLine(supportPoints1[0], supportPoints2[0], n, separatingAxis, point);
 
-        if ((((point - supportPoints2[0]) * (supportPoints2[1] - supportPoints2[0])) > 0.0f) &&
-            (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) > 0.0f))
+        if ((((point - supportPoints2[0]) * (supportPoints2[1] - supportPoints2[0])) >= 0.0f) &&
+            (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) >= 0.0f))
         {
             ContactPoint newbie(supportPoints1[0], point, separatingAxis, body1, body2);
             AddPoint(points, pointCount, newbie);
@@ -145,8 +145,8 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
         Vector2f point;
         ProjectPointToLine(supportPoints2[0], supportPoints1[0], n, separatingAxis, point);
 
-        if ((((point - supportPoints1[0]) * (supportPoints1[1] - supportPoints1[0])) > 0.0f) &&
-            (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) > 0.0f))
+        if ((((point - supportPoints1[0]) * (supportPoints1[1] - supportPoints1[0])) >= 0.0f) &&
+            (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) >= 0.0f))
         {
             ContactPoint newbie(point, supportPoints2[0], separatingAxis, body1, body2);
             AddPoint(points, pointCount, newbie);
@@ -163,13 +163,13 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
         for (int i = 0; i < 2; i++)
         {
             Vector2f n = (supportPoints2[1] - supportPoints2[0]).GetPerpendicular();
-            if ((supportPoints1[i] - supportPoints2[0]) * n > 0.0)
+            if ((supportPoints1[i] - supportPoints2[0]) * n >= 0.0)
             {
                 Vector2f point;
                 ProjectPointToLine(supportPoints1[i], supportPoints2[0], n, separatingAxis, point);
 
                 if ((((point - supportPoints2[0]) * (supportPoints2[1] - supportPoints2[0])) >= 0.0f) &&
-                    (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) > 0.0f))
+                    (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) >= 0.0f))
                 {
                     tempCol[tempCols].point1 = supportPoints1[i];
                     tempCol[tempCols].point2 = point;
@@ -180,13 +180,13 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
         for (int i = 0; i < 2; i++)
         {
             Vector2f n = (supportPoints1[1] - supportPoints1[0]).GetPerpendicular();
-            if ((supportPoints2[i] - supportPoints1[0]) * n > 0.0)
+            if ((supportPoints2[i] - supportPoints1[0]) * n >= 0.0)
             {
                 Vector2f point;
                 ProjectPointToLine(supportPoints2[i], supportPoints1[0], n, separatingAxis, point);
 
                 if ((((point - supportPoints1[0]) * (supportPoints1[1] - supportPoints1[0])) >= 0.0f) &&
-                    (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) > 0.0f))
+                    (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) >= 0.0f))
                 {
                     tempCol[tempCols].point1 = point;
                     tempCol[tempCols].point2 = supportPoints2[i];
@@ -308,7 +308,9 @@ NOINLINE void Collider::UpdatePairsSerial(RigidBody* bodies, size_t bodiesCount)
             if (fabsf(be2.centery - be1.centery) <= be1.extenty + be2.extenty)
             {
                 if (manifoldMap.insert(std::make_pair(be1.index, be2.index)))
+                {
                     manifolds.push_back(Manifold(&bodies[be1.index], &bodies[be2.index], manifolds.size() * 2));
+                }
             }
         }
     }
