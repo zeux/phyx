@@ -157,11 +157,12 @@ void MicroProfileEndDraw();
 
 int main(int argc, char** argv)
 {
+    MicroProfileStartContextSwitchTrace();
     MicroProfileOnThreadCreate("Main");
 
     int windowWidth = 1280, windowHeight = 1024;
 
-    std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount()));
+    std::unique_ptr<WorkQueue> queue(new WorkQueue(WorkQueue::getIdealWorkerCount() - 1));
 
     World world;
 
@@ -248,7 +249,7 @@ int main(int argc, char** argv)
             int(world.bodies.size()),
             int(world.collider.manifolds.size()),
             int(world.solver.contactJoints.size()),
-            int(queue->getWorkerCount()),
+            int(queue->getWorkerCount() + 1),
             kModes[currentMode].name,
             world.iterations);
 
@@ -388,12 +389,13 @@ int main(int argc, char** argv)
 
             if (keyPressed[GLFW_KEY_C])
             {
-                size_t workers =
-                    (queue->getWorkerCount() == WorkQueue::getIdealWorkerCount())
+                unsigned int cores = queue->getWorkerCount() + 1;
+                unsigned int newcores =
+                    (cores == WorkQueue::getIdealWorkerCount())
                     ? 1
-                    : std::min(queue->getWorkerCount() * 2, WorkQueue::getIdealWorkerCount());
+                    : std::min(cores * 2, WorkQueue::getIdealWorkerCount());
 
-                queue.reset(new WorkQueue(workers));
+                queue.reset(new WorkQueue(newcores - 1));
             }
 
             if (glfwGetKey(window, GLFW_KEY_LEFT))

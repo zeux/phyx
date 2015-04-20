@@ -25,7 +25,6 @@ class WorkQueue
     }
 
     WorkQueue(unsigned int workerCount)
-        : signalTriggered(false)
     {
         for (unsigned int i = 0; i < workerCount; ++i)
             workers.emplace_back(workerThreadFun, this, i);
@@ -50,6 +49,18 @@ class WorkQueue
         itemsCondition.notify_one();
     }
 
+    void push(std::vector<std::unique_ptr<Item>> item)
+    {
+        std::unique_lock<std::mutex> lock(itemsMutex);
+
+        for (auto&& i: item)
+            items.push(std::move(i));
+
+        lock.unlock();
+
+        itemsCondition.notify_all();
+    }
+
     void push(std::function<void()> fun)
     {
         std::unique_ptr<ItemFunction> item(new ItemFunction());
@@ -63,35 +74,12 @@ class WorkQueue
         return workers.size();
     }
 
-    void signalWait()
-    {
-        std::unique_lock<std::mutex> lock(signalMutex);
-
-        signalCondition.wait(lock, [&]() { return signalTriggered; });
-
-        signalTriggered = false;
-    }
-
-    void signalReady()
-    {
-        std::unique_lock<std::mutex> lock(signalMutex);
-
-        signalTriggered = true;
-
-        lock.unlock();
-        signalCondition.notify_one();
-    }
-
   private:
     std::vector<std::thread> workers;
 
     std::mutex itemsMutex;
     std::condition_variable itemsCondition;
     std::queue<std::unique_ptr<Item>> items;
-
-    std::mutex signalMutex;
-    std::condition_variable signalCondition;
-    bool signalTriggered;
 
     static void workerThreadFun(WorkQueue* queue, int worker)
     {

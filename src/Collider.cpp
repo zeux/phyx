@@ -319,7 +319,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
 {
     MICROPROFILE_SCOPEI("Physics", "UpdatePairsParallel", -1);
 
-    manifoldBuffers.resize(queue.getWorkerCount());
+    manifoldBuffers.resize(queue.getWorkerCount() + 1);
 
     for (auto& buf : manifoldBuffers)
         buf.pairs.clear();

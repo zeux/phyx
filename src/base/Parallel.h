@@ -11,7 +11,7 @@ inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
 {
     MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
 
-    if (queue.getWorkerCount() == 1)
+    if (queue.getWorkerCount() == 0)
     {
         for (unsigned int i = 0; i < count; ++i)
             func(data[i], 0);
@@ -19,53 +19,84 @@ inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
         return;
     }
 
-    struct Item: WorkQueue::Item
+    struct State
     {
         WorkQueue* queue;
 
-        std::atomic<unsigned int>* counter;
-        std::atomic<unsigned int>* ready;
+        std::atomic<unsigned int> counter;
+        std::atomic<unsigned int> ready;
 
         T* data;
         unsigned int count;
+
         unsigned int groupSize;
+        unsigned int groupCount;
 
         F* func;
 
-        void run(int worker) override
+        State(): counter(0), ready(0)
         {
-            for (;;)
-            {
-                unsigned int index = (*counter)++ * groupSize;
-                if (index >= count) break;
-
-                unsigned int end = std::min(count, index + groupSize);
-
-                for (unsigned int i = index; i < end; ++i)
-                    (*func)(data[i], worker);
-            }
-
-            if (++*ready == queue->getWorkerCount())
-                queue->signalReady();
         }
     };
 
-    std::atomic<unsigned int> counter(0);
-    std::atomic<unsigned int> ready(0);
+    struct Item: WorkQueue::Item
+    {
+        std::shared_ptr<State> state;
+
+        Item(const std::shared_ptr<State>& state): state(state)
+        {
+        }
+
+        void run(int worker) override
+        {
+            unsigned int groups = 0;
+
+            for (;;)
+            {
+                unsigned int groupIndex = state->counter++;
+                if (groupIndex >= state->groupCount) break;
+
+                unsigned int begin = groupIndex * state->groupSize;
+                unsigned int end = std::min(state->count, begin + state->groupSize);
+
+                for (unsigned int i = begin; i < end; ++i)
+                    (*state->func)(state->data[i], worker);
+
+                groups++;
+            }
+
+            state->ready += groups;
+        }
+    };
+
+    auto state = std::make_shared<State>();
+
+    state->queue = &queue;
+    state->data = data;
+    state->count = count;
+    state->groupSize = groupSize;
+    state->groupCount = (count + groupSize - 1) / groupSize;
+    state->func = &func;
+
+    std::vector<std::unique_ptr<WorkQueue::Item>> items(queue.getWorkerCount());
 
     for (size_t i = 0; i < queue.getWorkerCount(); ++i)
-    {
-        std::unique_ptr<Item> item(new Item());
-        item->queue = &queue;
-        item->counter = &counter;
-        item->ready = &ready;
-        item->data = data;
-        item->count = count;
-        item->groupSize = groupSize;
-        item->func = &func;
+        items[i] = std::unique_ptr<WorkQueue::Item>(new Item(state));
 
-        queue.push(std::unique_ptr<WorkQueue::Item>(std::move(item)));
+    {
+        MICROPROFILE_SCOPEI("WorkQueue", "Push", 0x00ff00);
+
+        queue.push(std::move(items));
     }
 
-    queue.signalWait();
+    Item item(state);
+    item.run(queue.getWorkerCount());
+
+    if (state->ready.load() < state->groupCount)
+    {
+        MICROPROFILE_SCOPEI("WorkQueue", "Wait", 0xff0000);
+
+        do std::this_thread::yield();
+        while (state->ready.load() < state->groupCount);
+    }
 }
