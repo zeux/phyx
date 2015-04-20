@@ -270,38 +270,47 @@ NOINLINE float Solver::SolveFinish(
     return float(iterationSum) / float(jointCount);
 }
 
-template <typename Vf>
+template <typename Vf, int N>
 static void RefreshLimiter(
-    Vf& normalProjector1X, Vf& normalProjector1Y,
-    Vf& normalProjector2X, Vf& normalProjector2Y,
-    Vf& angularProjector1, Vf& angularProjector2,
-    Vf& compMass1_linearX, Vf& compMass1_linearY,
-    Vf& compMass2_linearX, Vf& compMass2_linearY,
-    Vf& compMass1_angular, Vf& compMass2_angular,
-    Vf& compInvMass,
+    ContactLimiterPacked<N>& limiter, int iP,
     const Vf& n1X, const Vf& n1Y, const Vf& n2X, const Vf& n2Y, const Vf& w1X, const Vf& w1Y, const Vf& w2X, const Vf& w2Y,
     const Vf& body1_invMass, const Vf& body1_invInertia, const Vf& body2_invMass, const Vf& body2_invInertia)
 {
-    normalProjector1X = n1X;
-    normalProjector1Y = n1Y;
-    normalProjector2X = n2X;
-    normalProjector2Y = n2Y;
-    angularProjector1 = n1X * w1Y - n1Y * w1X;
-    angularProjector2 = n2X * w2Y - n2Y * w2X;
+    Vf normalProjector1X = n1X;
+    Vf normalProjector1Y = n1Y;
+    Vf normalProjector2X = n2X;
+    Vf normalProjector2Y = n2Y;
+    Vf angularProjector1 = n1X * w1Y - n1Y * w1X;
+    Vf angularProjector2 = n2X * w2Y - n2Y * w2X;
 
-    compMass1_linearX = normalProjector1X * body1_invMass;
-    compMass1_linearY = normalProjector1Y * body1_invMass;
-    compMass1_angular = angularProjector1 * body1_invInertia;
-    compMass2_linearX = normalProjector2X * body2_invMass;
-    compMass2_linearY = normalProjector2Y * body2_invMass;
-    compMass2_angular = angularProjector2 * body2_invInertia;
+    Vf compMass1_linearX = normalProjector1X * body1_invMass;
+    Vf compMass1_linearY = normalProjector1Y * body1_invMass;
+    Vf compMass1_angular = angularProjector1 * body1_invInertia;
+    Vf compMass2_linearX = normalProjector2X * body2_invMass;
+    Vf compMass2_linearY = normalProjector2Y * body2_invMass;
+    Vf compMass2_angular = angularProjector2 * body2_invInertia;
 
     Vf compMass1 = normalProjector1X * compMass1_linearX + normalProjector1Y * compMass1_linearY + angularProjector1 * compMass1_angular;
     Vf compMass2 = normalProjector2X * compMass2_linearX + normalProjector2Y * compMass2_linearY + angularProjector2 * compMass2_angular;
 
     Vf compMass = compMass1 + compMass2;
 
-    compInvMass = select(Vf::zero(), Vf::one(1) / compMass, abs(compMass) > Vf::zero());
+    Vf compInvMass = select(Vf::zero(), Vf::one(1) / compMass, abs(compMass) > Vf::zero());
+
+    store(normalProjector1X, &limiter.normalProjector1X[iP]);
+    store(normalProjector1Y, &limiter.normalProjector1Y[iP]);
+    store(normalProjector2X, &limiter.normalProjector2X[iP]);
+    store(normalProjector2Y, &limiter.normalProjector2Y[iP]);
+    store(angularProjector1, &limiter.angularProjector1[iP]);
+    store(angularProjector2, &limiter.angularProjector2[iP]);
+
+    store(compMass1_linearX, &limiter.compMass1_linearX[iP]);
+    store(compMass1_linearY, &limiter.compMass1_linearY[iP]);
+    store(compMass2_linearX, &limiter.compMass2_linearX[iP]);
+    store(compMass2_linearY, &limiter.compMass2_linearY[iP]);
+    store(compMass1_angular, &limiter.compMass1_angular[iP]);
+    store(compMass2_angular, &limiter.compMass2_angular[iP]);
+    store(compInvMass, &limiter.compInvMass[iP]);
 }
 
 template <int VN, int N>
@@ -358,26 +367,6 @@ NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int joi
             collision_normalX, collision_normalY, dummy, dummy,
             contactPoints, jointP.contactPointIndex + iP, sizeof(ContactPoint));
 
-        Vf j_normalLimiter_normalProjector1X, j_normalLimiter_normalProjector1Y;
-        Vf j_normalLimiter_normalProjector2X, j_normalLimiter_normalProjector2Y;
-        Vf j_normalLimiter_angularProjector1, j_normalLimiter_angularProjector2;
-        Vf j_normalLimiter_compMass1_linearX, j_normalLimiter_compMass1_linearY;
-        Vf j_normalLimiter_compMass2_linearX, j_normalLimiter_compMass2_linearY;
-        Vf j_normalLimiter_compMass1_angular, j_normalLimiter_compMass2_angular;
-        Vf j_normalLimiter_compInvMass;
-        Vf j_normalLimiter_accumulatedImpulse;
-        Vf j_normalLimiter_dstVelocity;
-        Vf j_normalLimiter_dstDisplacingVelocity;
-        Vf j_normalLimiter_accumulatedDisplacingImpulse;
-
-        Vf j_frictionLimiter_normalProjector1X, j_frictionLimiter_normalProjector1Y;
-        Vf j_frictionLimiter_normalProjector2X, j_frictionLimiter_normalProjector2Y;
-        Vf j_frictionLimiter_angularProjector1, j_frictionLimiter_angularProjector2;
-        Vf j_frictionLimiter_compMass1_linearX, j_frictionLimiter_compMass1_linearY;
-        Vf j_frictionLimiter_compMass2_linearX, j_frictionLimiter_compMass2_linearY;
-        Vf j_frictionLimiter_compMass1_angular, j_frictionLimiter_compMass2_angular;
-        Vf j_frictionLimiter_compInvMass;
-
         Vf point1X = collision_delta1X + body1_coords_posX;
         Vf point1Y = collision_delta1Y + body1_coords_posY;
         Vf point2X = collision_delta2X + body2_coords_posX;
@@ -389,14 +378,7 @@ NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int joi
         Vf w2Y = point1Y - body2_coords_posY;
 
         // Normal limiter
-        RefreshLimiter(
-            j_normalLimiter_normalProjector1X, j_normalLimiter_normalProjector1Y,
-            j_normalLimiter_normalProjector2X, j_normalLimiter_normalProjector2Y,
-            j_normalLimiter_angularProjector1, j_normalLimiter_angularProjector2,
-            j_normalLimiter_compMass1_linearX, j_normalLimiter_compMass1_linearY,
-            j_normalLimiter_compMass2_linearX, j_normalLimiter_compMass2_linearY,
-            j_normalLimiter_compMass1_angular, j_normalLimiter_compMass2_angular,
-            j_normalLimiter_compInvMass,
+        RefreshLimiter(jointP.normalLimiter, iP,
             collision_normalX, collision_normalY, -collision_normalX, -collision_normalY,
             w1X, w1Y, w2X, w2Y,
             body1_invMass, body1_invInertia, body2_invMass, body2_invInertia);
@@ -406,8 +388,6 @@ NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int joi
         Vf maxPenetrationVelocity = Vf::one(0.1f);
         Vf deltaDepth = Vf::one(1.f);
         Vf errorReduction = Vf::one(0.1f);
-
-        j_normalLimiter_dstDisplacingVelocity = Vf::zero();
 
         Vf pointVelocity_body1X = (body1_coords_posY - point1Y) * body1_angularVelocity + body1_velocityX;
         Vf pointVelocity_body1Y = (point1X - body1_coords_posX) * body1_angularVelocity + body1_velocityY;
@@ -423,60 +403,22 @@ NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int joi
 
         Vf dstVelocity = max(dv - deltaVelocity, Vf::zero());
 
-        j_normalLimiter_dstVelocity = select(dstVelocity, dstVelocity - maxPenetrationVelocity, depth < deltaDepth);
-
-        j_normalLimiter_dstDisplacingVelocity = errorReduction * max(Vf::zero(), depth - Vf::one(2.0f) * deltaDepth);
-
-        j_normalLimiter_accumulatedDisplacingImpulse = Vf::zero();
+        Vf j_normalLimiter_dstVelocity = select(dstVelocity, dstVelocity - maxPenetrationVelocity, depth < deltaDepth);
+        Vf j_normalLimiter_dstDisplacingVelocity = errorReduction * max(Vf::zero(), depth - Vf::one(2.0f) * deltaDepth);
+        Vf j_normalLimiter_accumulatedDisplacingImpulse = Vf::zero();
 
         // Friction limiter
         Vf tangentX = -collision_normalY;
         Vf tangentY = collision_normalX;
 
-        RefreshLimiter(
-            j_frictionLimiter_normalProjector1X, j_frictionLimiter_normalProjector1Y,
-            j_frictionLimiter_normalProjector2X, j_frictionLimiter_normalProjector2Y,
-            j_frictionLimiter_angularProjector1, j_frictionLimiter_angularProjector2,
-            j_frictionLimiter_compMass1_linearX, j_frictionLimiter_compMass1_linearY,
-            j_frictionLimiter_compMass2_linearX, j_frictionLimiter_compMass2_linearY,
-            j_frictionLimiter_compMass1_angular, j_frictionLimiter_compMass2_angular,
-            j_frictionLimiter_compInvMass,
+        RefreshLimiter(jointP.frictionLimiter, iP,
             tangentX, tangentY, -tangentX, -tangentY,
             w1X, w1Y, w2X, w2Y,
             body1_invMass, body1_invInertia, body2_invMass, body2_invInertia);
 
-        store(j_normalLimiter_normalProjector1X, &jointP.normalLimiter_normalProjector1X[iP]);
-        store(j_normalLimiter_normalProjector1Y, &jointP.normalLimiter_normalProjector1Y[iP]);
-        store(j_normalLimiter_normalProjector2X, &jointP.normalLimiter_normalProjector2X[iP]);
-        store(j_normalLimiter_normalProjector2Y, &jointP.normalLimiter_normalProjector2Y[iP]);
-        store(j_normalLimiter_angularProjector1, &jointP.normalLimiter_angularProjector1[iP]);
-        store(j_normalLimiter_angularProjector2, &jointP.normalLimiter_angularProjector2[iP]);
-
-        store(j_normalLimiter_compMass1_linearX, &jointP.normalLimiter_compMass1_linearX[iP]);
-        store(j_normalLimiter_compMass1_linearY, &jointP.normalLimiter_compMass1_linearY[iP]);
-        store(j_normalLimiter_compMass2_linearX, &jointP.normalLimiter_compMass2_linearX[iP]);
-        store(j_normalLimiter_compMass2_linearY, &jointP.normalLimiter_compMass2_linearY[iP]);
-        store(j_normalLimiter_compMass1_angular, &jointP.normalLimiter_compMass1_angular[iP]);
-        store(j_normalLimiter_compMass2_angular, &jointP.normalLimiter_compMass2_angular[iP]);
-        store(j_normalLimiter_compInvMass, &jointP.normalLimiter_compInvMass[iP]);
         store(j_normalLimiter_dstVelocity, &jointP.normalLimiter_dstVelocity[iP]);
         store(j_normalLimiter_dstDisplacingVelocity, &jointP.normalLimiter_dstDisplacingVelocity[iP]);
         store(j_normalLimiter_accumulatedDisplacingImpulse, &jointP.normalLimiter_accumulatedDisplacingImpulse[iP]);
-
-        store(j_frictionLimiter_normalProjector1X, &jointP.frictionLimiter_normalProjector1X[iP]);
-        store(j_frictionLimiter_normalProjector1Y, &jointP.frictionLimiter_normalProjector1Y[iP]);
-        store(j_frictionLimiter_normalProjector2X, &jointP.frictionLimiter_normalProjector2X[iP]);
-        store(j_frictionLimiter_normalProjector2Y, &jointP.frictionLimiter_normalProjector2Y[iP]);
-        store(j_frictionLimiter_angularProjector1, &jointP.frictionLimiter_angularProjector1[iP]);
-        store(j_frictionLimiter_angularProjector2, &jointP.frictionLimiter_angularProjector2[iP]);
-
-        store(j_frictionLimiter_compMass1_linearX, &jointP.frictionLimiter_compMass1_linearX[iP]);
-        store(j_frictionLimiter_compMass1_linearY, &jointP.frictionLimiter_compMass1_linearY[iP]);
-        store(j_frictionLimiter_compMass2_linearX, &jointP.frictionLimiter_compMass2_linearX[iP]);
-        store(j_frictionLimiter_compMass2_linearY, &jointP.frictionLimiter_compMass2_linearY[iP]);
-        store(j_frictionLimiter_compMass1_angular, &jointP.frictionLimiter_compMass1_angular[iP]);
-        store(j_frictionLimiter_compMass2_angular, &jointP.frictionLimiter_compMass2_angular[iP]);
-        store(j_frictionLimiter_compInvMass, &jointP.frictionLimiter_compInvMass[iP]);
     }
 }
 
@@ -507,20 +449,20 @@ NOINLINE void Solver::PreStepJoints(ContactJointPacked<N>* joint_packed, int joi
         loadindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
             solveBodiesImpulse.data, jointP.body2Index + iP, sizeof(SolveBody));
 
-        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter_compMass1_linearX[iP]);
-        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter_compMass1_linearY[iP]);
-        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter_compMass2_linearX[iP]);
-        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter_compMass2_linearY[iP]);
-        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter_compMass1_angular[iP]);
-        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter_compMass2_angular[iP]);
+        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter.compMass1_linearX[iP]);
+        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter.compMass1_linearY[iP]);
+        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter.compMass2_linearX[iP]);
+        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter.compMass2_linearY[iP]);
+        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter.compMass1_angular[iP]);
+        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter.compMass2_angular[iP]);
         Vf j_normalLimiter_accumulatedImpulse = Vf::load(&jointP.normalLimiter_accumulatedImpulse[iP]);
 
-        Vf j_frictionLimiter_compMass1_linearX = Vf::load(&jointP.frictionLimiter_compMass1_linearX[iP]);
-        Vf j_frictionLimiter_compMass1_linearY = Vf::load(&jointP.frictionLimiter_compMass1_linearY[iP]);
-        Vf j_frictionLimiter_compMass2_linearX = Vf::load(&jointP.frictionLimiter_compMass2_linearX[iP]);
-        Vf j_frictionLimiter_compMass2_linearY = Vf::load(&jointP.frictionLimiter_compMass2_linearY[iP]);
-        Vf j_frictionLimiter_compMass1_angular = Vf::load(&jointP.frictionLimiter_compMass1_angular[iP]);
-        Vf j_frictionLimiter_compMass2_angular = Vf::load(&jointP.frictionLimiter_compMass2_angular[iP]);
+        Vf j_frictionLimiter_compMass1_linearX = Vf::load(&jointP.frictionLimiter.compMass1_linearX[iP]);
+        Vf j_frictionLimiter_compMass1_linearY = Vf::load(&jointP.frictionLimiter.compMass1_linearY[iP]);
+        Vf j_frictionLimiter_compMass2_linearX = Vf::load(&jointP.frictionLimiter.compMass2_linearX[iP]);
+        Vf j_frictionLimiter_compMass2_linearY = Vf::load(&jointP.frictionLimiter.compMass2_linearY[iP]);
+        Vf j_frictionLimiter_compMass1_angular = Vf::load(&jointP.frictionLimiter.compMass1_angular[iP]);
+        Vf j_frictionLimiter_compMass2_angular = Vf::load(&jointP.frictionLimiter.compMass2_angular[iP]);
         Vf j_frictionLimiter_accumulatedImpulse = Vf::load(&jointP.frictionLimiter_accumulatedImpulse[iP]);
 
         body1_velocityX += j_normalLimiter_compMass1_linearX * j_normalLimiter_accumulatedImpulse;
@@ -589,37 +531,37 @@ NOINLINE bool Solver::SolveJointsImpulses(ContactJointPacked<N>* joint_packed, i
         if (none(body_productive))
             continue;
 
-        Vf j_normalLimiter_normalProjector1X = Vf::load(&jointP.normalLimiter_normalProjector1X[iP]);
-        Vf j_normalLimiter_normalProjector1Y = Vf::load(&jointP.normalLimiter_normalProjector1Y[iP]);
-        Vf j_normalLimiter_normalProjector2X = Vf::load(&jointP.normalLimiter_normalProjector2X[iP]);
-        Vf j_normalLimiter_normalProjector2Y = Vf::load(&jointP.normalLimiter_normalProjector2Y[iP]);
-        Vf j_normalLimiter_angularProjector1 = Vf::load(&jointP.normalLimiter_angularProjector1[iP]);
-        Vf j_normalLimiter_angularProjector2 = Vf::load(&jointP.normalLimiter_angularProjector2[iP]);
+        Vf j_normalLimiter_normalProjector1X = Vf::load(&jointP.normalLimiter.normalProjector1X[iP]);
+        Vf j_normalLimiter_normalProjector1Y = Vf::load(&jointP.normalLimiter.normalProjector1Y[iP]);
+        Vf j_normalLimiter_normalProjector2X = Vf::load(&jointP.normalLimiter.normalProjector2X[iP]);
+        Vf j_normalLimiter_normalProjector2Y = Vf::load(&jointP.normalLimiter.normalProjector2Y[iP]);
+        Vf j_normalLimiter_angularProjector1 = Vf::load(&jointP.normalLimiter.angularProjector1[iP]);
+        Vf j_normalLimiter_angularProjector2 = Vf::load(&jointP.normalLimiter.angularProjector2[iP]);
 
-        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter_compMass1_linearX[iP]);
-        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter_compMass1_linearY[iP]);
-        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter_compMass2_linearX[iP]);
-        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter_compMass2_linearY[iP]);
-        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter_compMass1_angular[iP]);
-        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter_compMass2_angular[iP]);
-        Vf j_normalLimiter_compInvMass = Vf::load(&jointP.normalLimiter_compInvMass[iP]);
+        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter.compMass1_linearX[iP]);
+        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter.compMass1_linearY[iP]);
+        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter.compMass2_linearX[iP]);
+        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter.compMass2_linearY[iP]);
+        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter.compMass1_angular[iP]);
+        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter.compMass2_angular[iP]);
+        Vf j_normalLimiter_compInvMass = Vf::load(&jointP.normalLimiter.compInvMass[iP]);
         Vf j_normalLimiter_accumulatedImpulse = Vf::load(&jointP.normalLimiter_accumulatedImpulse[iP]);
         Vf j_normalLimiter_dstVelocity = Vf::load(&jointP.normalLimiter_dstVelocity[iP]);
 
-        Vf j_frictionLimiter_normalProjector1X = Vf::load(&jointP.frictionLimiter_normalProjector1X[iP]);
-        Vf j_frictionLimiter_normalProjector1Y = Vf::load(&jointP.frictionLimiter_normalProjector1Y[iP]);
-        Vf j_frictionLimiter_normalProjector2X = Vf::load(&jointP.frictionLimiter_normalProjector2X[iP]);
-        Vf j_frictionLimiter_normalProjector2Y = Vf::load(&jointP.frictionLimiter_normalProjector2Y[iP]);
-        Vf j_frictionLimiter_angularProjector1 = Vf::load(&jointP.frictionLimiter_angularProjector1[iP]);
-        Vf j_frictionLimiter_angularProjector2 = Vf::load(&jointP.frictionLimiter_angularProjector2[iP]);
+        Vf j_frictionLimiter_normalProjector1X = Vf::load(&jointP.frictionLimiter.normalProjector1X[iP]);
+        Vf j_frictionLimiter_normalProjector1Y = Vf::load(&jointP.frictionLimiter.normalProjector1Y[iP]);
+        Vf j_frictionLimiter_normalProjector2X = Vf::load(&jointP.frictionLimiter.normalProjector2X[iP]);
+        Vf j_frictionLimiter_normalProjector2Y = Vf::load(&jointP.frictionLimiter.normalProjector2Y[iP]);
+        Vf j_frictionLimiter_angularProjector1 = Vf::load(&jointP.frictionLimiter.angularProjector1[iP]);
+        Vf j_frictionLimiter_angularProjector2 = Vf::load(&jointP.frictionLimiter.angularProjector2[iP]);
 
-        Vf j_frictionLimiter_compMass1_linearX = Vf::load(&jointP.frictionLimiter_compMass1_linearX[iP]);
-        Vf j_frictionLimiter_compMass1_linearY = Vf::load(&jointP.frictionLimiter_compMass1_linearY[iP]);
-        Vf j_frictionLimiter_compMass2_linearX = Vf::load(&jointP.frictionLimiter_compMass2_linearX[iP]);
-        Vf j_frictionLimiter_compMass2_linearY = Vf::load(&jointP.frictionLimiter_compMass2_linearY[iP]);
-        Vf j_frictionLimiter_compMass1_angular = Vf::load(&jointP.frictionLimiter_compMass1_angular[iP]);
-        Vf j_frictionLimiter_compMass2_angular = Vf::load(&jointP.frictionLimiter_compMass2_angular[iP]);
-        Vf j_frictionLimiter_compInvMass = Vf::load(&jointP.frictionLimiter_compInvMass[iP]);
+        Vf j_frictionLimiter_compMass1_linearX = Vf::load(&jointP.frictionLimiter.compMass1_linearX[iP]);
+        Vf j_frictionLimiter_compMass1_linearY = Vf::load(&jointP.frictionLimiter.compMass1_linearY[iP]);
+        Vf j_frictionLimiter_compMass2_linearX = Vf::load(&jointP.frictionLimiter.compMass2_linearX[iP]);
+        Vf j_frictionLimiter_compMass2_linearY = Vf::load(&jointP.frictionLimiter.compMass2_linearY[iP]);
+        Vf j_frictionLimiter_compMass1_angular = Vf::load(&jointP.frictionLimiter.compMass1_angular[iP]);
+        Vf j_frictionLimiter_compMass2_angular = Vf::load(&jointP.frictionLimiter.compMass2_angular[iP]);
+        Vf j_frictionLimiter_compInvMass = Vf::load(&jointP.frictionLimiter.compInvMass[iP]);
         Vf j_frictionLimiter_accumulatedImpulse = Vf::load(&jointP.frictionLimiter_accumulatedImpulse[iP]);
 
         Vf normaldV = j_normalLimiter_dstVelocity;
@@ -747,20 +689,20 @@ NOINLINE bool Solver::SolveJointsDisplacement(ContactJointPacked<N>* joint_packe
         if (none(body_productive))
             continue;
 
-        Vf j_normalLimiter_normalProjector1X = Vf::load(&jointP.normalLimiter_normalProjector1X[iP]);
-        Vf j_normalLimiter_normalProjector1Y = Vf::load(&jointP.normalLimiter_normalProjector1Y[iP]);
-        Vf j_normalLimiter_normalProjector2X = Vf::load(&jointP.normalLimiter_normalProjector2X[iP]);
-        Vf j_normalLimiter_normalProjector2Y = Vf::load(&jointP.normalLimiter_normalProjector2Y[iP]);
-        Vf j_normalLimiter_angularProjector1 = Vf::load(&jointP.normalLimiter_angularProjector1[iP]);
-        Vf j_normalLimiter_angularProjector2 = Vf::load(&jointP.normalLimiter_angularProjector2[iP]);
+        Vf j_normalLimiter_normalProjector1X = Vf::load(&jointP.normalLimiter.normalProjector1X[iP]);
+        Vf j_normalLimiter_normalProjector1Y = Vf::load(&jointP.normalLimiter.normalProjector1Y[iP]);
+        Vf j_normalLimiter_normalProjector2X = Vf::load(&jointP.normalLimiter.normalProjector2X[iP]);
+        Vf j_normalLimiter_normalProjector2Y = Vf::load(&jointP.normalLimiter.normalProjector2Y[iP]);
+        Vf j_normalLimiter_angularProjector1 = Vf::load(&jointP.normalLimiter.angularProjector1[iP]);
+        Vf j_normalLimiter_angularProjector2 = Vf::load(&jointP.normalLimiter.angularProjector2[iP]);
 
-        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter_compMass1_linearX[iP]);
-        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter_compMass1_linearY[iP]);
-        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter_compMass2_linearX[iP]);
-        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter_compMass2_linearY[iP]);
-        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter_compMass1_angular[iP]);
-        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter_compMass2_angular[iP]);
-        Vf j_normalLimiter_compInvMass = Vf::load(&jointP.normalLimiter_compInvMass[iP]);
+        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter.compMass1_linearX[iP]);
+        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter.compMass1_linearY[iP]);
+        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter.compMass2_linearX[iP]);
+        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter.compMass2_linearY[iP]);
+        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter.compMass1_angular[iP]);
+        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter.compMass2_angular[iP]);
+        Vf j_normalLimiter_compInvMass = Vf::load(&jointP.normalLimiter.compInvMass[iP]);
         Vf j_normalLimiter_dstDisplacingVelocity = Vf::load(&jointP.normalLimiter_dstDisplacingVelocity[iP]);
         Vf j_normalLimiter_accumulatedDisplacingImpulse = Vf::load(&jointP.normalLimiter_accumulatedDisplacingImpulse[iP]);
 

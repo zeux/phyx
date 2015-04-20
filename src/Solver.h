@@ -5,25 +5,33 @@
 #include "base/AlignedArray.h"
 
 template <int N>
+struct ContactLimiterPacked
+{
+    float normalProjector1X[N];
+    float normalProjector1Y[N];
+    float normalProjector2X[N];
+    float normalProjector2Y[N];
+    float angularProjector1[N];
+    float angularProjector2[N];
+
+    float compMass1_linearX[N];
+    float compMass1_linearY[N];
+    float compMass2_linearX[N];
+    float compMass2_linearY[N];
+    float compMass1_angular[N];
+    float compMass2_angular[N];
+    float compInvMass[N];
+};
+
+template <int N>
 struct ContactJointPacked
 {
     int body1Index[N];
     int body2Index[N];
     int contactPointIndex[N];
 
-    float normalLimiter_normalProjector1X[N];
-    float normalLimiter_normalProjector1Y[N];
-    float normalLimiter_normalProjector2X[N];
-    float normalLimiter_normalProjector2Y[N];
-    float normalLimiter_angularProjector1[N];
-    float normalLimiter_angularProjector2[N];
+    ContactLimiterPacked<N> normalLimiter;
 
-    float normalLimiter_compMass1_linearX[N];
-    float normalLimiter_compMass1_linearY[N];
-    float normalLimiter_compMass2_linearX[N];
-    float normalLimiter_compMass2_linearY[N];
-    float normalLimiter_compMass1_angular[N];
-    float normalLimiter_compMass2_angular[N];
     float normalLimiter_compInvMass[N];
     float normalLimiter_accumulatedImpulse[N];
 
@@ -31,20 +39,8 @@ struct ContactJointPacked
     float normalLimiter_dstDisplacingVelocity[N];
     float normalLimiter_accumulatedDisplacingImpulse[N];
 
-    float frictionLimiter_normalProjector1X[N];
-    float frictionLimiter_normalProjector1Y[N];
-    float frictionLimiter_normalProjector2X[N];
-    float frictionLimiter_normalProjector2Y[N];
-    float frictionLimiter_angularProjector1[N];
-    float frictionLimiter_angularProjector2[N];
+    ContactLimiterPacked<N> frictionLimiter;
 
-    float frictionLimiter_compMass1_linearX[N];
-    float frictionLimiter_compMass1_linearY[N];
-    float frictionLimiter_compMass2_linearX[N];
-    float frictionLimiter_compMass2_linearY[N];
-    float frictionLimiter_compMass1_angular[N];
-    float frictionLimiter_compMass2_angular[N];
-    float frictionLimiter_compInvMass[N];
     float frictionLimiter_accumulatedImpulse[N];
 };
 
