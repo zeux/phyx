@@ -41,8 +41,19 @@ float Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>&
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
 
-        RefreshJoints<N>(joint_packed.data, 0, groupOffset, contactPoints);
-        RefreshJoints<1>(joint_packed.data, groupOffset, contactJoints.size(), contactPoints);
+        {
+            MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
+
+            parallelFor(queue, joint_packed.data, groupOffset / N, 16, [&](ContactJointPacked<N>& joint, int) {
+                int group = &joint - joint_packed.data;
+                int groupBegin = group * N;
+                int groupEnd = std::min(groupBegin + N, groupOffset);
+
+                RefreshJoints<N>(joint_packed.data, groupBegin, groupEnd, contactPoints);
+            });
+
+            RefreshJoints<1>(joint_packed.data, groupOffset, contactJoints.size(), contactPoints);
+        }
 
         PreStepJoints<N>(joint_packed.data, 0, groupOffset);
         PreStepJoints<1>(joint_packed.data, groupOffset, contactJoints.size());
@@ -316,8 +327,6 @@ static void RefreshLimiter(
 template <int VN, int N>
 NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints)
 {
-    MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
-
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
