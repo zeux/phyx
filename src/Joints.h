@@ -55,14 +55,6 @@ struct Limiter
         else
             this->compInvMass = 0.0f;
     }
-
-    void PreStep(RigidBody* body1, RigidBody* body2)
-    {
-        body1->velocity += compMass1_linear * accumulatedImpulse;
-        body1->angularVelocity += compMass1_angular * accumulatedImpulse;
-        body2->velocity += compMass2_linear * accumulatedImpulse;
-        body2->angularVelocity += compMass2_angular * accumulatedImpulse;
-    }
 };
 
 struct FrictionLimiter : public Limiter
@@ -140,12 +132,6 @@ struct ContactJoint
         Vector2f tangent;
         tangent = collision->normal.GetPerpendicular();
         frictionLimiter.Refresh(tangent, point1, point2, body1, body2);
-    }
-
-    void PreStep()
-    {
-        normalLimiter.PreStep(body1, body2);
-        frictionLimiter.PreStep(body1, body2);
     }
 
     ContactPoint* collision;

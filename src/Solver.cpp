@@ -17,21 +17,17 @@ NOINLINE void Solver::RefreshJoints(WorkQueue& queue)
     parallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
 }
 
-NOINLINE void Solver::PreStepJoints()
-{
-    MICROPROFILE_SCOPEI("Physics", "PreStepJoints", -1);
-
-    for (auto& joint: contactJoints)
-    {
-        joint.PreStep();
-    }
-}
-
 NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsAoS", -1);
 
     SolvePrepareAoS(bodies, bodiesCount);
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
+
+        PreStepJointsAoS(0, contactJoints.size());
+    }
 
     {
         MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
@@ -85,6 +81,13 @@ template <int N>
 float Solver::SolveJointsSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     int groupOffset = SolvePrepareSoA(joint_packed, bodies, bodiesCount, N);
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
+
+        PreStepJointsSoA<N>(joint_packed.data, 0, groupOffset);
+        PreStepJointsSoA<1>(joint_packed.data, groupOffset, contactJoints.size());
+    }
 
     {
         MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
@@ -344,6 +347,33 @@ NOINLINE float Solver::SolveFinishSoA(
     return float(iterationSum) / float(jointCount);
 }
 
+NOINLINE void Solver::PreStepJointsAoS(int jointBegin, int jointEnd)
+{
+    MICROPROFILE_SCOPEI("Physics", "PreStepJointsAoS", -1);
+
+    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex++)
+    {
+        ContactJoint& joint = contactJoints[jointIndex];
+
+        RigidBody* body1 = joint.body1;
+        RigidBody* body2 = joint.body2;
+
+        body1->velocity.x += joint.normalLimiter.compMass1_linear.x * joint.normalLimiter.accumulatedImpulse;
+        body1->velocity.y += joint.normalLimiter.compMass1_linear.y * joint.normalLimiter.accumulatedImpulse;
+        body1->angularVelocity += joint.normalLimiter.compMass1_angular * joint.normalLimiter.accumulatedImpulse;
+        body2->velocity.x += joint.normalLimiter.compMass2_linear.x * joint.normalLimiter.accumulatedImpulse;
+        body2->velocity.y += joint.normalLimiter.compMass2_linear.y * joint.normalLimiter.accumulatedImpulse;
+        body2->angularVelocity += joint.normalLimiter.compMass2_angular * joint.normalLimiter.accumulatedImpulse;
+
+        body1->velocity.x += joint.frictionLimiter.compMass1_linear.x * joint.frictionLimiter.accumulatedImpulse;
+        body1->velocity.y += joint.frictionLimiter.compMass1_linear.y * joint.frictionLimiter.accumulatedImpulse;
+        body1->angularVelocity += joint.frictionLimiter.compMass1_angular * joint.frictionLimiter.accumulatedImpulse;
+        body2->velocity.x += joint.frictionLimiter.compMass2_linear.x * joint.frictionLimiter.accumulatedImpulse;
+        body2->velocity.y += joint.frictionLimiter.compMass2_linear.y * joint.frictionLimiter.accumulatedImpulse;
+        body2->angularVelocity += joint.frictionLimiter.compMass2_angular * joint.frictionLimiter.accumulatedImpulse;
+    }
+}
+
 NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointBegin, int jointEnd, int iterationIndex)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesAoS", -1);
@@ -482,6 +512,73 @@ NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointBegin, int jointEnd, i
     }
 
     return productive;
+}
+
+template <int VN, int N>
+NOINLINE void Solver::PreStepJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd)
+{
+    MICROPROFILE_SCOPEI("Physics", "PreStepJointsSoA", -1);
+
+    typedef simd::VNf<VN> Vf;
+    typedef simd::VNi<VN> Vi;
+    typedef simd::VNb<VN> Vb;
+
+    assert(jointBegin % VN == 0 && jointEnd % VN == 0);
+
+    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex += VN)
+    {
+        int i = jointIndex;
+
+        ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+        int iP = (VN == N) ? 0 : i & (N - 1);
+
+        Vf body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf;
+        Vf body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf;
+
+        loadindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+            solveBodiesImpulse.data, jointP.body1Index + iP, sizeof(SolveBody));
+
+        loadindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+            solveBodiesImpulse.data, jointP.body2Index + iP, sizeof(SolveBody));
+
+        Vf j_normalLimiter_compMass1_linearX = Vf::load(&jointP.normalLimiter_compMass1_linearX[iP]);
+        Vf j_normalLimiter_compMass1_linearY = Vf::load(&jointP.normalLimiter_compMass1_linearY[iP]);
+        Vf j_normalLimiter_compMass2_linearX = Vf::load(&jointP.normalLimiter_compMass2_linearX[iP]);
+        Vf j_normalLimiter_compMass2_linearY = Vf::load(&jointP.normalLimiter_compMass2_linearY[iP]);
+        Vf j_normalLimiter_compMass1_angular = Vf::load(&jointP.normalLimiter_compMass1_angular[iP]);
+        Vf j_normalLimiter_compMass2_angular = Vf::load(&jointP.normalLimiter_compMass2_angular[iP]);
+        Vf j_normalLimiter_accumulatedImpulse = Vf::load(&jointP.normalLimiter_accumulatedImpulse[iP]);
+
+        Vf j_frictionLimiter_compMass1_linearX = Vf::load(&jointP.frictionLimiter_compMass1_linearX[iP]);
+        Vf j_frictionLimiter_compMass1_linearY = Vf::load(&jointP.frictionLimiter_compMass1_linearY[iP]);
+        Vf j_frictionLimiter_compMass2_linearX = Vf::load(&jointP.frictionLimiter_compMass2_linearX[iP]);
+        Vf j_frictionLimiter_compMass2_linearY = Vf::load(&jointP.frictionLimiter_compMass2_linearY[iP]);
+        Vf j_frictionLimiter_compMass1_angular = Vf::load(&jointP.frictionLimiter_compMass1_angular[iP]);
+        Vf j_frictionLimiter_compMass2_angular = Vf::load(&jointP.frictionLimiter_compMass2_angular[iP]);
+        Vf j_frictionLimiter_accumulatedImpulse = Vf::load(&jointP.frictionLimiter_accumulatedImpulse[iP]);
+
+        body1_velocityX += j_normalLimiter_compMass1_linearX * j_normalLimiter_accumulatedImpulse;
+        body1_velocityY += j_normalLimiter_compMass1_linearY * j_normalLimiter_accumulatedImpulse;
+        body1_angularVelocity += j_normalLimiter_compMass1_angular * j_normalLimiter_accumulatedImpulse;
+
+        body2_velocityX += j_normalLimiter_compMass2_linearX * j_normalLimiter_accumulatedImpulse;
+        body2_velocityY += j_normalLimiter_compMass2_linearY * j_normalLimiter_accumulatedImpulse;
+        body2_angularVelocity += j_normalLimiter_compMass2_angular * j_normalLimiter_accumulatedImpulse;
+
+        body1_velocityX += j_frictionLimiter_compMass1_linearX * j_frictionLimiter_accumulatedImpulse;
+        body1_velocityY += j_frictionLimiter_compMass1_linearY * j_frictionLimiter_accumulatedImpulse;
+        body1_angularVelocity += j_frictionLimiter_compMass1_angular * j_frictionLimiter_accumulatedImpulse;
+
+        body2_velocityX += j_frictionLimiter_compMass2_linearX * j_frictionLimiter_accumulatedImpulse;
+        body2_velocityY += j_frictionLimiter_compMass2_linearY * j_frictionLimiter_accumulatedImpulse;
+        body2_angularVelocity += j_frictionLimiter_compMass2_angular * j_frictionLimiter_accumulatedImpulse;
+
+        storeindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+            solveBodiesImpulse.data, jointP.body1Index + iP, sizeof(SolveBody));
+
+        storeindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+            solveBodiesImpulse.data, jointP.body2Index + iP, sizeof(SolveBody));
+    }
 }
 
 template <int VN, int N>

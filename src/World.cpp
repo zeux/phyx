@@ -33,7 +33,6 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
     RefreshContactJoints();
 
     solver.RefreshJoints(queue);
-    solver.PreStepJoints();
 
     switch (mode)
     {
