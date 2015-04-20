@@ -57,7 +57,7 @@ struct Solver
     template <int N>
     void SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount);
 
-    void GatherIslands(RigidBody* bodies, int bodiesCount);
+    int GatherIslands(RigidBody* bodies, int bodiesCount, int groupSizeTarget);
     void PrepareBodies(RigidBody* bodies, int bodiesCount);
     void FinishBodies(RigidBody* bodies, int bodiesCount);
 
@@ -115,8 +115,10 @@ struct Solver
 
     AlignedArray<int> island_remap;
     AlignedArray<int> island_index;
+    AlignedArray<int> island_indexremap;
     AlignedArray<int> island_offset;
     AlignedArray<int> island_offsettemp;
+    AlignedArray<int> island_size;
 
     AlignedArray<ContactJointPacked<1>> joint_packed1;
     AlignedArray<ContactJointPacked<4>> joint_packed4;

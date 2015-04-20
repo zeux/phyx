@@ -6,6 +6,8 @@
 const float kProductiveImpulse = 1e-4f;
 const float kFrictionCoefficient = 0.3f;
 
+const int kIslandMinSize = 256;
+
 Solver::Solver()
 {
 }
@@ -36,21 +38,41 @@ NOINLINE void Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int 
 template <int N>
 void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
-    int jointCount = contactJoints.size();
-
-    joint_index.resize(jointCount);
-    joint_packed.resize(jointCount);
-    jointGroup_bodies.resize(bodiesCount);
-    jointGroup_joints.resize(jointCount);
-
     PrepareBodies(bodies, bodiesCount);
 
-    GatherIslands(bodies, bodiesCount);
+    if (false)
+    {
+        int jointCountAligned = GatherIslands(bodies, bodiesCount, N);
 
-    for (int i = 0; i < bodiesCount; ++i)
-        jointGroup_bodies[i] = 0;
+        joint_packed.resize(jointCountAligned);
+        jointGroup_joints.resize(jointCountAligned);
+        jointGroup_bodies.resize(bodiesCount);
 
-    SolveJointIsland(joint_packed, 0, contactJoints.size(), contactPoints, contactIterationsCount, penetrationIterationsCount);
+        for (int i = 0; i < bodiesCount; ++i)
+            jointGroup_bodies[i] = 0;
+
+        for (int i = 0; i < islandCount; ++i)
+        {
+            SolveJointIsland(joint_packed, island_offset[i], island_offset[i] + island_size[i], contactPoints, contactIterationsCount, penetrationIterationsCount);
+        }
+    }
+    else
+    {
+        int jointCount = contactJoints.size();
+
+        joint_index.resize(jointCount);
+        joint_packed.resize(jointCount);
+        jointGroup_joints.resize(jointCount);
+        jointGroup_bodies.resize(bodiesCount);
+
+        for (int i = 0; i < jointCount; ++i)
+            joint_index[i] = i;
+
+        for (int i = 0; i < bodiesCount; ++i)
+            jointGroup_bodies[i] = 0;
+
+        SolveJointIsland(joint_packed, 0, jointCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+    }
 
     FinishBodies(bodies, bodiesCount);
 }
@@ -156,7 +178,7 @@ NOINLINE int Solver::PrepareIndices(int jointBegin, int jointEnd, int groupSizeT
     for (int i = 0; i < remainingJoints; ++i)
         joint_index[groupOffset + i] = jointGroup_joints[jointBegin + i];
 
-    return (groupOffset / groupSizeTarget) * groupSizeTarget;
+    return groupOffset & ~(groupSizeTarget - 1);
 }
 
 static int remap(AlignedArray<int>& table, int index)
@@ -169,16 +191,19 @@ static int remap(AlignedArray<int>& table, int index)
     return result;
 }
 
-NOINLINE void Solver::GatherIslands(RigidBody* bodies, int bodiesCount)
+NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int groupSizeTarget)
 {
     MICROPROFILE_SCOPEI("Physics", "GatherIslands", -1);
 
     int jointCount = contactJoints.size();
+    int jointCountAligned = jointCount;
 
     island_remap.resize(bodiesCount);
     island_index.resize(bodiesCount);
+    island_indexremap.resize(bodiesCount);
     island_offset.resize(bodiesCount);
-    island_offsettemp.resize(jointCount);
+    island_offsettemp.resize(bodiesCount);
+    island_size.resize(bodiesCount);
 
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
@@ -241,7 +266,7 @@ NOINLINE void Solver::GatherIslands(RigidBody* bodies, int bodiesCount)
     }
 
     {
-        MICROPROFILE_SCOPEI("Physics", "Index", -1);
+        MICROPROFILE_SCOPEI("Physics", "Count", -1);
 
         for (int i = 0; i < islandCount; ++i)
         {
@@ -259,23 +284,54 @@ NOINLINE void Solver::GatherIslands(RigidBody* bodies, int bodiesCount)
 
             island_offset[island_index[island]]++;
         }
+    }
 
-        islandMaxSize = 0;
-
-        int offset = 0;
+    {
+        MICROPROFILE_SCOPEI("Physics", "Coalesce", -1);
 
         for (int i = 0; i < islandCount; ++i)
         {
-            int count = island_offset[i];
-
-            islandMaxSize = std::max(islandMaxSize, count);
-
-            island_offset[i] = offset;
-            island_offsettemp[i] = offset;
-            offset += count;
+            island_indexremap[i] = i;
         }
 
-        assert(offset == jointCount);
+        int runningIndex = 0;
+        int runningCount = 0;
+        int totalCount = 0;
+
+        for (int i = 0; i < islandCount; ++i)
+        {
+            runningCount += island_offset[i];
+
+            island_indexremap[i] = runningIndex;
+
+            if (runningCount >= kIslandMinSize || i == islandCount - 1)
+            {
+                int runningCountAligned = (runningCount + groupSizeTarget - 1) & ~(groupSizeTarget - 1);
+
+                island_size[runningIndex] = runningCount;
+                island_offset[runningIndex] = totalCount;
+
+                totalCount += runningCountAligned;
+                runningCount = 0;
+                runningIndex++;
+            }
+        }
+
+        jointCountAligned = jointCount;
+        islandCount = runningIndex;
+    }
+
+    joint_index.resize(jointCountAligned);
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Index", -1);
+
+        islandMaxSize = 0;
+
+        for (int i = 0; i < islandCount; ++i)
+        {
+            island_offsettemp[i] = island_offset[i];
+        }
 
         for (int jointIndex = 0; jointIndex < jointCount; ++jointIndex)
         {
@@ -288,9 +344,16 @@ NOINLINE void Solver::GatherIslands(RigidBody* bodies, int bodiesCount)
             // assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
             int island = island1 < 0 ? island2 : island1;
 
-            joint_index[island_offsettemp[island_index[island]]++] = jointIndex;
+            joint_index[island_offsettemp[island_indexremap[island_index[island]]]++] = jointIndex;
+        }
+
+        for (int i = 0; i < islandCount; ++i)
+        {
+            assert(island_offsettemp[i] == island_offset[i] + island_size[i]);
         }
     }
+
+    return jointCountAligned;
 }
 
 NOINLINE void Solver::PrepareBodies(RigidBody* bodies, int bodiesCount)
