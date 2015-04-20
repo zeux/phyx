@@ -69,9 +69,9 @@ const char* resetWorld(World& world, int scene)
     groundBody->invInertia = 0.0f;
     groundBody->invMass = 0.0f;
 
-    world.AddBody(Coords2f(Vector2f(-1000, 1000), 0.0f), Vector2f(30.0f, 30.0f));
+    world.AddBody(Coords2f(Vector2f(-1000, 1500), 0.0f), Vector2f(30.0f, 30.0f));
 
-    switch (scene % 4)
+    switch (scene % 5)
     {
     case 0:
     {
@@ -106,7 +106,7 @@ const char* resetWorld(World& world, int scene)
     {
         for (int step = 0; step < 100; ++step)
         {
-            Vector2f pos = Vector2f(0, 1000 - step * 10);
+            Vector2f pos = Vector2f(0, 1005 - step * 10);
             Vector2f size(10 + step * 5, 5);
 
             world.AddBody(Coords2f(pos, 0.f), size);
@@ -126,6 +126,22 @@ const char* resetWorld(World& world, int scene)
         }
 
         return "Reverse Pyramid";
+    }
+
+    case 4:
+    {
+        for (int left = -100; left <= 100; left++)
+        {
+            for (int bodyIndex = 0; bodyIndex < 150; bodyIndex++)
+            {
+                Vector2f pos = Vector2f(left * 15, 15 + bodyIndex * 10);
+                Vector2f size(5 - bodyIndex * 0.03f, 5);
+
+                world.AddBody(Coords2f(pos, 0.f), size);
+            }
+        }
+
+        return "Stacks";
     }
     }
 
