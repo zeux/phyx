@@ -193,7 +193,7 @@ static int remap(AlignedArray<int>& table, int index)
     while (result != table[result])
         result = table[result];
 
-    return result;
+    return table[index] = result;
 }
 
 NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int groupSizeTarget)
@@ -230,10 +230,10 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             if ((island1 | island2) < 0)
                 continue;
 
-            if (island1 > island2)
-                std::swap(island1, island2);
+            int remap1 = remap(island_remap, island1);
+            int remap2 = remap(island_remap, island2);
 
-            island_remap[island2] = island1;
+            island_remap[remap1] = remap2;
         }
     }
 
