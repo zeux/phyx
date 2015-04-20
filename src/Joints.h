@@ -110,11 +110,12 @@ struct NormalLimiter : public Limiter
 
 struct ContactJoint
 {
-    ContactJoint(RigidBody* body1, RigidBody* body2, ContactPoint* collision, int solverIndex)
+    ContactJoint(RigidBody* body1, RigidBody* body2, ContactPoint* collision, unsigned int collisionIndex, int solverIndex)
     {
         this->collision = collision;
         this->body1 = body1;
         this->body2 = body2;
+        this->collisionIndex = collisionIndex;
         this->body1Index = body1->index;
         this->body2Index = body2->index;
         collision->solverIndex = solverIndex;
@@ -137,6 +138,7 @@ struct ContactJoint
     ContactPoint* collision;
     RigidBody* body1;
     RigidBody* body2;
+    unsigned int collisionIndex;
     unsigned int body1Index;
     unsigned int body2Index;
     NormalLimiter normalLimiter;

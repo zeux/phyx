@@ -39,9 +39,16 @@ struct AlignedArray
             while (newcapacity < newsize)
                 newcapacity += newcapacity / 2 + 1;
 
-            _mm_free(data);
+            // Leave 32b padding at the end to avoid buffer overruns for fast SIMD code
+            T* newdata = static_cast<T*>(_mm_malloc(newcapacity * sizeof(T) + 32, 32));
 
-            data = static_cast<T*>(_mm_malloc(newcapacity * sizeof(T), 32));
+            if (data)
+            {
+                memcpy(newdata, data, size * sizeof(T));
+                _mm_free(data);
+            }
+
+            data = newdata;
             capacity = newcapacity;
         }
 

@@ -288,15 +288,17 @@ int main(int argc, char** argv)
 
                         for (int collisionNumber = 0; collisionNumber < man.pointCount; collisionNumber++)
                         {
+                            ContactPoint& cp = world.collider.contactPoints[man.pointIndex + collisionNumber];
+
                             Coords2f coords = Coords2f(Vector2f(0.0f, 0.0f), 3.1415f / 4.0f);
 
-                            coords.pos = man.body1->coords.pos + man.points[collisionNumber].delta1;
+                            coords.pos = man.body1->coords.pos + cp.delta1;
 
-                            float redMult = man.points[collisionNumber].isNewlyCreated ? 0.5f : 1.0f;
+                            float redMult = cp.isNewlyCreated ? 0.5f : 1.0f;
 
                             RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 100, 100 * redMult, 100 * redMult, 100);
 
-                            coords.pos = man.body2->coords.pos + man.points[collisionNumber].delta2;
+                            coords.pos = man.body2->coords.pos + cp.delta2;
 
                             RenderBox(vertices, coords, Vector2f(3.0f, 3.0f), 150, 150 * redMult, 150 * redMult, 100);
                         }

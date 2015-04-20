@@ -110,11 +110,11 @@ NOINLINE void World::RefreshContactJoints()
 
         for (int collisionIndex = 0; collisionIndex < man.pointCount; collisionIndex++)
         {
-            ContactPoint& col = man.points[collisionIndex];
+            ContactPoint& col = collider.contactPoints[man.pointIndex + collisionIndex];
 
             if (col.solverIndex < 0)
             {
-                solver.contactJoints.push_back(ContactJoint(man.body1, man.body2, &col, solver.contactJoints.size()));
+                solver.contactJoints.push_back(ContactJoint(man.body1, man.body2, &col, man.pointIndex + collisionIndex, solver.contactJoints.size()));
             }
             else
             {
@@ -124,6 +124,7 @@ NOINLINE void World::RefreshContactJoints()
                 assert(joint.body2 == man.body2);
 
                 joint.collision = &col;
+                joint.collisionIndex = man.pointIndex + collisionIndex;
             }
         }
     }

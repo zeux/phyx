@@ -77,11 +77,24 @@ struct Solver
     bool SolveJointsDisplacementAoS(int jointBegin, int jointEnd, int iterationIndex);
 
     template <int VN, int N>
+    void RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd);
+    template <int VN, int N>
     void PreStepJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd);
     template <int VN, int N>
     bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex);
     template <int VN, int N>
     bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex);
+
+    struct SolveBodyParams
+    {
+        float invMass;
+        float invInertia;
+
+        Vector2f coords_pos;
+
+        Vector2f coords_xVector;
+        Vector2f coords_yVector;
+    };
 
     struct SolveBody
     {
@@ -91,6 +104,7 @@ struct Solver
         int lastIteration;
     };
 
+    AlignedArray<SolveBodyParams> solveBodiesParams;
     AlignedArray<SolveBody> solveBodiesImpulse;
     AlignedArray<SolveBody> solveBodiesDisplacement;
 

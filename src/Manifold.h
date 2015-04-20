@@ -45,19 +45,21 @@ struct Manifold
     Manifold()
     {
         body1 = body2 = 0;
-        pointCount = -1;
+        pointCount = 0;
+        pointIndex = 0;
     }
 
-    Manifold(RigidBody* body1, RigidBody* body2)
+    Manifold(RigidBody* body1, RigidBody* body2, unsigned int pointIndex)
     {
         this->body1 = body1;
         this->body2 = body2;
-        pointCount = 0;
+        this->pointCount = 0;
+        this->pointIndex = pointIndex;
     }
 
     RigidBody* body1;
     RigidBody* body2;
 
-    int pointCount;
-    ContactPoint points[4]; //in 2d there's always 2 collisions max and 2 more may occur temporarily before merging
+    unsigned int pointCount;
+    unsigned int pointIndex;
 };

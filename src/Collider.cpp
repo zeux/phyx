@@ -54,14 +54,14 @@ static NOINLINE bool ComputeSeparatingAxis(RigidBody* body1, RigidBody* body2, V
     return true;
 }
 
-static void AddPoint(Manifold& m, ContactPoint& newbie)
+static void AddPoint(ContactPoint* points, int& pointCount, ContactPoint& newbie)
 {
     ContactPoint* closest = 0;
     float bestdepth = std::numeric_limits<float>::max();
 
-    for (int collisionIndex = 0; collisionIndex < m.pointCount; collisionIndex++)
+    for (int collisionIndex = 0; collisionIndex < pointCount; collisionIndex++)
     {
-        ContactPoint& col = m.points[collisionIndex];
+        ContactPoint& col = points[collisionIndex];
 
         if (newbie.Equals(col, 2.0f))
         {
@@ -87,15 +87,12 @@ static void AddPoint(Manifold& m, ContactPoint& newbie)
         assert(collisionsCount < 4);
         newbie.isMerged = 1;
         newbie.isNewlyCreated = 1;
-        m.points[m.pointCount++] = newbie;
+        points[pointCount++] = newbie;
     }
 }
 
-static void NOINLINE GenerateContacts(Manifold& m, Vector2f separatingAxis)
+static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, ContactPoint* points, int& pointCount, Vector2f separatingAxis)
 {
-    RigidBody* body1 = m.body1;
-    RigidBody* body2 = m.body2;
-
     if (separatingAxis * (body1->coords.pos - body2->coords.pos) < 0.0f)
         separatingAxis.Invert();
 
@@ -126,7 +123,7 @@ static void NOINLINE GenerateContacts(Manifold& m, Vector2f separatingAxis)
         if (delta * separatingAxis > 0.0f)
         {
             ContactPoint newbie(supportPoints1[0], supportPoints2[0], separatingAxis, body1, body2);
-            AddPoint(m, newbie);
+            AddPoint(points, pointCount, newbie);
         }
     }
     else if ((supportPointsCount1 == 1) && (supportPointsCount2 == 2))
@@ -139,7 +136,7 @@ static void NOINLINE GenerateContacts(Manifold& m, Vector2f separatingAxis)
             (((point - supportPoints2[1]) * (supportPoints2[0] - supportPoints2[1])) > 0.0f))
         {
             ContactPoint newbie(supportPoints1[0], point, separatingAxis, body1, body2);
-            AddPoint(m, newbie);
+            AddPoint(points, pointCount, newbie);
         }
     }
     else if ((supportPointsCount1 == 2) && (supportPointsCount2 == 1))
@@ -152,7 +149,7 @@ static void NOINLINE GenerateContacts(Manifold& m, Vector2f separatingAxis)
             (((point - supportPoints1[1]) * (supportPoints1[0] - supportPoints1[1])) > 0.0f))
         {
             ContactPoint newbie(point, supportPoints2[0], separatingAxis, body1, body2);
-            AddPoint(m, newbie);
+            AddPoint(points, pointCount, newbie);
         }
     }
     else if ((supportPointsCount2 == 2) && (supportPointsCount1 == 2))
@@ -201,42 +198,44 @@ static void NOINLINE GenerateContacts(Manifold& m, Vector2f separatingAxis)
         if (tempCols == 1) //buggy but must work
         {
             ContactPoint newbie(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
-            AddPoint(m, newbie);
+            AddPoint(points, pointCount, newbie);
         }
         if (tempCols >= 2) //means only equality, but clamp to two points
         {
             ContactPoint newbie1(tempCol[0].point1, tempCol[0].point2, separatingAxis, body1, body2);
-            AddPoint(m, newbie1);
+            AddPoint(points, pointCount, newbie1);
             ContactPoint newbie2(tempCol[1].point1, tempCol[1].point2, separatingAxis, body1, body2);
-            AddPoint(m, newbie2);
+            AddPoint(points, pointCount, newbie2);
         }
     }
 }
 
-static void UpdateManifold(Manifold& m)
+static void UpdateManifold(Manifold& m, ContactPoint* points)
 {
+    ContactPoint newpoints[4];
+
     for (int collisionIndex = 0; collisionIndex < m.pointCount; collisionIndex++)
     {
-        m.points[collisionIndex].isMerged = 0;
-        m.points[collisionIndex].isNewlyCreated = 0;
+        newpoints[collisionIndex] = points[collisionIndex];
+        newpoints[collisionIndex].isMerged = 0;
+        newpoints[collisionIndex].isNewlyCreated = 0;
     }
+
+    int newPointCount = m.pointCount;
 
     Vector2f separatingAxis;
     if (ComputeSeparatingAxis(m.body1, m.body2, separatingAxis))
     {
-        GenerateContacts(m, separatingAxis);
+        GenerateContacts(m.body1, m.body2, newpoints, newPointCount, separatingAxis);
     }
 
-    for (int collisionIndex = 0; collisionIndex < m.pointCount;)
+    m.pointCount = 0;
+
+    for (int collisionIndex = 0; collisionIndex < newPointCount; ++collisionIndex)
     {
-        if (!m.points[collisionIndex].isMerged)
+        if (newpoints[collisionIndex].isMerged)
         {
-            m.points[collisionIndex] = m.points[m.pointCount - 1];
-            m.pointCount--;
-        }
-        else
-        {
-            collisionIndex++;
+            points[m.pointCount++] = newpoints[collisionIndex];
         }
     }
 }
@@ -309,7 +308,7 @@ NOINLINE void Collider::UpdatePairsSerial(RigidBody* bodies, size_t bodiesCount)
             if (fabsf(be2.centery - be1.centery) <= be1.extenty + be2.extenty)
             {
                 if (manifoldMap.insert(std::make_pair(be1.index, be2.index)))
-                    manifolds.push_back(Manifold(&bodies[be1.index], &bodies[be2.index]));
+                    manifolds.push_back(Manifold(&bodies[be1.index], &bodies[be2.index], manifolds.size() * 2));
             }
         }
     }
@@ -337,7 +336,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
         for (auto& pair : buf.pairs)
         {
             manifoldMap.insert(pair);
-            manifolds.push_back(Manifold(&bodies[pair.first], &bodies[pair.second]));
+            manifolds.push_back(Manifold(&bodies[pair.first], &bodies[pair.second], manifolds.size() * 2));
         }
     }
 }
@@ -365,8 +364,10 @@ NOINLINE void Collider::UpdateManifolds(WorkQueue& queue)
 {
     MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
-    parallelFor(queue, manifolds.data(), manifolds.size(), 16, [](Manifold& m, int) {
-        UpdateManifold(m);
+    contactPoints.resize(manifolds.size() * 2);
+
+    parallelFor(queue, manifolds.data(), manifolds.size(), 16, [&](Manifold& m, int) {
+        UpdateManifold(m, contactPoints.data + m.pointIndex);
     });
 }
 
@@ -382,7 +383,19 @@ NOINLINE void Collider::PackManifolds()
         {
             manifoldMap.erase(std::make_pair(m.body1->index, m.body2->index));
 
-            m = manifolds.back();
+            if (manifoldIndex < manifolds.size())
+            {
+                Manifold& me = manifolds.back();
+
+                unsigned int pointIndex = m.pointIndex;
+
+                for (int i = 0; i < me.pointCount; ++i)
+                    contactPoints[pointIndex + i] = contactPoints[me.pointIndex + i];
+
+                m = me;
+                m.pointIndex = pointIndex;
+            }
+
             manifolds.pop_back();
         }
         else
@@ -390,4 +403,6 @@ NOINLINE void Collider::PackManifolds()
             ++manifoldIndex;
         }
     }
+
+    contactPoints.resize(manifolds.size() * 2);
 }

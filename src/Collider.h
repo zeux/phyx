@@ -2,6 +2,7 @@
 
 #include "Manifold.h"
 #include "base/DenseHash.h"
+#include "base/AlignedArray.h"
 
 namespace std
 {
@@ -55,7 +56,10 @@ struct Collider
     };
 
     DenseHashSet<std::pair<unsigned int, unsigned int>> manifoldMap;
+
     std::vector<Manifold> manifolds;
+    AlignedArray<ContactPoint> contactPoints;
+
     std::vector<ManifoldDeferredBuffer> manifoldBuffers;
 
     std::vector<BroadphaseEntry> broadphase;

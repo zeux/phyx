@@ -352,6 +352,37 @@ namespace simd
 		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[2] * stride), r2);
 		_mm_store_ps(reinterpret_cast<float*>(ptr + indices[3] * stride), r3);
 	}
+
+	SIMD_INLINE void loadindexed8(V4f& v0, V4f& v1, V4f& v2, V4f& v3, V4f& v4, V4f& v5, V4f& v6, V4f& v7, const void* base, const int indices[4], unsigned int stride)
+	{
+		const char* ptr = static_cast<const char*>(base);
+
+		const float* ptr0 = reinterpret_cast<const float*>(ptr + indices[0] * stride);
+		const float* ptr1 = reinterpret_cast<const float*>(ptr + indices[1] * stride);
+		const float* ptr2 = reinterpret_cast<const float*>(ptr + indices[2] * stride);
+		const float* ptr3 = reinterpret_cast<const float*>(ptr + indices[3] * stride);
+
+		__m128 r0 = _mm_load_ps(ptr0 + 0);
+		__m128 r1 = _mm_load_ps(ptr1 + 0);
+		__m128 r2 = _mm_load_ps(ptr2 + 0);
+		__m128 r3 = _mm_load_ps(ptr3 + 0);
+		__m128 r4 = _mm_load_ps(ptr0 + 4);
+		__m128 r5 = _mm_load_ps(ptr1 + 4);
+		__m128 r6 = _mm_load_ps(ptr2 + 4);
+		__m128 r7 = _mm_load_ps(ptr3 + 4);
+
+		_MM_TRANSPOSE4_PS(r0, r1, r2, r3);
+		_MM_TRANSPOSE4_PS(r4, r5, r6, r7);
+
+		v0.v = r0;
+		v1.v = r1;
+		v2.v = r2;
+		v3.v = r3;
+		v4.v = r4;
+		v5.v = r5;
+		v6.v = r6;
+		v7.v = r7;
+	}
 }
 
 namespace simd

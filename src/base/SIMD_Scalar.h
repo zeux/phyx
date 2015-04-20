@@ -327,6 +327,20 @@ namespace simd
 		ptr[2] = v2.v;
 		ptr[3] = v3.v;
 	}
+
+	SIMD_INLINE void loadindexed8(V1f& v0, V1f& v1, V1f& v2, V1f& v3, V1f& v4, V1f& v5, V1f& v6, V1f& v7, const void* base, const int indices[1], unsigned int stride)
+	{
+		const float* ptr = reinterpret_cast<const float*>(static_cast<const char*>(base) + indices[0] * stride);
+
+		v0.v = ptr[0];
+		v1.v = ptr[1];
+		v2.v = ptr[2];
+		v3.v = ptr[3];
+		v4.v = ptr[4];
+		v5.v = ptr[5];
+		v6.v = ptr[6];
+		v7.v = ptr[7];
+	}
 }
 
 namespace simd
