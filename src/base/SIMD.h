@@ -4,8 +4,10 @@
 
 #ifdef _MSC_VER
 #define SIMD_INLINE __forceinline
+#define SIMD_ALIGN(n) __declspec(align(n))
 #else
-#define SIMD_INLINE __attribute__((always_inline))
+#define SIMD_INLINE __attribute__((always_inline)) inline
+#define SIMD_ALIGN(n) __attribute__((aligned(n)))
 #endif
 
 namespace simd

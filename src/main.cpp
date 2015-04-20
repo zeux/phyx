@@ -57,10 +57,6 @@ const struct
 #ifdef __AVX2__
      {World::Solve_SoA_AVX2, "SoA AVX2"},
 #endif
-
-#if defined(__AVX2__) && defined(__FMA__)
-     {World::Solve_SoA_FMA, "SoA FMA"},
-#endif
 };
 
 const char* resetWorld(World& world, int scene)
@@ -143,7 +139,7 @@ int main(int argc, char** argv)
 
     World world;
 
-    int currentMode = 1;// sizeof(kModes) / sizeof(kModes[0]) - 1;
+    int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
     int currentScene = 0;
 
     const char* currentSceneName = resetWorld(world, currentScene);

@@ -61,7 +61,6 @@ struct Solver
     float SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
     float SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
     float SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-    float SolveJointsSoA_FMA(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
 
     int SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget);
 
@@ -80,9 +79,6 @@ struct Solver
     bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
     template <int VN, int N>
     bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-
-    bool SolveJointsImpulsesSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementSoA_FMA(ContactJointPacked<16>* joint_packed, int jointStart, int jointCount, int iterationIndex);
 
     struct SolveBody
     {
@@ -104,5 +100,4 @@ struct Solver
 
     AlignedArray<ContactJointPacked<4>> joint_packed4;
     AlignedArray<ContactJointPacked<8>> joint_packed8;
-    AlignedArray<ContactJointPacked<16>> joint_packed16;
 };

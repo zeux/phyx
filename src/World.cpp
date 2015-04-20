@@ -55,12 +55,6 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
         break;
 #endif
 
-#if defined(__AVX2__) && defined(__FMA__)
-    case Solve_SoA_FMA:
-        iterations = solver.SolveJointsSoA_FMA(bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
-        break;
-#endif
-
     default:
         assert(!"Unknown solver mode");
         break;
