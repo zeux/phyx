@@ -14,7 +14,7 @@ NOINLINE void Solver::RefreshJoints(WorkQueue& queue)
 {
     MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
 
-    ParallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
+    parallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
 }
 
 NOINLINE void Solver::PreStepJoints()

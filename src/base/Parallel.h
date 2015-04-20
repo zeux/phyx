@@ -7,7 +7,7 @@
 #include "microprofile.h"
 
 template <typename T, typename F>
-inline void ParallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
+inline void parallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
 {
     MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
 
