@@ -323,9 +323,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
     for (auto& buf : manifoldBuffers)
         buf.pairs.clear();
 
-    parallelFor(queue, bodies, bodiesCount, 128, [this, bodies, bodiesCount](RigidBody& body, int worker) {
-        size_t bodyIndex1 = &body - bodies;
-
+    parallelFor(queue, 0, bodiesCount, 128, [this, bodies, bodiesCount](int bodyIndex1, int worker) {
         UpdatePairsOne(bodies, bodyIndex1, bodyIndex1 + 1, bodiesCount, manifoldBuffers[worker]);
     });
 

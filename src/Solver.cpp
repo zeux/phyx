@@ -44,8 +44,7 @@ float Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>&
         {
             MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
 
-            parallelFor(queue, joint_packed.data, groupOffset / N, 16, [&](ContactJointPacked<N>& joint, int) {
-                int group = &joint - joint_packed.data;
+            parallelFor(queue, 0, groupOffset / N, 16, [&](int group, int) {
                 int groupBegin = group * N;
                 int groupEnd = std::min(groupBegin + N, groupOffset);
 

@@ -6,15 +6,26 @@
 
 #include "microprofile.h"
 
+template <typename T>
+inline T& parallelForIndex(T* data, unsigned int index)
+{
+    return data[index];
+}
+
+inline unsigned int parallelForIndex(unsigned int data, unsigned int index)
+{
+    return data + index;
+}
+
 template <typename T, typename F>
-inline void parallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned int groupSize, F func)
+inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned int groupSize, F func)
 {
     MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
 
     if (queue.getWorkerCount() == 0)
     {
         for (unsigned int i = 0; i < count; ++i)
-            func(data[i], 0);
+            func(parallelForIndex(data, i), 0);
 
         return;
     }
@@ -26,7 +37,7 @@ inline void parallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
         std::atomic<unsigned int> counter;
         std::atomic<unsigned int> ready;
 
-        T* data;
+        T data;
         unsigned int count;
 
         unsigned int groupSize;
@@ -60,7 +71,7 @@ inline void parallelFor(WorkQueue& queue, T* data, unsigned int count, unsigned 
                 unsigned int end = std::min(state->count, begin + state->groupSize);
 
                 for (unsigned int i = begin; i < end; ++i)
-                    (*state->func)(state->data[i], worker);
+                    (*state->func)(parallelForIndex(state->data, i), worker);
 
                 groups++;
             }
