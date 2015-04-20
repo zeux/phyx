@@ -72,7 +72,7 @@ const char* resetWorld(World& world, int scene)
 
     world.AddBody(Coords2f(Vector2f(-1000, 1000), 0.0f), Vector2f(30.0f, 30.0f));
 
-    switch (scene % 2)
+    switch (scene % 4)
     {
     case 0:
     {
@@ -101,6 +101,32 @@ const char* resetWorld(World& world, int scene)
         }
 
         return "Wall";
+    }
+
+    case 2:
+    {
+        for (int step = 0; step < 100; ++step)
+        {
+            Vector2f pos = Vector2f(0, 1000 - step * 10);
+            Vector2f size(10 + step * 5, 5);
+
+            world.AddBody(Coords2f(pos, 0.f), size);
+        }
+
+        return "Pyramid";
+    }
+
+    case 3:
+    {
+        for (int step = 0; step < 100; ++step)
+        {
+            Vector2f pos = Vector2f(0, 15 + step * 10);
+            Vector2f size(10 + step * 5, 5);
+
+            world.AddBody(Coords2f(pos, 0.f), size);
+        }
+
+        return "Reverse Pyramid";
     }
     }
 
