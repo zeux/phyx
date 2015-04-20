@@ -185,7 +185,7 @@ int main(int argc, char** argv)
     if (!window) return 1;
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
     glfwSetKeyCallback(window, keyCallback);
     glfwSetScrollCallback(window, scrollCallback);
 
