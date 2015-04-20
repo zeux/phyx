@@ -10,14 +10,7 @@ Solver::Solver()
 {
 }
 
-NOINLINE void Solver::RefreshJoints(WorkQueue& queue)
-{
-    MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
-
-    parallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
-}
-
-NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsAoS(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsAoS", -1);
 
@@ -25,6 +18,12 @@ NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int co
 
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
+
+        {
+            MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
+
+            parallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
+        }
 
         PreStepJointsAoS(0, contactJoints.size());
     }
@@ -54,32 +53,38 @@ NOINLINE float Solver::SolveJointsAoS(RigidBody* bodies, int bodiesCount, int co
     return SolveFinishAoS();
 }
 
-NOINLINE float Solver::SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsSoA_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_Scalar", -1);
 
-    return SolveJointsSoA(joint_packed1, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+    return SolveJointsSoA(queue, joint_packed1, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
 }
 
-NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsSoA_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_SSE2", -1);
 
-    return SolveJointsSoA(joint_packed4, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+    return SolveJointsSoA(queue, joint_packed4, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
 }
 
 #ifdef __AVX2__
-NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsSoA_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_AVX2", -1);
 
-    return SolveJointsSoA(joint_packed8, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+    return SolveJointsSoA(queue, joint_packed8, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
 }
 #endif
 
 template <int N>
-float Solver::SolveJointsSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
+    {
+        MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
+
+        parallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
+    }
+
     int groupOffset = SolvePrepareSoA(joint_packed, bodies, bodiesCount, N);
 
     {
