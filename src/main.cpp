@@ -50,12 +50,11 @@ const struct
     const char* name;
 } kModes[] =
     {
-     {World::Solve_AoS, "AoS"},
-     {World::Solve_SoA_Scalar, "SoA Scalar"},
-     {World::Solve_SoA_SSE2, "SoA SSE2"},
+     {World::Solve_Scalar, "Scalar"},
+     {World::Solve_SSE2, "SSE2"},
 
 #ifdef __AVX2__
-     {World::Solve_SoA_AVX2, "SoA AVX2"},
+     {World::Solve_AVX2, "AVX2"},
 #endif
 };
 

@@ -10,85 +10,42 @@ Solver::Solver()
 {
 }
 
-NOINLINE float Solver::SolveJointsAoS(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsAoS", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolveJoints_Scalar", -1);
 
-    SolvePrepareAoS(bodies, bodiesCount);
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
-
-        {
-            MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
-
-            parallelFor(queue, contactJoints.data(), contactJoints.size(), 8, [](ContactJoint& j, int) { j.Refresh(); });
-        }
-
-        PreStepJointsAoS(0, contactJoints.size());
-    }
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
-
-        for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
-        {
-            bool productive = SolveJointsImpulsesAoS(0, contactJoints.size(), iterationIndex);
-
-            if (!productive) break;
-        }
-    }
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
-
-        for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
-        {
-            bool productive = SolveJointsDisplacementAoS(0, contactJoints.size(), iterationIndex);
-
-            if (!productive) break;
-        }
-    }
-
-    return SolveFinishAoS();
+    return SolveJoints(queue, joint_packed1, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
 }
 
-NOINLINE float Solver::SolveJointsSoA_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_Scalar", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolveJoints_SSE2", -1);
 
-    return SolveJointsSoA(queue, joint_packed1, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
-}
-
-NOINLINE float Solver::SolveJointsSoA_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
-{
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_SSE2", -1);
-
-    return SolveJointsSoA(queue, joint_packed4, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+    return SolveJoints(queue, joint_packed4, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
 }
 
 #ifdef __AVX2__
-NOINLINE float Solver::SolveJointsSoA_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_AVX2", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolveJoints_AVX2", -1);
 
-    return SolveJointsSoA(queue, joint_packed8, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+    return SolveJoints(queue, joint_packed8, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
 }
 #endif
 
 template <int N>
-float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+float Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
-    int groupOffset = SolvePrepareSoA(joint_packed, bodies, bodiesCount, N);
+    int groupOffset = SolvePrepare(joint_packed, bodies, bodiesCount, N);
 
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
 
-        RefreshJointsSoA<N>(joint_packed.data, 0, groupOffset, contactPoints);
-        RefreshJointsSoA<1>(joint_packed.data, groupOffset, contactJoints.size(), contactPoints);
+        RefreshJoints<N>(joint_packed.data, 0, groupOffset, contactPoints);
+        RefreshJoints<1>(joint_packed.data, groupOffset, contactJoints.size(), contactPoints);
 
-        PreStepJointsSoA<N>(joint_packed.data, 0, groupOffset);
-        PreStepJointsSoA<1>(joint_packed.data, groupOffset, contactJoints.size());
+        PreStepJoints<N>(joint_packed.data, 0, groupOffset);
+        PreStepJoints<1>(joint_packed.data, groupOffset, contactJoints.size());
     }
 
     {
@@ -98,8 +55,8 @@ float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N
         {
             bool productive = false;
 
-            productive |= SolveJointsImpulsesSoA<N>(joint_packed.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsImpulsesSoA<1>(joint_packed.data, groupOffset, contactJoints.size(), iterationIndex);
+            productive |= SolveJointsImpulses<N>(joint_packed.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulses<1>(joint_packed.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
@@ -112,19 +69,19 @@ float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N
         {
             bool productive = false;
 
-            productive |= SolveJointsDisplacementSoA<N>(joint_packed.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsDisplacementSoA<1>(joint_packed.data, groupOffset, contactJoints.size(), iterationIndex);
+            productive |= SolveJointsDisplacement<N>(joint_packed.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacement<1>(joint_packed.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
     }
 
-    return SolveFinishSoA(joint_packed, bodies, bodiesCount);
+    return SolveFinish(joint_packed, bodies, bodiesCount);
 }
 
-NOINLINE int Solver::SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget)
+NOINLINE int Solver::SolvePrepareIndices(int bodiesCount, int groupSizeTarget)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareIndicesSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolvePrepareIndices", -1);
 
     int jointCount = contactJoints.size();
 
@@ -193,40 +150,12 @@ NOINLINE int Solver::SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget
     }
 }
 
-NOINLINE void Solver::SolvePrepareAoS(RigidBody* bodies, int bodiesCount)
-{
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareAoS", -1);
-
-    for (int bodyIndex = 0; bodyIndex < bodiesCount; ++bodyIndex)
-    {
-        bodies[bodyIndex].lastIteration = -1;
-        bodies[bodyIndex].lastDisplacementIteration = -1;
-    }
-}
-
-NOINLINE float Solver::SolveFinishAoS()
-{
-    MICROPROFILE_SCOPEI("Physics", "SolveFinishAoS", -1);
-
-    int iterationSum = 0;
-
-    for (size_t jointIndex = 0; jointIndex < contactJoints.size(); jointIndex++)
-    {
-        ContactJoint& joint = contactJoints[jointIndex];
-
-        iterationSum += std::max(joint.body1->lastIteration, joint.body2->lastIteration) + 2;
-        iterationSum += std::max(joint.body1->lastDisplacementIteration, joint.body2->lastDisplacementIteration) + 2;
-    }
-
-    return float(iterationSum) / float(contactJoints.size());
-}
-
 template <int N>
-NOINLINE int Solver::SolvePrepareSoA(
+NOINLINE int Solver::SolvePrepare(
     AlignedArray<ContactJointPacked<N>>& joint_packed,
     RigidBody* bodies, int bodiesCount, int groupSizeTarget)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolvePrepareSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolvePrepare", -1);
 
     {
         MICROPROFILE_SCOPEI("Physics", "CopyBodies", -1);
@@ -259,7 +188,7 @@ NOINLINE int Solver::SolvePrepareSoA(
 
     joint_packed.resize(jointCount);
 
-    int groupOffset = SolvePrepareIndicesSoA(bodiesCount, groupSizeTarget);
+    int groupOffset = SolvePrepareIndices(bodiesCount, groupSizeTarget);
 
     {
         MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
@@ -284,11 +213,11 @@ NOINLINE int Solver::SolvePrepareSoA(
 }
 
 template <int N>
-NOINLINE float Solver::SolveFinishSoA(
+NOINLINE float Solver::SolveFinish(
     AlignedArray<ContactJointPacked<N>>& joint_packed,
     RigidBody* bodies, int bodiesCount)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveFinishSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolveFinish", -1);
 
     for (int i = 0; i < bodiesCount; ++i)
     {
@@ -330,173 +259,6 @@ NOINLINE float Solver::SolveFinishSoA(
     return float(iterationSum) / float(jointCount);
 }
 
-NOINLINE void Solver::PreStepJointsAoS(int jointBegin, int jointEnd)
-{
-    MICROPROFILE_SCOPEI("Physics", "PreStepJointsAoS", -1);
-
-    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex++)
-    {
-        ContactJoint& joint = contactJoints[jointIndex];
-
-        RigidBody* body1 = joint.body1;
-        RigidBody* body2 = joint.body2;
-
-        body1->velocity.x += joint.normalLimiter.compMass1_linear.x * joint.normalLimiter.accumulatedImpulse;
-        body1->velocity.y += joint.normalLimiter.compMass1_linear.y * joint.normalLimiter.accumulatedImpulse;
-        body1->angularVelocity += joint.normalLimiter.compMass1_angular * joint.normalLimiter.accumulatedImpulse;
-        body2->velocity.x += joint.normalLimiter.compMass2_linear.x * joint.normalLimiter.accumulatedImpulse;
-        body2->velocity.y += joint.normalLimiter.compMass2_linear.y * joint.normalLimiter.accumulatedImpulse;
-        body2->angularVelocity += joint.normalLimiter.compMass2_angular * joint.normalLimiter.accumulatedImpulse;
-
-        body1->velocity.x += joint.frictionLimiter.compMass1_linear.x * joint.frictionLimiter.accumulatedImpulse;
-        body1->velocity.y += joint.frictionLimiter.compMass1_linear.y * joint.frictionLimiter.accumulatedImpulse;
-        body1->angularVelocity += joint.frictionLimiter.compMass1_angular * joint.frictionLimiter.accumulatedImpulse;
-        body2->velocity.x += joint.frictionLimiter.compMass2_linear.x * joint.frictionLimiter.accumulatedImpulse;
-        body2->velocity.y += joint.frictionLimiter.compMass2_linear.y * joint.frictionLimiter.accumulatedImpulse;
-        body2->angularVelocity += joint.frictionLimiter.compMass2_angular * joint.frictionLimiter.accumulatedImpulse;
-    }
-}
-
-NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointBegin, int jointEnd, int iterationIndex)
-{
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesAoS", -1);
-
-    bool productive = false;
-
-    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex++)
-    {
-        ContactJoint& joint = contactJoints[jointIndex];
-
-        RigidBody* body1 = joint.body1;
-        RigidBody* body2 = joint.body2;
-
-        if (body1->lastIteration < iterationIndex - 1 && body2->lastIteration < iterationIndex - 1)
-            continue;
-
-        float normaldV = joint.normalLimiter.dstVelocity;
-
-        normaldV -= joint.normalLimiter.normalProjector1.x * body1->velocity.x;
-        normaldV -= joint.normalLimiter.normalProjector1.y * body1->velocity.y;
-        normaldV -= joint.normalLimiter.angularProjector1 * body1->angularVelocity;
-
-        normaldV -= joint.normalLimiter.normalProjector2.x * body2->velocity.x;
-        normaldV -= joint.normalLimiter.normalProjector2.y * body2->velocity.y;
-        normaldV -= joint.normalLimiter.angularProjector2 * body2->angularVelocity;
-
-        float normalDeltaImpulse = normaldV * joint.normalLimiter.compInvMass;
-
-        if (normalDeltaImpulse + joint.normalLimiter.accumulatedImpulse < 0.0f)
-            normalDeltaImpulse = -joint.normalLimiter.accumulatedImpulse;
-
-        body1->velocity.x += joint.normalLimiter.compMass1_linear.x * normalDeltaImpulse;
-        body1->velocity.y += joint.normalLimiter.compMass1_linear.y * normalDeltaImpulse;
-        body1->angularVelocity += joint.normalLimiter.compMass1_angular * normalDeltaImpulse;
-        body2->velocity.x += joint.normalLimiter.compMass2_linear.x * normalDeltaImpulse;
-        body2->velocity.y += joint.normalLimiter.compMass2_linear.y * normalDeltaImpulse;
-        body2->angularVelocity += joint.normalLimiter.compMass2_angular * normalDeltaImpulse;
-
-        joint.normalLimiter.accumulatedImpulse += normalDeltaImpulse;
-
-        float frictiondV = 0;
-
-        frictiondV -= joint.frictionLimiter.normalProjector1.x * body1->velocity.x;
-        frictiondV -= joint.frictionLimiter.normalProjector1.y * body1->velocity.y;
-        frictiondV -= joint.frictionLimiter.angularProjector1 * body1->angularVelocity;
-
-        frictiondV -= joint.frictionLimiter.normalProjector2.x * body2->velocity.x;
-        frictiondV -= joint.frictionLimiter.normalProjector2.y * body2->velocity.y;
-        frictiondV -= joint.frictionLimiter.angularProjector2 * body2->angularVelocity;
-
-        float frictionDeltaImpulse = frictiondV * joint.frictionLimiter.compInvMass;
-
-        float reactionForce = joint.normalLimiter.accumulatedImpulse;
-        float accumulatedImpulse = joint.frictionLimiter.accumulatedImpulse;
-
-        float frictionForce = accumulatedImpulse + frictionDeltaImpulse;
-        float frictionCoefficient = kFrictionCoefficient;
-
-        if (fabsf(frictionForce) > (reactionForce * frictionCoefficient))
-        {
-            float dir = frictionForce > 0.0f ? 1.0f : -1.0f;
-            frictionForce = dir * reactionForce * frictionCoefficient;
-            frictionDeltaImpulse = frictionForce - accumulatedImpulse;
-        }
-
-        joint.frictionLimiter.accumulatedImpulse += frictionDeltaImpulse;
-
-        body1->velocity.x += joint.frictionLimiter.compMass1_linear.x * frictionDeltaImpulse;
-        body1->velocity.y += joint.frictionLimiter.compMass1_linear.y * frictionDeltaImpulse;
-        body1->angularVelocity += joint.frictionLimiter.compMass1_angular * frictionDeltaImpulse;
-
-        body2->velocity.x += joint.frictionLimiter.compMass2_linear.x * frictionDeltaImpulse;
-        body2->velocity.y += joint.frictionLimiter.compMass2_linear.y * frictionDeltaImpulse;
-        body2->angularVelocity += joint.frictionLimiter.compMass2_angular * frictionDeltaImpulse;
-
-        float cumulativeImpulse = std::max(fabsf(normalDeltaImpulse), fabsf(frictionDeltaImpulse));
-
-        if (cumulativeImpulse > kProductiveImpulse)
-        {
-            body1->lastIteration = iterationIndex;
-            body2->lastIteration = iterationIndex;
-            productive = true;
-        }
-    }
-
-    return productive;
-}
-
-NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointBegin, int jointEnd, int iterationIndex)
-{
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementAoS", -1);
-
-    bool productive = false;
-
-    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex++)
-    {
-        ContactJoint& joint = contactJoints[jointIndex];
-
-        RigidBody* body1 = joint.body1;
-        RigidBody* body2 = joint.body2;
-
-        if (body1->lastDisplacementIteration < iterationIndex - 1 && body2->lastDisplacementIteration < iterationIndex - 1)
-            continue;
-
-        float dV = joint.normalLimiter.dstDisplacingVelocity;
-
-        dV -= joint.normalLimiter.normalProjector1.x * body1->displacingVelocity.x;
-        dV -= joint.normalLimiter.normalProjector1.y * body1->displacingVelocity.y;
-        dV -= joint.normalLimiter.angularProjector1 * body1->displacingAngularVelocity;
-
-        dV -= joint.normalLimiter.normalProjector2.x * body2->displacingVelocity.x;
-        dV -= joint.normalLimiter.normalProjector2.y * body2->displacingVelocity.y;
-        dV -= joint.normalLimiter.angularProjector2 * body2->displacingAngularVelocity;
-
-        float displacingDeltaImpulse = dV * joint.normalLimiter.compInvMass;
-
-        if (displacingDeltaImpulse + joint.normalLimiter.accumulatedDisplacingImpulse < 0.0f)
-            displacingDeltaImpulse = -joint.normalLimiter.accumulatedDisplacingImpulse;
-
-        body1->displacingVelocity.x += joint.normalLimiter.compMass1_linear.x * displacingDeltaImpulse;
-        body1->displacingVelocity.y += joint.normalLimiter.compMass1_linear.y * displacingDeltaImpulse;
-        body1->displacingAngularVelocity += joint.normalLimiter.compMass1_angular * displacingDeltaImpulse;
-
-        body2->displacingVelocity.x += joint.normalLimiter.compMass2_linear.x * displacingDeltaImpulse;
-        body2->displacingVelocity.y += joint.normalLimiter.compMass2_linear.y * displacingDeltaImpulse;
-        body2->displacingAngularVelocity += joint.normalLimiter.compMass2_angular * displacingDeltaImpulse;
-
-        joint.normalLimiter.accumulatedDisplacingImpulse += displacingDeltaImpulse;
-
-        if (fabsf(displacingDeltaImpulse) > kProductiveImpulse)
-        {
-            body1->lastDisplacementIteration = iterationIndex;
-            body2->lastDisplacementIteration = iterationIndex;
-            productive = true;
-        }
-    }
-
-    return productive;
-}
-
 template <typename Vf>
 static void RefreshLimiter(
     Vf& normalProjector1X, Vf& normalProjector1Y,
@@ -532,9 +294,9 @@ static void RefreshLimiter(
 }
 
 template <int VN, int N>
-NOINLINE void Solver::RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints)
+NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints)
 {
-    MICROPROFILE_SCOPEI("Physics", "RefreshJointsSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
 
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
@@ -708,9 +470,9 @@ NOINLINE void Solver::RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int 
 }
 
 template <int VN, int N>
-NOINLINE void Solver::PreStepJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd)
+NOINLINE void Solver::PreStepJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd)
 {
-    MICROPROFILE_SCOPEI("Physics", "PreStepJointsSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "PreStepJoints", -1);
 
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
@@ -775,9 +537,9 @@ NOINLINE void Solver::PreStepJointsSoA(ContactJointPacked<N>* joint_packed, int 
 }
 
 template <int VN, int N>
-NOINLINE bool Solver::SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
+NOINLINE bool Solver::SolveJointsImpulses(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulses", -1);
 
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
@@ -933,9 +695,9 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed
 }
 
 template <int VN, int N>
-NOINLINE bool Solver::SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
+NOINLINE bool Solver::SolveJointsDisplacement(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA", -1);
+    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacement", -1);
 
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
