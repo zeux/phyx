@@ -103,7 +103,7 @@ NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, i
             bool productive = false;
 
             productive |= SolveJointsImpulsesSoA<4>(joint_packed4.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsImpulsesSoA<1>(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoA<1>(joint_packed4.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
@@ -117,7 +117,7 @@ NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, i
             bool productive = false;
 
             productive |= SolveJointsDisplacementSoA<4>(joint_packed4.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsDisplacementSoA<1>(joint_packed4.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoA<1>(joint_packed4.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
@@ -141,7 +141,7 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
             bool productive = false;
 
             productive |= SolveJointsImpulsesSoA<8>(joint_packed8.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsImpulsesSoA<1>(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoA<1>(joint_packed8.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
@@ -155,7 +155,7 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
             bool productive = false;
 
             productive |= SolveJointsDisplacementSoA<8>(joint_packed8.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsDisplacementSoA<1>(joint_packed8.data, groupOffset, contactJoints.size() - groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoA<1>(joint_packed8.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
@@ -293,6 +293,8 @@ NOINLINE int Solver::SolvePrepareSoA(
 
     int groupOffset = SolvePrepareIndicesSoA(bodiesCount, groupSizeTarget);
 
+    MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
+
     for (int i = 0; i < jointCount; ++i)
     {
         ContactJoint& joint = contactJoints[joint_index[i]];
@@ -390,13 +392,13 @@ NOINLINE float Solver::SolveFinishSoA(
     return float(iterationSum) / float(jointCount);
 }
 
-NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex)
+NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointBegin, int jointEnd, int iterationIndex)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesAoS", -1);
 
     bool productive = false;
 
-    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
+    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex++)
     {
         ContactJoint& joint = contactJoints[jointIndex];
 
@@ -478,13 +480,13 @@ NOINLINE bool Solver::SolveJointsImpulsesAoS(int jointStart, int jointCount, int
     return productive;
 }
 
-NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex)
+NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointBegin, int jointEnd, int iterationIndex)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementAoS", -1);
 
     bool productive = false;
 
-    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex++)
+    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex++)
     {
         ContactJoint& joint = contactJoints[jointIndex];
 
@@ -531,7 +533,7 @@ NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointStart, int jointCount,
 }
 
 template <int VN, int N>
-NOINLINE bool Solver::SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+NOINLINE bool Solver::SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulsesSoA", -1);
 
@@ -539,14 +541,14 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
 
-    assert(jointStart % VN == 0 && jointCount % VN == 0);
+    assert(jointBegin % VN == 0 && jointEnd % VN == 0);
 
     Vi iterationIndex0 = Vi::one(iterationIndex);
     Vi iterationIndex2 = Vi::one(iterationIndex - 2);
 
     Vb productive_any = Vb::zero();
 
-    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += VN)
+    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex += VN)
     {
         int i = jointIndex;
 
@@ -689,7 +691,7 @@ NOINLINE bool Solver::SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed
 }
 
 template <int VN, int N>
-NOINLINE bool Solver::SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex)
+NOINLINE bool Solver::SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacementSoA", -1);
 
@@ -697,14 +699,14 @@ NOINLINE bool Solver::SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_pa
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
 
-    assert(jointStart % VN == 0 && jointCount % VN == 0);
+    assert(jointBegin % VN == 0 && jointEnd % VN == 0);
 
     Vi iterationIndex0 = Vi::one(iterationIndex);
     Vi iterationIndex2 = Vi::one(iterationIndex - 2);
 
     Vb productive_any = Vb::zero();
 
-    for (int jointIndex = jointStart; jointIndex < jointStart + jointCount; jointIndex += VN)
+    for (int jointIndex = jointBegin; jointIndex < jointEnd; jointIndex += VN)
     {
         int i = jointIndex;
 

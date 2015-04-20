@@ -72,13 +72,13 @@ struct Solver
     template <int N>
     float SolveFinishSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount);
 
-    bool SolveJointsImpulsesAoS(int jointStart, int jointCount, int iterationIndex);
-    bool SolveJointsDisplacementAoS(int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesAoS(int jointBegin, int jointEnd, int iterationIndex);
+    bool SolveJointsDisplacementAoS(int jointBegin, int jointEnd, int iterationIndex);
 
     template <int VN, int N>
-    bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsImpulsesSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex);
     template <int VN, int N>
-    bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointStart, int jointCount, int iterationIndex);
+    bool SolveJointsDisplacementSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex);
 
     struct SolveBody
     {
