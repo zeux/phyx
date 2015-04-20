@@ -68,6 +68,9 @@ struct Solver
     float SolveFinishAoS();
 
     template <int N>
+    float SolveJointsSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
+
+    template <int N>
     int SolvePrepareSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int groupSizeTarget);
     template <int N>
     float SolveFinishSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount);
@@ -98,6 +101,7 @@ struct Solver
 
     AlignedArray<int> joint_index;
 
+    AlignedArray<ContactJointPacked<1>> joint_packed1;
     AlignedArray<ContactJointPacked<4>> joint_packed4;
     AlignedArray<ContactJointPacked<8>> joint_packed8;
 };

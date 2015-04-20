@@ -62,68 +62,14 @@ NOINLINE float Solver::SolveJointsSoA_Scalar(RigidBody* bodies, int bodiesCount,
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_Scalar", -1);
 
-    SolvePrepareSoA(joint_packed4, bodies, bodiesCount, 1);
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
-
-        for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
-        {
-            bool productive = SolveJointsImpulsesSoA<1>(joint_packed4.data, 0, contactJoints.size(), iterationIndex);
-
-            if (!productive) break;
-        }
-    }
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
-
-        for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
-        {
-            bool productive = SolveJointsDisplacementSoA<1>(joint_packed4.data, 0, contactJoints.size(), iterationIndex);
-
-            if (!productive) break;
-        }
-    }
-
-    return SolveFinishSoA(joint_packed4, bodies, bodiesCount);
+    return SolveJointsSoA(joint_packed1, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
 }
 
 NOINLINE float Solver::SolveJointsSoA_SSE2(RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_SSE2", -1);
 
-    int groupOffset = SolvePrepareSoA(joint_packed4, bodies, bodiesCount, 4);
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
-
-        for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
-        {
-            bool productive = false;
-
-            productive |= SolveJointsImpulsesSoA<4>(joint_packed4.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsImpulsesSoA<1>(joint_packed4.data, groupOffset, contactJoints.size(), iterationIndex);
-
-            if (!productive) break;
-        }
-    }
-
-    {
-        MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
-
-        for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
-        {
-            bool productive = false;
-
-            productive |= SolveJointsDisplacementSoA<4>(joint_packed4.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsDisplacementSoA<1>(joint_packed4.data, groupOffset, contactJoints.size(), iterationIndex);
-
-            if (!productive) break;
-        }
-    }
-
-    return SolveFinishSoA(joint_packed4, bodies, bodiesCount);
+    return SolveJointsSoA(joint_packed4, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
 }
 
 #ifdef __AVX2__
@@ -131,7 +77,14 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_AVX2", -1);
 
-    int groupOffset = SolvePrepareSoA(joint_packed8, bodies, bodiesCount, 8);
+    return SolveJointsSoA(joint_packed8, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+}
+#endif
+
+template <int N>
+float Solver::SolveJointsSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+{
+    int groupOffset = SolvePrepareSoA(joint_packed, bodies, bodiesCount, N);
 
     {
         MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
@@ -140,8 +93,8 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
         {
             bool productive = false;
 
-            productive |= SolveJointsImpulsesSoA<8>(joint_packed8.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsImpulsesSoA<1>(joint_packed8.data, groupOffset, contactJoints.size(), iterationIndex);
+            productive |= SolveJointsImpulsesSoA<N>(joint_packed.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsImpulsesSoA<1>(joint_packed.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
@@ -154,16 +107,15 @@ NOINLINE float Solver::SolveJointsSoA_AVX2(RigidBody* bodies, int bodiesCount, i
         {
             bool productive = false;
 
-            productive |= SolveJointsDisplacementSoA<8>(joint_packed8.data, 0, groupOffset, iterationIndex);
-            productive |= SolveJointsDisplacementSoA<1>(joint_packed8.data, groupOffset, contactJoints.size(), iterationIndex);
+            productive |= SolveJointsDisplacementSoA<N>(joint_packed.data, 0, groupOffset, iterationIndex);
+            productive |= SolveJointsDisplacementSoA<1>(joint_packed.data, groupOffset, contactJoints.size(), iterationIndex);
 
             if (!productive) break;
         }
     }
 
-    return SolveFinishSoA(joint_packed8, bodies, bodiesCount);
+    return SolveFinishSoA(joint_packed, bodies, bodiesCount);
 }
-#endif
 
 NOINLINE int Solver::SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget)
 {
