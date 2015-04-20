@@ -9,6 +9,7 @@ struct ContactJointPacked
 {
     int body1Index[N];
     int body2Index[N];
+    int contactPointIndex[N];
 
     float normalLimiter_normalProjector1X[N];
     float normalLimiter_normalProjector1Y[N];
@@ -55,9 +56,9 @@ struct Solver
 
     float SolveJointsAoS(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
 
-    float SolveJointsSoA_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-    float SolveJointsSoA_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
-    float SolveJointsSoA_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
+    float SolveJointsSoA_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount);
+    float SolveJointsSoA_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount);
+    float SolveJointsSoA_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount);
 
     int SolvePrepareIndicesSoA(int bodiesCount, int groupSizeTarget);
 
@@ -65,7 +66,7 @@ struct Solver
     float SolveFinishAoS();
 
     template <int N>
-    float SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount);
+    float SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount);
 
     template <int N>
     int SolvePrepareSoA(AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int groupSizeTarget);
@@ -77,7 +78,7 @@ struct Solver
     bool SolveJointsDisplacementAoS(int jointBegin, int jointEnd, int iterationIndex);
 
     template <int VN, int N>
-    void RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd);
+    void RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints);
     template <int VN, int N>
     void PreStepJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd);
     template <int VN, int N>

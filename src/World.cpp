@@ -39,16 +39,16 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
         break;
 
     case Solve_SoA_Scalar:
-        iterations = solver.SolveJointsSoA_Scalar(queue, bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+        iterations = solver.SolveJointsSoA_Scalar(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
         break;
 
     case Solve_SoA_SSE2:
-        iterations = solver.SolveJointsSoA_SSE2(queue, bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+        iterations = solver.SolveJointsSoA_SSE2(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
         break;
 
 #ifdef __AVX2__
     case Solve_SoA_AVX2:
-        iterations = solver.SolveJointsSoA_AVX2(queue, bodies.data(), bodies.size(), contactIterationsCount, penetrationIterationsCount);
+        iterations = solver.SolveJointsSoA_AVX2(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
         break;
 #endif
 

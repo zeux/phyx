@@ -53,31 +53,31 @@ NOINLINE float Solver::SolveJointsAoS(WorkQueue& queue, RigidBody* bodies, int b
     return SolveFinishAoS();
 }
 
-NOINLINE float Solver::SolveJointsSoA_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsSoA_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_Scalar", -1);
 
-    return SolveJointsSoA(queue, joint_packed1, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+    return SolveJointsSoA(queue, joint_packed1, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
 }
 
-NOINLINE float Solver::SolveJointsSoA_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsSoA_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_SSE2", -1);
 
-    return SolveJointsSoA(queue, joint_packed4, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+    return SolveJointsSoA(queue, joint_packed4, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
 }
 
 #ifdef __AVX2__
-NOINLINE float Solver::SolveJointsSoA_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE float Solver::SolveJointsSoA_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointsSoA_AVX2", -1);
 
-    return SolveJointsSoA(queue, joint_packed8, bodies, bodiesCount, contactIterationsCount, penetrationIterationsCount);
+    return SolveJointsSoA(queue, joint_packed8, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
 }
 #endif
 
 template <int N>
-float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, int contactIterationsCount, int penetrationIterationsCount)
+float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
 {
     {
         MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
@@ -90,8 +90,8 @@ float Solver::SolveJointsSoA(WorkQueue& queue, AlignedArray<ContactJointPacked<N
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
 
-        RefreshJointsSoA<N>(joint_packed.data, 0, groupOffset);
-        RefreshJointsSoA<1>(joint_packed.data, groupOffset, contactJoints.size());
+        RefreshJointsSoA<N>(joint_packed.data, 0, groupOffset, contactPoints);
+        RefreshJointsSoA<1>(joint_packed.data, groupOffset, contactJoints.size(), contactPoints);
 
         PreStepJointsSoA<N>(joint_packed.data, 0, groupOffset);
         PreStepJointsSoA<1>(joint_packed.data, groupOffset, contactJoints.size());
@@ -279,6 +279,7 @@ NOINLINE int Solver::SolvePrepareSoA(
 
             jointP.body1Index[iP] = joint.body1Index;
             jointP.body2Index[iP] = joint.body2Index;
+            jointP.contactPointIndex[iP] = joint.collisionIndex;
 
             jointP.normalLimiter_normalProjector1X[iP] = joint.normalLimiter.normalProjector1.x;
             jointP.normalLimiter_normalProjector1Y[iP] = joint.normalLimiter.normalProjector1.y;
@@ -536,7 +537,7 @@ NOINLINE bool Solver::SolveJointsDisplacementAoS(int jointBegin, int jointEnd, i
 }
 
 template <int VN, int N>
-NOINLINE void Solver::RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd)
+NOINLINE void Solver::RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints)
 {
     MICROPROFILE_SCOPEI("Physics", "RefreshJointsSoA", -1);
 
@@ -562,19 +563,32 @@ NOINLINE void Solver::RefreshJointsSoA(ContactJointPacked<N>* joint_packed, int 
         Vf body2_invMass, body2_invInertia, body2_coords_posX, body2_coords_posY;
         Vf body2_coords_xVectorX, body2_coords_xVectorY, body2_coords_yVectorX, body2_coords_yVectorY;
 
-        loadindexed4(body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
+        Vf collision_delta1X, collision_delta1Y, collision_delta2X, collision_delta2Y;
+        Vf collision_normalX, collision_normalY;
+        Vf dummy;
+
+        loadindexed4(
+            body1_velocityX, body1_velocityY, body1_angularVelocity, body1_lastIterationf,
             solveBodiesImpulse.data, jointP.body1Index + iP, sizeof(SolveBody));
 
-        loadindexed4(body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
+        loadindexed4(
+            body2_velocityX, body2_velocityY, body2_angularVelocity, body2_lastIterationf,
             solveBodiesImpulse.data, jointP.body2Index + iP, sizeof(SolveBody));
 
-        loadindexed8(body1_invMass, body1_invInertia, body1_coords_posX, body1_coords_posY,
+        loadindexed8(
+            body1_invMass, body1_invInertia, body1_coords_posX, body1_coords_posY,
             body1_coords_xVectorX, body1_coords_xVectorY, body1_coords_yVectorX, body1_coords_yVectorY,
             solveBodiesParams.data, jointP.body1Index + iP, sizeof(SolveBodyParams));
 
-        loadindexed8(body2_invMass, body2_invInertia, body2_coords_posX, body2_coords_posY,
+        loadindexed8(
+            body2_invMass, body2_invInertia, body2_coords_posX, body2_coords_posY,
             body2_coords_xVectorX, body2_coords_xVectorY, body2_coords_yVectorX, body2_coords_yVectorY,
             solveBodiesParams.data, jointP.body2Index + iP, sizeof(SolveBodyParams));
+
+        loadindexed8(
+            collision_delta1X, collision_delta1Y, collision_delta2X, collision_delta2Y,
+            collision_normalX, collision_normalY, dummy, dummy,
+            contactPoints, jointP.contactPointIndex + iP, sizeof(ContactPoint));
     }
 }
 
