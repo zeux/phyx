@@ -29,7 +29,6 @@ struct World
     float collisionTime;
     float mergeTime;
     float solveTime;
-    float iterations;
 
     std::vector<RigidBody> bodies;
     Collider collider;

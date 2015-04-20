@@ -289,7 +289,7 @@ int main(int argc, char** argv)
             int(world.solver.islandMaxSize),
             int(queue->getWorkerCount() + 1),
             kModes[currentMode].name,
-            world.iterations);
+            0.f);
 
         {
             MICROPROFILE_SCOPEI("Render", "Render", 0xff0000);

@@ -35,16 +35,16 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
     switch (mode)
     {
     case Solve_Scalar:
-        iterations = solver.SolveJoints_Scalar(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
+        solver.SolveJoints_Scalar(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
         break;
 
     case Solve_SSE2:
-        iterations = solver.SolveJoints_SSE2(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
+        solver.SolveJoints_SSE2(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
         break;
 
 #ifdef __AVX2__
     case Solve_AVX2:
-        iterations = solver.SolveJoints_AVX2(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
+        solver.SolveJoints_AVX2(queue, bodies.data(), bodies.size(), collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount);
         break;
 #endif
 
