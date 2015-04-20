@@ -71,7 +71,7 @@ const char* resetWorld(World& world, int scene)
 
     world.AddBody(Coords2f(Vector2f(-1000, 1500), 0.0f), Vector2f(30.0f, 30.0f));
 
-    switch (scene % 5)
+    switch (scene % 6)
     {
     case 0:
     {
@@ -139,6 +139,22 @@ const char* resetWorld(World& world, int scene)
 
                 world.AddBody(Coords2f(pos, 0.f), size);
             }
+        }
+
+        return "Stacks";
+    }
+
+    case 5:
+    {
+        world.AddBody(Coords2f(Vector2f(0.f, 400.f), 0.f), Vector2f(600.f, 10.f))->invMass = 0.f;
+        world.AddBody(Coords2f(Vector2f(800.f, 200.f), 0.f), Vector2f(400.f, 10.f))->invMass = 0.f;
+
+        for (int bodyIndex = 0; bodyIndex < 20000; bodyIndex++)
+        {
+            Vector2f pos = Vector2f(random(0.0f, 500.0f), random(500.f, 2500.0f));
+            Vector2f size(4.f, 4.f);
+
+            world.AddBody(Coords2f(pos, 0.f), size);
         }
 
         return "Stacks";
@@ -248,10 +264,15 @@ int main(int argc, char** argv)
 
             if (!paused)
             {
-                Vector2f mousePos = Vector2f(mouseX + viewOffsetX, height + viewOffsetY - mouseY) / viewScale;
-
                 RigidBody* draggedBody = &world.bodies[1];
-                Vector2f dstVelocity = (mousePos - draggedBody->coords.pos) * 5e1f;
+                Vector2f dragTarget =
+                    glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT)
+                    ? Vector2f(mouseX + viewOffsetX, height + viewOffsetY - mouseY) / viewScale
+                    : draggedBody->coords.pos;
+
+                Vector2f dstVelocity = (dragTarget - draggedBody->coords.pos) * 5e1f;
+
+                draggedBody->acceleration.y -= gravity;
                 draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
                 world.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount);

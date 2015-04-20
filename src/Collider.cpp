@@ -355,7 +355,9 @@ void Collider::UpdatePairsOne(RigidBody* bodies, size_t bodyIndex1, size_t start
         if (fabsf(be2.centery - be1.centery) <= be1.extenty + be2.extenty)
         {
             if (!manifoldMap.contains(std::make_pair(be1.index, be2.index)))
+            {
                 buffer.pairs.push_back(std::make_pair(be1.index, be2.index));
+            }
         }
     }
 }
