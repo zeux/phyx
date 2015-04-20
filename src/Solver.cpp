@@ -275,40 +275,7 @@ NOINLINE int Solver::SolvePrepareSoA(
             jointP.body2Index[iP] = joint.body2Index;
             jointP.contactPointIndex[iP] = joint.collisionIndex;
 
-            jointP.normalLimiter_normalProjector1X[iP] = joint.normalLimiter.normalProjector1.x;
-            jointP.normalLimiter_normalProjector1Y[iP] = joint.normalLimiter.normalProjector1.y;
-            jointP.normalLimiter_normalProjector2X[iP] = joint.normalLimiter.normalProjector2.x;
-            jointP.normalLimiter_normalProjector2Y[iP] = joint.normalLimiter.normalProjector2.y;
-            jointP.normalLimiter_angularProjector1[iP] = joint.normalLimiter.angularProjector1;
-            jointP.normalLimiter_angularProjector2[iP] = joint.normalLimiter.angularProjector2;
-
-            jointP.normalLimiter_compMass1_linearX[iP] = joint.normalLimiter.compMass1_linear.x;
-            jointP.normalLimiter_compMass1_linearY[iP] = joint.normalLimiter.compMass1_linear.y;
-            jointP.normalLimiter_compMass2_linearX[iP] = joint.normalLimiter.compMass2_linear.x;
-            jointP.normalLimiter_compMass2_linearY[iP] = joint.normalLimiter.compMass2_linear.y;
-            jointP.normalLimiter_compMass1_angular[iP] = joint.normalLimiter.compMass1_angular;
-            jointP.normalLimiter_compMass2_angular[iP] = joint.normalLimiter.compMass2_angular;
-            jointP.normalLimiter_compInvMass[iP] = joint.normalLimiter.compInvMass;
             jointP.normalLimiter_accumulatedImpulse[iP] = joint.normalLimiter.accumulatedImpulse;
-
-            jointP.normalLimiter_dstVelocity[iP] = joint.normalLimiter.dstVelocity;
-            jointP.normalLimiter_dstDisplacingVelocity[iP] = joint.normalLimiter.dstDisplacingVelocity;
-            jointP.normalLimiter_accumulatedDisplacingImpulse[iP] = joint.normalLimiter.accumulatedDisplacingImpulse;
-
-            jointP.frictionLimiter_normalProjector1X[iP] = joint.frictionLimiter.normalProjector1.x;
-            jointP.frictionLimiter_normalProjector1Y[iP] = joint.frictionLimiter.normalProjector1.y;
-            jointP.frictionLimiter_normalProjector2X[iP] = joint.frictionLimiter.normalProjector2.x;
-            jointP.frictionLimiter_normalProjector2Y[iP] = joint.frictionLimiter.normalProjector2.y;
-            jointP.frictionLimiter_angularProjector1[iP] = joint.frictionLimiter.angularProjector1;
-            jointP.frictionLimiter_angularProjector2[iP] = joint.frictionLimiter.angularProjector2;
-
-            jointP.frictionLimiter_compMass1_linearX[iP] = joint.frictionLimiter.compMass1_linear.x;
-            jointP.frictionLimiter_compMass1_linearY[iP] = joint.frictionLimiter.compMass1_linear.y;
-            jointP.frictionLimiter_compMass2_linearX[iP] = joint.frictionLimiter.compMass2_linear.x;
-            jointP.frictionLimiter_compMass2_linearY[iP] = joint.frictionLimiter.compMass2_linear.y;
-            jointP.frictionLimiter_compMass1_angular[iP] = joint.frictionLimiter.compMass1_angular;
-            jointP.frictionLimiter_compMass2_angular[iP] = joint.frictionLimiter.compMass2_angular;
-            jointP.frictionLimiter_compInvMass[iP] = joint.frictionLimiter.compInvMass;
             jointP.frictionLimiter_accumulatedImpulse[iP] = joint.frictionLimiter.accumulatedImpulse;
         }
     }
