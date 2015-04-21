@@ -22,7 +22,7 @@ inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned i
 {
     MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
 
-    if (queue.getWorkerCount() == 0)
+    if (queue.getWorkerCount() == 0 || count <= groupSize)
     {
         for (unsigned int i = 0; i < count; ++i)
             func(parallelForIndex(data, i), 0);
@@ -89,9 +89,11 @@ inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned i
     state->groupCount = (count + groupSize - 1) / groupSize;
     state->func = &func;
 
-    std::vector<std::unique_ptr<WorkQueue::Item>> items(queue.getWorkerCount());
+    int optimalWorkerCount = std::min(unsigned(queue.getWorkerCount()), state->groupCount - 1);
 
-    for (size_t i = 0; i < queue.getWorkerCount(); ++i)
+    std::vector<std::unique_ptr<WorkQueue::Item>> items(optimalWorkerCount);
+
+    for (int i = 0; i < optimalWorkerCount; ++i)
         items[i] = std::unique_ptr<WorkQueue::Item>(new Item(state));
 
     {

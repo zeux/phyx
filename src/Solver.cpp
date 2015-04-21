@@ -51,10 +51,12 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
         for (int i = 0; i < bodiesCount; ++i)
             jointGroup_bodies[i] = 0;
 
-        for (int i = 0; i < islandCount; ++i)
-        {
-            SolveJointIsland(joint_packed, island_offset[i], island_offset[i] + island_size[i], contactPoints, contactIterationsCount, penetrationIterationsCount);
-        }
+        parallelFor(queue, 0, islandCount, 1, [&](int islandIndex, int) {
+            int jointsBegin = island_offset[islandIndex];
+            int jointsEnd = jointsBegin + island_size[islandIndex];
+
+            SolveJointIsland(joint_packed, jointsBegin, jointsEnd, contactPoints, contactIterationsCount, penetrationIterationsCount);
+        });
     }
     else
     {
@@ -283,8 +285,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             int island1 = island_remap[j.body1Index];
             int island2 = island_remap[j.body2Index];
 
-            // TODO
-            // assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
+            assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
             int island = island1 < 0 ? island2 : island1;
 
             island_offset[island_index[island]]++;
@@ -343,8 +344,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             int island1 = island_remap[j.body1Index];
             int island2 = island_remap[j.body2Index];
 
-            // TODO
-            // assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
+            assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
             int island = island1 < 0 ? island2 : island1;
 
             joint_index[island_offsettemp[island_indexremap[island_index[island]]]++] = jointIndex;
@@ -354,7 +354,8 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
 
         for (int i = 0; i < islandCount; ++i)
         {
-            assert(island_offsettemp[i] == island_offset[i] + island_size[i]);
+            // TODO
+            // assert(island_offsettemp[i] == island_offset[i] + island_size[i]);
 
             islandMaxSize = std::max(islandMaxSize, island_size[i]);
         }

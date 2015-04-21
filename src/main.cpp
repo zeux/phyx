@@ -71,7 +71,7 @@ const char* resetWorld(World& world, int scene)
 
     world.AddBody(Coords2f(Vector2f(-1000, 1500), 0.0f), Vector2f(30.0f, 30.0f));
 
-    switch (scene % 6)
+    switch ((scene + 7) % 7)
     {
     case 0:
     {
@@ -158,6 +158,28 @@ const char* resetWorld(World& world, int scene)
         }
 
         return "Stacks";
+    }
+
+    case 6:
+    {
+        world.AddBody(Coords2f(Vector2f(0.f, 400.f), 0.f), Vector2f(600.f, 10.f))->invMass = 0.f;
+        world.AddBody(Coords2f(Vector2f(800.f, 200.f), 0.f), Vector2f(400.f, 10.f))->invMass = 0.f;
+
+        RigidBody* body = world.AddBody(Coords2f(Vector2f(500.f, 500.f), -0.5f), Vector2f(600.f, 10.f));
+        body->invMass = 0.f;
+        body->invInertia = 0.f;
+
+        for (int bodyIndex = 0; bodyIndex < 10000; bodyIndex++)
+        {
+            Vector2f pos1 = Vector2f(random(200.0f, 500.0f), random(500.f, 2500.0f));
+            Vector2f pos2 = Vector2f(random(-500.0f, -200.0f), random(500.f, 2500.0f));
+            Vector2f size(4.f, 4.f);
+
+            world.AddBody(Coords2f(pos1, 0.f), size);
+            world.AddBody(Coords2f(pos2, 0.f), size);
+        }
+
+        return "Dual Stacks";
     }
     }
 
