@@ -281,6 +281,7 @@ int main(int argc, char** argv)
         MicroProfileFlip();
 
         MICROPROFILE_SCOPEI("MAIN", "Frame", 0xffee00);
+        MICROPROFILE_SCOPEGPUI("Frame", -1);
 
         int width, height;
         glfwGetWindowSize(window, &width, &height);
@@ -389,6 +390,7 @@ int main(int argc, char** argv)
 
             {
                 MICROPROFILE_SCOPEI("Render", "Perform", -1);
+                MICROPROFILE_SCOPEGPUI("Scene", -1);
 
                 if (!vertices.empty())
                 {
@@ -407,6 +409,7 @@ int main(int argc, char** argv)
 
             {
                 MICROPROFILE_SCOPEI("Render", "Profile", -1);
+                MICROPROFILE_SCOPEGPUI("Profile", -1);
 
                 glMatrixMode(GL_PROJECTION);
                 glLoadIdentity();

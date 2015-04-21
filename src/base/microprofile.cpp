@@ -3,7 +3,16 @@
 
 #include <GLFW/glfw3.h>
 
-#define MICROPROFILE_GPU_TIMERS 0
+#ifdef __APPLE__
+#define GL_DO_NOT_WARN_IF_MULTI_GL_VERSION_HEADERS_INCLUDED
+#include <OpenGL/gl3.h>
+#endif
+
+#ifdef __APPLE__
+#define MICROPROFILE_GPU_TIMERS_GL_APPLE 1
+#else
+#define MICROPROFILE_GPU_TIMERS_GL 1
+#endif
 
 #define MICROPROFILE_IMPL
 #include "microprofile.h"
@@ -87,6 +96,8 @@ static MicroProfileVertex* PushVertices(uint32_t nCommand, int nCount)
 
 void MicroProfileDrawInit()
 {
+	MicroProfileGpuInitGL();
+
 	for(uint32_t i = 0; i < MAX_FONT_CHARS; ++i)
 	{
 		g_FontDescription.nCharOffsets[i] = 206;
