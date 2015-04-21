@@ -71,7 +71,7 @@ const char* resetWorld(World& world, int scene)
 
     world.AddBody(Coords2f(Vector2f(-1000, 1500), 0.0f), Vector2f(30.0f, 30.0f));
 
-    switch ((scene + 7) % 7)
+    switch (scene % 8)
     {
     case 0:
     {
@@ -180,6 +180,26 @@ const char* resetWorld(World& world, int scene)
         }
 
         return "Dual Stacks";
+    }
+
+    case 7:
+    {
+        for (int group = -2; group <= 2; ++group)
+        {
+            RigidBody* splitter = world.AddBody(Coords2f(Vector2f(group * 700, 500.f), 0.f), Vector2f(20.f, 1000.f));
+            splitter->invMass = 0.f;
+            splitter->invInertia = 0.f;
+
+            for (int bodyIndex = 0; bodyIndex < 10000; bodyIndex++)
+            {
+                Vector2f pos = Vector2f(group * 700 + random(50.f, 650.0f), random(50.f, 1500.0f));
+                Vector2f size(4.f, 4.f);
+
+                world.AddBody(Coords2f(pos, 0.f), size);
+            }
+        }
+
+        return "Falling";
     }
     }
 
@@ -465,10 +485,16 @@ int main(int argc, char** argv)
             }
 
             if (glfwGetKey(window, GLFW_KEY_LEFT))
-                viewOffsetX -= 1;
+                viewOffsetX -= 10;
 
             if (glfwGetKey(window, GLFW_KEY_RIGHT))
-                viewOffsetX += 1;
+                viewOffsetX += 10;
+
+            if (glfwGetKey(window, GLFW_KEY_UP))
+                viewScale *= 1.05f;
+
+            if (glfwGetKey(window, GLFW_KEY_DOWN))
+                viewScale /= 1.05f;
         }
     }
 
