@@ -84,7 +84,7 @@ static void AddPoint(ContactPoint* points, int& pointCount, ContactPoint& newbie
     }
     else
     {
-        assert(collisionsCount < 4);
+        assert(pointCount < 4);
         newbie.isMerged = 1;
         newbie.isNewlyCreated = 1;
         points[pointCount++] = newbie;
