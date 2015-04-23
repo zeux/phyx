@@ -7,6 +7,8 @@
 #include <limits>
 #include <cassert>
 
+static const int kMaxContactPoints = 2;
+
 struct ContactPoint
 {
     ContactPoint()

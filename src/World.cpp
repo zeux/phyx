@@ -92,51 +92,77 @@ NOINLINE void World::RefreshContactJoints()
 {
     MICROPROFILE_SCOPEI("Physics", "RefreshContactJoints", -1);
 
-    for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
+    int matched = 0;
+    int created = 0;
+    int deleted = 0;
+
     {
-        solver.contactJoints[jointIndex].contactPointIndex = -1;
+        MICROPROFILE_SCOPEI("Physics", "Reset", -1);
+
+        for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size(); jointIndex++)
+        {
+            solver.contactJoints[jointIndex].contactPointIndex = -1;
+        }
     }
 
-    for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
     {
-        Manifold& man = collider.manifolds[manifoldIndex];
+        MICROPROFILE_SCOPEI("Physics", "Match", -1);
 
-        for (int collisionIndex = 0; collisionIndex < man.pointCount; collisionIndex++)
+        for (size_t manifoldIndex = 0; manifoldIndex < collider.manifolds.size(); ++manifoldIndex)
         {
-            int contactPointIndex = man.pointIndex + collisionIndex;
-            ContactPoint& col = collider.contactPoints[contactPointIndex];
+            Manifold& man = collider.manifolds[manifoldIndex];
 
-            if (col.solverIndex < 0)
+            for (int collisionIndex = 0; collisionIndex < man.pointCount; collisionIndex++)
             {
-                col.solverIndex = solver.contactJoints.size();
+                int contactPointIndex = man.pointIndex + collisionIndex;
+                ContactPoint& col = collider.contactPoints[contactPointIndex];
 
-                solver.contactJoints.push_back(ContactJoint(man.body1->index, man.body2->index, contactPointIndex));
+                if (col.solverIndex < 0)
+                {
+                    col.solverIndex = solver.contactJoints.size();
+
+                    solver.contactJoints.push_back(ContactJoint(man.body1->index, man.body2->index, contactPointIndex));
+
+                    created++;
+                }
+                else
+                {
+                    ContactJoint& joint = solver.contactJoints[col.solverIndex];
+
+                    assert(joint.body1Index == man.body1->index);
+                    assert(joint.body2Index == man.body2->index);
+
+                    joint.contactPointIndex = contactPointIndex;
+
+                    matched++;
+                }
+            }
+        }
+    }
+
+    {
+        MICROPROFILE_SCOPEI("Physics", "Cleanup", -1);
+
+        for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size();)
+        {
+            ContactJoint& joint = solver.contactJoints[jointIndex];
+
+            if (joint.contactPointIndex < 0)
+            {
+                joint = solver.contactJoints.back();
+                solver.contactJoints.pop_back();
+
+                deleted++;
             }
             else
             {
-                ContactJoint& joint = solver.contactJoints[col.solverIndex];
-
-                assert(joint.body1Index == man.body1->index);
-                assert(joint.body2Index == man.body2->index);
-
-                joint.contactPointIndex = contactPointIndex;
+                collider.contactPoints[joint.contactPointIndex].solverIndex = jointIndex;
+                jointIndex++;
             }
         }
     }
 
-    for (size_t jointIndex = 0; jointIndex < solver.contactJoints.size();)
-    {
-        ContactJoint& joint = solver.contactJoints[jointIndex];
-
-        if (joint.contactPointIndex < 0)
-        {
-            joint = solver.contactJoints.back();
-            solver.contactJoints.pop_back();
-        }
-        else
-        {
-            collider.contactPoints[joint.contactPointIndex].solverIndex = jointIndex;
-            jointIndex++;
-        }
-    }
+    MICROPROFILE_META_CPU("Matched", matched);
+    MICROPROFILE_META_CPU("Created", created);
+    MICROPROFILE_META_CPU("Deleted", deleted);
 }

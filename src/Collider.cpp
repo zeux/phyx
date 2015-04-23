@@ -96,9 +96,9 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
     if (separatingAxis * (body1->coords.pos - body2->coords.pos) < 0.0f)
         separatingAxis.Invert();
 
-    const int maxSupportPoints = 2;
-    Vector2f supportPoints1[maxSupportPoints];
-    Vector2f supportPoints2[maxSupportPoints];
+    const int kMaxSupportPoints = 2;
+    Vector2f supportPoints1[kMaxSupportPoints];
+    Vector2f supportPoints2[kMaxSupportPoints];
 
     float linearTolerance = 2.0f;
 
@@ -212,7 +212,7 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
 
 static void UpdateManifold(Manifold& m, ContactPoint* points)
 {
-    ContactPoint newpoints[4];
+    ContactPoint newpoints[kMaxContactPoints * 2];
 
     for (int collisionIndex = 0; collisionIndex < m.pointCount; collisionIndex++)
     {
@@ -235,6 +235,7 @@ static void UpdateManifold(Manifold& m, ContactPoint* points)
     {
         if (newpoints[collisionIndex].isMerged)
         {
+            assert(m.pointCount < kMaxContactPoints);
             points[m.pointCount++] = newpoints[collisionIndex];
         }
     }
@@ -336,7 +337,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
         for (auto& pair : buf.pairs)
         {
             manifoldMap.insert(pair);
-            manifolds.push_back(Manifold(&bodies[pair.first], &bodies[pair.second], manifolds.size() * 2));
+            manifolds.push_back(Manifold(&bodies[pair.first], &bodies[pair.second], manifolds.size() * kMaxContactPoints));
         }
     }
 }
@@ -366,7 +367,7 @@ NOINLINE void Collider::UpdateManifolds(WorkQueue& queue)
 {
     MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
-    contactPoints.resize(manifolds.size() * 2);
+    contactPoints.resize(manifolds.size() * kMaxContactPoints);
 
     parallelFor(queue, manifolds.data(), manifolds.size(), 16, [&](Manifold& m, int) {
         UpdateManifold(m, contactPoints.data + m.pointIndex);
@@ -409,5 +410,5 @@ NOINLINE void Collider::PackManifolds()
         }
     }
 
-    contactPoints.resize(manifolds.size() * 2);
+    contactPoints.resize(manifolds.size() * kMaxContactPoints);
 }
