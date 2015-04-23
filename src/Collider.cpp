@@ -210,7 +210,7 @@ static void NOINLINE GenerateContacts(RigidBody* body1, RigidBody* body2, Contac
     }
 }
 
-static void UpdateManifold(Manifold& m, ContactPoint* points)
+static void UpdateManifold(Manifold& m, RigidBody* bodies, ContactPoint* points)
 {
     ContactPoint newpoints[kMaxContactPoints * 2];
 
@@ -223,10 +223,13 @@ static void UpdateManifold(Manifold& m, ContactPoint* points)
 
     int newPointCount = m.pointCount;
 
+    RigidBody* body1 = &bodies[m.body1Index];
+    RigidBody* body2 = &bodies[m.body2Index];
+
     Vector2f separatingAxis;
-    if (ComputeSeparatingAxis(m.body1, m.body2, separatingAxis))
+    if (ComputeSeparatingAxis(body1, body2, separatingAxis))
     {
-        GenerateContacts(m.body1, m.body2, newpoints, newPointCount, separatingAxis);
+        GenerateContacts(body1, body2, newpoints, newPointCount, separatingAxis);
     }
 
     m.pointCount = 0;
@@ -310,7 +313,7 @@ NOINLINE void Collider::UpdatePairsSerial(RigidBody* bodies, size_t bodiesCount)
             {
                 if (manifoldMap.insert(std::make_pair(be1.index, be2.index)))
                 {
-                    manifolds.push_back(Manifold(&bodies[be1.index], &bodies[be2.index], manifolds.size() * 2));
+                    manifolds.push_back(Manifold(be1.index, be2.index, manifolds.size() * 2));
                 }
             }
         }
@@ -337,7 +340,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
         for (auto& pair : buf.pairs)
         {
             manifoldMap.insert(pair);
-            manifolds.push_back(Manifold(&bodies[pair.first], &bodies[pair.second], manifolds.size() * kMaxContactPoints));
+            manifolds.push_back(Manifold(pair.first, pair.second, manifolds.size() * kMaxContactPoints));
         }
     }
 }
@@ -363,18 +366,18 @@ void Collider::UpdatePairsOne(RigidBody* bodies, size_t bodyIndex1, size_t start
     }
 }
 
-NOINLINE void Collider::UpdateManifolds(WorkQueue& queue)
+NOINLINE void Collider::UpdateManifolds(WorkQueue& queue, RigidBody* bodies)
 {
     MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
     contactPoints.resize(manifolds.size() * kMaxContactPoints);
 
     parallelFor(queue, manifolds.data(), manifolds.size(), 16, [&](Manifold& m, int) {
-        UpdateManifold(m, contactPoints.data + m.pointIndex);
+        UpdateManifold(m, bodies, contactPoints.data + m.pointIndex);
     });
 }
 
-NOINLINE void Collider::PackManifolds()
+NOINLINE void Collider::PackManifolds(RigidBody* bodies)
 {
     MICROPROFILE_SCOPEI("Physics", "PackManifolds", -1);
 
@@ -385,9 +388,9 @@ NOINLINE void Collider::PackManifolds()
         // TODO
         // This reduces broadphase insert/erase operations, which is good
         // However, current behavior causes issues with DenseHash - is it possible to improve it?
-        if (m.pointCount == 0 && !m.body1->geom.aabb.Intersects(m.body2->geom.aabb))
+        if (m.pointCount == 0 && !bodies[m.body1Index].geom.aabb.Intersects(bodies[m.body2Index].geom.aabb))
         {
-            manifoldMap.erase(std::make_pair(m.body1->index, m.body2->index));
+            manifoldMap.erase(std::make_pair(m.body1Index, m.body2Index));
 
             if (manifoldIndex < manifolds.size())
             {

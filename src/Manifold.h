@@ -46,21 +46,22 @@ struct Manifold
 {
     Manifold()
     {
-        body1 = body2 = 0;
+        body1Index = -1;
+        body2Index = -1;
         pointCount = 0;
         pointIndex = 0;
     }
 
-    Manifold(RigidBody* body1, RigidBody* body2, unsigned int pointIndex)
+    Manifold(int body1Index, int body2Index, unsigned int pointIndex)
     {
-        this->body1 = body1;
-        this->body2 = body2;
+        this->body1Index = body1Index;
+        this->body2Index = body2Index;
         this->pointCount = 0;
         this->pointIndex = pointIndex;
     }
 
-    RigidBody* body1;
-    RigidBody* body2;
+    int body1Index;
+    int body2Index;
 
     unsigned int pointCount;
     unsigned int pointIndex;

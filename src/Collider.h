@@ -34,8 +34,8 @@ struct Collider
 
     void UpdatePairsOne(RigidBody* bodies, size_t bodyIndex1, size_t startIndex, size_t endIndex, ManifoldDeferredBuffer& buffer);
 
-    void UpdateManifolds(WorkQueue& queue);
-    void PackManifolds();
+    void UpdateManifolds(WorkQueue& queue, RigidBody* bodies);
+    void PackManifolds(RigidBody* bodies);
 
     struct ManifoldDeferredBuffer
     {

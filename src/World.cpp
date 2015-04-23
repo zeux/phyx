@@ -26,8 +26,8 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
 
     collider.UpdateBroadphase(bodies.data(), bodies.size());
     collider.UpdatePairs(queue, bodies.data(), bodies.size());
-    collider.UpdateManifolds(queue);
-    collider.PackManifolds();
+    collider.UpdateManifolds(queue, bodies.data());
+    collider.PackManifolds(bodies.data());
 
     RefreshContactJoints();
 
@@ -121,7 +121,7 @@ NOINLINE void World::RefreshContactJoints()
                 {
                     col.solverIndex = solver.contactJoints.size();
 
-                    solver.contactJoints.push_back(ContactJoint(man.body1->index, man.body2->index, contactPointIndex));
+                    solver.contactJoints.push_back(ContactJoint(man.body1Index, man.body2Index, contactPointIndex));
 
                     created++;
                 }
@@ -129,8 +129,8 @@ NOINLINE void World::RefreshContactJoints()
                 {
                     ContactJoint& joint = solver.contactJoints[col.solverIndex];
 
-                    assert(joint.body1Index == man.body1->index);
-                    assert(joint.body2Index == man.body2->index);
+                    assert(joint.body1Index == man.body1Index);
+                    assert(joint.body2Index == man.body2Index);
 
                     joint.contactPointIndex = contactPointIndex;
 
