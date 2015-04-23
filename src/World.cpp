@@ -75,9 +75,13 @@ NOINLINE void World::IntegrateVelocity(float dt)
 {
     MICROPROFILE_SCOPEI("Physics", "IntegrateVelocity", -1);
 
-    for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
+    for (RigidBody& body: bodies)
     {
-        bodies[bodyIndex].IntegrateVelocity(dt);
+        body.velocity += body.acceleration * dt;
+        body.acceleration = Vector2f(0.0f, 0.0f);
+
+        body.angularVelocity += body.angularAcceleration * dt;
+        body.angularAcceleration = 0.0f;
     }
 }
 
@@ -85,9 +89,15 @@ NOINLINE void World::IntegratePosition(float dt)
 {
     MICROPROFILE_SCOPEI("Physics", "IntegratePosition", -1);
 
-    for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
+    for (RigidBody& body: bodies)
     {
-        bodies[bodyIndex].IntegratePosition(dt);
+        body.coords.pos += body.displacingVelocity + body.velocity * dt;
+        body.coords.Rotate(-(body.displacingAngularVelocity + body.angularVelocity * dt));
+
+        body.displacingVelocity = Vector2f(0.0f, 0.0f);
+        body.displacingAngularVelocity = 0.0f;
+
+        body.UpdateGeom();
     }
 }
 

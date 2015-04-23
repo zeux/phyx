@@ -34,30 +34,7 @@ struct RigidBody
 
         UpdateGeom();
     }
-    void IntegrateVelocity(float dt)
-    {
-        velocity += acceleration * dt;
-        acceleration = Vector2f(0.0f, 0.0f);
 
-        angularVelocity += angularAcceleration * dt;
-        angularAcceleration = 0.0f;
-    }
-    void IntegratePosition(float dt)
-    {
-        coords.pos += displacingVelocity + velocity * dt;
-        coords.Rotate(-displacingAngularVelocity);
-        coords.Rotate(-angularVelocity * dt);
-
-        displacingVelocity = Vector2f(0.0f, 0.0f);
-        displacingAngularVelocity = 0.0f;
-
-        UpdateGeom();
-    }
-    Vector2f GetGlobalPointVelocity(Vector2f point)
-    {
-        Vector2f relpos = point - coords.pos;
-        return Vector2f(-relpos.y, relpos.x) * angularVelocity + velocity;
-    }
     void UpdateGeom()
     {
         geom.coords = coords;
