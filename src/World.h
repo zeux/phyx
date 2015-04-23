@@ -21,9 +21,8 @@ struct World
 
     void Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
 
-    NOINLINE void ApplyGravity();
-    NOINLINE void IntegrateVelocity(float dt);
-    NOINLINE void IntegratePosition(float dt);
+    NOINLINE void IntegrateVelocity(WorkQueue& queue, float dt);
+    NOINLINE void IntegratePosition(WorkQueue& queue, float dt);
     NOINLINE void RefreshContactJoints();
 
     float collisionTime;

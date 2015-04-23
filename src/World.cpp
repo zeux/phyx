@@ -1,6 +1,6 @@
 #include "World.h"
 
-#include "base/WorkQueue.h"
+#include "base/Parallel.h"
 #include "microprofile.h"
 
 World::World()
@@ -22,8 +22,7 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
 
     collisionTime = mergeTime = solveTime = 0;
 
-    ApplyGravity();
-    IntegrateVelocity(dt);
+    IntegrateVelocity(queue, dt);
 
     collider.UpdateBroadphase(bodies.data(), bodies.size());
     collider.UpdatePairs(queue, bodies.data(), bodies.size());
@@ -53,44 +52,32 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
         break;
     }
 
-    IntegratePosition(dt);
+    IntegratePosition(queue, dt);
 }
 
-NOINLINE void World::ApplyGravity()
-{
-    MICROPROFILE_SCOPEI("Physics", "ApplyGravity", -1);
-
-    for (size_t bodyIndex = 0; bodyIndex < bodies.size(); bodyIndex++)
-    {
-        RigidBody* body = &bodies[bodyIndex];
-
-        if (body->invMass > 0.0f)
-        {
-            body->acceleration.y += gravity;
-        }
-    }
-}
-
-NOINLINE void World::IntegrateVelocity(float dt)
+NOINLINE void World::IntegrateVelocity(WorkQueue& queue, float dt)
 {
     MICROPROFILE_SCOPEI("Physics", "IntegrateVelocity", -1);
 
-    for (RigidBody& body: bodies)
-    {
+    parallelFor(queue, bodies.data(), bodies.size(), 32, [this, dt](RigidBody& body, int) {
+        if (body.invMass > 0.0f)
+        {
+            body.acceleration.y += gravity;
+        }
+
         body.velocity += body.acceleration * dt;
         body.acceleration = Vector2f(0.0f, 0.0f);
 
         body.angularVelocity += body.angularAcceleration * dt;
         body.angularAcceleration = 0.0f;
-    }
+    });
 }
 
-NOINLINE void World::IntegratePosition(float dt)
+NOINLINE void World::IntegratePosition(WorkQueue& queue, float dt)
 {
     MICROPROFILE_SCOPEI("Physics", "IntegratePosition", -1);
 
-    for (RigidBody& body: bodies)
-    {
+    parallelFor(queue, bodies.data(), bodies.size(), 32, [dt](RigidBody& body, int) {
         body.coords.pos += body.displacingVelocity + body.velocity * dt;
         body.coords.Rotate(-(body.displacingAngularVelocity + body.angularVelocity * dt));
 
@@ -98,7 +85,7 @@ NOINLINE void World::IntegratePosition(float dt)
         body.displacingAngularVelocity = 0.0f;
 
         body.UpdateGeom();
-    }
+    });
 }
 
 NOINLINE void World::RefreshContactJoints()
