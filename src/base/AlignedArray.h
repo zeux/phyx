@@ -26,6 +26,33 @@ struct AlignedArray
         _mm_free(data);
     }
 
+    AlignedArray(const AlignedArray&) = delete;
+    AlignedArray& operator=(const AlignedArray&) = delete;
+
+    AlignedArray(AlignedArray&& other)
+    {
+        data = other.data;
+        size = other.size;
+        capacity = other.capacity;
+
+        other.data = 0;
+        other.size = 0;
+        other.capacity = 0;
+    }
+
+    AlignedArray& operator=(AlignedArray&& other)
+    {
+        _mm_free(data);
+
+        data = other.data;
+        size = other.size;
+        capacity = other.capacity;
+
+        other.data = 0;
+        other.size = 0;
+        other.capacity = 0;
+    }
+
     T& operator[](int i)
     {
         assert(i >= 0 && i < size);

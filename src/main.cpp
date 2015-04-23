@@ -239,7 +239,7 @@ int main(int argc, char** argv)
 
     World world;
 
-    bool useIslands = false;
+    bool useIslands = true;
     int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
     int currentScene = 0;
 
