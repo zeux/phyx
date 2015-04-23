@@ -28,6 +28,7 @@ struct AlignedArray
 
     T& operator[](int i)
     {
+        assert(i >= 0 && i < size);
         return data[i];
     }
 

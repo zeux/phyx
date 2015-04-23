@@ -217,7 +217,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
 
         for (int i = 0; i < bodiesCount; ++i)
         {
-            island_remap[i] = (bodies[i].invMass == 0) ? -1 : i;
+            island_remap[i] = (bodies[i].invMass == 0 && bodies[i].invInertia == 0) ? -1 : i;
         }
     }
 
@@ -285,6 +285,9 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             int island1 = island_remap[j.body1Index];
             int island2 = island_remap[j.body2Index];
 
+            if ((island1 & island2) < 0)
+                continue;
+
             assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
             int island = island1 < 0 ? island2 : island1;
 
@@ -323,7 +326,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             }
         }
 
-        jointCountAligned = jointCount;
+        jointCountAligned = totalCount;
         islandCount = runningIndex;
     }
 
@@ -344,6 +347,9 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
             int island1 = island_remap[j.body1Index];
             int island2 = island_remap[j.body2Index];
 
+            if ((island1 & island2) < 0)
+                continue;
+
             assert(island1 == island2 || ((island1 | island2) < 0 && (island1 & island2) >= 0));
             int island = island1 < 0 ? island2 : island1;
 
@@ -354,8 +360,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
 
         for (int i = 0; i < islandCount; ++i)
         {
-            // TODO
-            // assert(island_offsettemp[i] == island_offset[i] + island_size[i]);
+            assert(island_offsettemp[i] == island_offset[i] + island_size[i]);
 
             islandMaxSize = std::max(islandMaxSize, island_size[i]);
         }
