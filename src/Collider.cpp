@@ -370,7 +370,7 @@ NOINLINE void Collider::UpdateManifolds(WorkQueue& queue, RigidBody* bodies)
 {
     MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
-    contactPoints.resize(manifolds.size() * kMaxContactPoints);
+    contactPoints.resize_copy(manifolds.size() * kMaxContactPoints);
 
     parallelFor(queue, manifolds.data(), manifolds.size(), 16, [&](Manifold& m, int) {
         UpdateManifold(m, bodies, contactPoints.data + m.pointIndex);
@@ -413,5 +413,5 @@ NOINLINE void Collider::PackManifolds(RigidBody* bodies)
         }
     }
 
-    contactPoints.resize(manifolds.size() * kMaxContactPoints);
+    contactPoints.truncate(manifolds.size() * kMaxContactPoints);
 }

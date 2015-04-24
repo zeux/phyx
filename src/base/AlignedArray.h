@@ -59,27 +59,46 @@ struct AlignedArray
         return data[i];
     }
 
+    void truncate(int newsize)
+    {
+        assert(newsize <= size);
+
+        size = newsize;
+    }
+
+    void resize_copy(int newsize)
+    {
+        if (newsize > capacity)
+            realloc(newsize, true);
+
+        size = newsize;
+    }
+
     void resize(int newsize)
     {
         if (newsize > capacity)
-        {
-            int newcapacity = capacity;
-            while (newcapacity < newsize)
-                newcapacity += newcapacity / 2 + 1;
-
-            // Leave 32b padding at the end to avoid buffer overruns for fast SIMD code
-            T* newdata = static_cast<T*>(_mm_malloc(newcapacity * sizeof(T) + 32, 32));
-
-            if (data)
-            {
-                memcpy(newdata, data, size * sizeof(T));
-                _mm_free(data);
-            }
-
-            data = newdata;
-            capacity = newcapacity;
-        }
+            realloc(newsize, false);
 
         size = newsize;
+    }
+
+    void realloc(int newsize, bool copy)
+    {
+        int newcapacity = capacity;
+        while (newcapacity < newsize)
+            newcapacity += newcapacity / 2 + 1;
+
+        // Leave 32b padding at the end to avoid buffer overruns for fast SIMD code
+        T* newdata = static_cast<T*>(_mm_malloc(newcapacity * sizeof(T) + 32, 32));
+
+        if (data)
+        {
+            if (copy)
+                memcpy(newdata, data, size * sizeof(T));
+            _mm_free(data);
+        }
+
+        data = newdata;
+        capacity = newcapacity;
     }
 };
