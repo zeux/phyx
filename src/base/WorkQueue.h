@@ -9,7 +9,7 @@
 
 class WorkQueue
 {
-  public:
+public:
     struct Item
     {
         virtual ~Item() {}
@@ -22,9 +22,13 @@ class WorkQueue
     WorkQueue(unsigned int workerCount);
     ~WorkQueue();
 
-    void push(std::unique_ptr<Item> item);
-    void push(std::vector<std::unique_ptr<Item>> item);
-    void push(std::function<void()> fun);
+    void pushItem(std::shared_ptr<Item> item, int count = 1);
+
+    template <typename F>
+    void pushFunction(F fun, int count = 1)
+    {
+        pushItem(std::make_shared<Item>(std::move(fun)));
+    }
 
     unsigned int getWorkerCount() const
     {
@@ -36,7 +40,23 @@ class WorkQueue
 
     std::mutex itemsMutex;
     std::condition_variable itemsCondition;
-    std::queue<std::unique_ptr<Item>> items;
+    std::queue<std::pair<std::shared_ptr<Item>, int>> items;
 
     static void workerThreadFun(WorkQueue* queue, int worker);
+
+    template <typename T>
+    struct ItemFunction: WorkQueue::Item
+    {
+        T function;
+
+        ItemFunction(T function): function(std::move(function))
+        {
+        }
+
+        void run(int worker) override
+        {
+            function();
+        }
+    };
+
 };
