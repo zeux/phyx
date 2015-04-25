@@ -4,6 +4,8 @@
 #include "Collider.h"
 #include "Solver.h"
 
+struct Configuration;
+
 struct World
 {
     enum SolveMode
@@ -17,7 +19,7 @@ struct World
 
     RigidBody* AddBody(Coords2f coords, Vector2f size);
 
-    void Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
+    void Update(WorkQueue& queue, float dt, const Configuration& configuration);
 
     NOINLINE void IntegrateVelocity(WorkQueue& queue, float dt);
     NOINLINE void IntegratePosition(WorkQueue& queue, float dt);

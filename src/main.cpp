@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 
 #include "World.h"
+#include "Configuration.h"
 
 #include "base/WorkQueue.h"
 
@@ -46,16 +47,30 @@ float random(float min, float max)
 
 const struct
 {
-    World::SolveMode mode;
+    Configuration::SolveMode mode;
     const char* name;
-} kModes[] =
+} kSolveModes[] =
     {
-     {World::Solve_Scalar, "Scalar"},
-     {World::Solve_SSE2, "SSE2"},
+     {Configuration::Solve_Scalar, "Scalar"},
+
+#ifdef __SSE2__
+     {Configuration::Solve_SSE2, "SSE2"},
+#endif
 
 #ifdef __AVX2__
-     {World::Solve_AVX2, "AVX2"},
+     {Configuration::Solve_AVX2, "AVX2"},
 #endif
+};
+
+const struct
+{
+    Configuration::IslandMode mode;
+    const char* name;
+} kIslandModes[] =
+    {
+     {Configuration::Island_Single, "Single"},
+     {Configuration::Island_Multiple, "Multiple"},
+     {Configuration::Island_Sloppy, "Sloppy"},
 };
 
 const char* resetWorld(World& world, int scene)
@@ -239,16 +254,14 @@ int main(int argc, char** argv)
 
     World world;
 
-    bool useIslands = true;
-    int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
-    int currentScene = 7;
+    int currentSolveMode = sizeof(kSolveModes) / sizeof(kSolveModes[0]) - 1;
+    int currentIslandMode = sizeof(kIslandModes) / sizeof(kIslandModes[0]) - 1;
+    int currentScene = 0;
 
     const char* currentSceneName = resetWorld(world, currentScene);
 
     const float gravity = -200.0f;
     const float integrationTime = 1 / 60.f;
-    const int contactIterationsCount = 15;
-    const int penetrationIterationsCount = 15;
 
     world.gravity = gravity;
 
@@ -319,12 +332,13 @@ int main(int argc, char** argv)
                 draggedBody->acceleration.y -= gravity;
                 draggedBody->acceleration += (dstVelocity - draggedBody->velocity) * 5e0;
 
-                world.Update(*queue, integrationTime, kModes[currentMode].mode, contactIterationsCount, penetrationIterationsCount, useIslands);
+                Configuration config = { kSolveModes[currentSolveMode].mode, kIslandModes[currentIslandMode].mode, 15, 15 };
+                world.Update(*queue, integrationTime, config);
             }
         }
 
         char stats[256];
-        sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d Islands: %d (biggest: %d) | Cores: %d; Mode: %s; Iterations: %.2f",
+        sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d Islands: %d (biggest: %d) | Cores: %d; Solve: %s; Island: %s; Iterations: %.2f",
             currentSceneName,
             int(world.bodies.size),
             int(world.collider.manifolds.size),
@@ -332,7 +346,8 @@ int main(int argc, char** argv)
             int(world.solver.islandCount),
             int(world.solver.islandMaxSize),
             int(queue->getWorkerCount() + 1),
-            kModes[currentMode].name,
+            kSolveModes[currentSolveMode].name,
+            kIslandModes[currentIslandMode].name,
             0.f);
 
         {
@@ -465,10 +480,10 @@ int main(int argc, char** argv)
             }
 
             if (keyPressed[GLFW_KEY_I])
-                useIslands = !useIslands;
+                currentIslandMode = (currentIslandMode + 1) % (sizeof(kIslandModes) / sizeof(kIslandModes[0]));
 
             if (keyPressed[GLFW_KEY_M])
-                currentMode = (currentMode + 1) % (sizeof(kModes) / sizeof(kModes[0]));
+                currentSolveMode = (currentSolveMode + 1) % (sizeof(kSolveModes) / sizeof(kSolveModes[0]));
 
             if (keyPressed[GLFW_KEY_R])
                 currentSceneName = resetWorld(world, currentScene);

@@ -3,6 +3,8 @@
 #include "base/Parallel.h"
 #include "base/SIMD.h"
 
+#include "Configuration.h"
+
 const float kProductiveImpulse = 1e-4f;
 const float kFrictionCoefficient = 0.3f;
 
@@ -12,35 +14,63 @@ Solver::Solver()
 {
 }
 
-NOINLINE void Solver::SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
+NOINLINE void Solver::SolveJoints(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration)
+{
+    switch (configuration.solveMode)
+    {
+    case Configuration::Solve_AVX2:
+    #ifdef __AVX2__
+        SolveJoints_AVX2(queue, bodies, bodiesCount, contactPoints, configuration);
+        break;
+    #endif
+
+    case Configuration::Solve_SSE2:
+    #ifdef __SSE2__
+        SolveJoints_SSE2(queue, bodies, bodiesCount, contactPoints, configuration);
+        break;
+    #endif
+
+    case Configuration::Solve_Scalar:
+        SolveJoints_Scalar(queue, bodies, bodiesCount, contactPoints, configuration);
+        break;
+
+    default:
+        assert(!"Unknown solver mode");
+        break;
+    }
+}
+
+NOINLINE void Solver::SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJoints_Scalar", -1);
 
-    SolveJoints(queue, joint_packed1, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount, useIslands);
+    SolveJoints(queue, joint_packed1, bodies, bodiesCount, contactPoints, configuration);
 }
 
-NOINLINE void Solver::SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
+#ifdef __SSE2__
+NOINLINE void Solver::SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJoints_SSE2", -1);
 
-    SolveJoints(queue, joint_packed4, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount, useIslands);
+    SolveJoints(queue, joint_packed4, bodies, bodiesCount, contactPoints, configuration);
 }
+#endif
 
 #ifdef __AVX2__
-NOINLINE void Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
+NOINLINE void Solver::SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJoints_AVX2", -1);
 
-    SolveJoints(queue, joint_packed8, bodies, bodiesCount, contactPoints, contactIterationsCount, penetrationIterationsCount, useIslands);
+    SolveJoints(queue, joint_packed8, bodies, bodiesCount, contactPoints, configuration);
 }
 #endif
 
 template <int N>
-void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
+void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration)
 {
     PrepareBodies(bodies, bodiesCount);
 
-    if (useIslands)
+    if (configuration.islandMode != Configuration::Island_Single)
     {
         int jointCountAligned = GatherIslands(bodies, bodiesCount, N);
 
@@ -55,7 +85,7 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
             int jointsBegin = island_offset[islandIndex];
             int jointsEnd = jointsBegin + island_size[islandIndex];
 
-            SolveJointIsland(joint_packed, jointsBegin, jointsEnd, contactPoints, contactIterationsCount, penetrationIterationsCount);
+            SolveJointIsland(queue, joint_packed, jointsBegin, jointsEnd, contactPoints, configuration);
         });
     }
     else
@@ -76,14 +106,14 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
         islandCount = 1;
         islandMaxSize = jointCount;
 
-        SolveJointIsland(joint_packed, 0, jointCount, contactPoints, contactIterationsCount, penetrationIterationsCount);
+        SolveJointIsland(queue, joint_packed, 0, jointCount, contactPoints, configuration);
     }
 
     FinishBodies(bodies, bodiesCount);
 }
 
 template <int N>
-NOINLINE void Solver::SolveJointIsland(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount)
+NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, const Configuration& configuration)
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointIsland", -1);
 
@@ -102,7 +132,7 @@ NOINLINE void Solver::SolveJointIsland(AlignedArray<ContactJointPacked<N>>& join
     {
         MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
-        for (int iterationIndex = 0; iterationIndex < contactIterationsCount; iterationIndex++)
+        for (int iterationIndex = 0; iterationIndex < configuration.contactIterationsCount; iterationIndex++)
         {
             bool productive = false;
 
@@ -116,7 +146,7 @@ NOINLINE void Solver::SolveJointIsland(AlignedArray<ContactJointPacked<N>>& join
     {
         MICROPROFILE_SCOPEI("Physics", "Displacement", -1);
 
-        for (int iterationIndex = 0; iterationIndex < penetrationIterationsCount; iterationIndex++)
+        for (int iterationIndex = 0; iterationIndex < configuration.penetrationIterationsCount; iterationIndex++)
         {
             bool productive = false;
 

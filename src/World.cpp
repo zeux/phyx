@@ -16,7 +16,7 @@ RigidBody* World::AddBody(Coords2f coords, Vector2f size)
     return &(bodies[bodies.size - 1]);
 }
 
-void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterationsCount, int penetrationIterationsCount, bool useIslands)
+void World::Update(WorkQueue& queue, float dt, const Configuration& configuration)
 {
     MICROPROFILE_SCOPEI("Physics", "Update", 0x00ff00);
 
@@ -31,26 +31,7 @@ void World::Update(WorkQueue& queue, float dt, SolveMode mode, int contactIterat
 
     RefreshContactJoints();
 
-    switch (mode)
-    {
-    case Solve_Scalar:
-        solver.SolveJoints_Scalar(queue, bodies.data, bodies.size, collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount, useIslands);
-        break;
-
-    case Solve_SSE2:
-        solver.SolveJoints_SSE2(queue, bodies.data, bodies.size, collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount, useIslands);
-        break;
-
-#ifdef __AVX2__
-    case Solve_AVX2:
-        solver.SolveJoints_AVX2(queue, bodies.data, bodies.size, collider.contactPoints.data, contactIterationsCount, penetrationIterationsCount, useIslands);
-        break;
-#endif
-
-    default:
-        assert(!"Unknown solver mode");
-        break;
-    }
+    solver.SolveJoints(queue, bodies.data, bodies.size, collider.contactPoints.data, configuration);
 
     IntegratePosition(queue, dt);
 }

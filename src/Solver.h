@@ -45,24 +45,27 @@ struct ContactJointPacked
 };
 
 class WorkQueue;
+struct Configuration;
 
 struct Solver
 {
     Solver();
 
-    void SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
-    void SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
-    void SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
+    void SolveJoints(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration);
+
+    void SolveJoints_Scalar(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration);
+    void SolveJoints_SSE2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration);
+    void SolveJoints_AVX2(WorkQueue& queue, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration);
 
     template <int N>
-    void SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount, bool useIslands);
+    void SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, RigidBody* bodies, int bodiesCount, ContactPoint* contactPoints, const Configuration& configuration);
 
     int GatherIslands(RigidBody* bodies, int bodiesCount, int groupSizeTarget);
     void PrepareBodies(RigidBody* bodies, int bodiesCount);
     void FinishBodies(RigidBody* bodies, int bodiesCount);
 
     template <int N>
-    void SolveJointIsland(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, int contactIterationsCount, int penetrationIterationsCount);
+    void SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, const Configuration& configuration);
 
     template <int N>
     int PrepareJoints(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, int groupSizeTarget);
