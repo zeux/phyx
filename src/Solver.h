@@ -68,9 +68,9 @@ struct Solver
     void SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, const Configuration& configuration);
 
     template <int N>
-    int PrepareJoints(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, int groupSizeTarget);
+    int PrepareJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, int groupSizeTarget);
     template <int N>
-    void FinishJoints(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd);
+    void FinishJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd);
 
     int PrepareIndices(int jointBegin, int jointEnd, int groupSizeTarget);
 

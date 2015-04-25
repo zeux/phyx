@@ -126,7 +126,7 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 {
     MICROPROFILE_SCOPEI("Physics", "SolveJointIsland", -1);
 
-    int groupOffset = PrepareJoints(joint_packed, jointBegin, jointEnd, N);
+    int groupOffset = PrepareJoints(queue, joint_packed, jointBegin, jointEnd, N);
 
     int batchSize = (configuration.islandMode == Configuration::Island_Sloppy) ? 512 : jointEnd - jointBegin;
     int batchCount = ((groupOffset - jointBegin) + batchSize - 1) / batchSize;
@@ -134,23 +134,31 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
 
-        parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
-            int batchBegin = jointBegin + batchIndex * batchSize;
-            int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+        {
+            MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
 
-            RefreshJoints<N>(joint_packed.data, batchBegin, batchEnd, contactPoints);
-        });
+            parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
+                int batchBegin = jointBegin + batchIndex * batchSize;
+                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
 
-        RefreshJoints<1>(joint_packed.data, groupOffset, jointEnd, contactPoints);
+                RefreshJoints<N>(joint_packed.data, batchBegin, batchEnd, contactPoints);
+            });
 
-        parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
-            int batchBegin = jointBegin + batchIndex * batchSize;
-            int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+            RefreshJoints<1>(joint_packed.data, groupOffset, jointEnd, contactPoints);
+        }
 
-            PreStepJoints<N>(joint_packed.data, batchBegin, batchEnd);
-        });
+        {
+            MICROPROFILE_SCOPEI("Physics", "PreStepJoints", -1);
 
-        PreStepJoints<1>(joint_packed.data, groupOffset, jointEnd);
+            parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
+                int batchBegin = jointBegin + batchIndex * batchSize;
+                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+
+                PreStepJoints<N>(joint_packed.data, batchBegin, batchEnd);
+            });
+
+            PreStepJoints<1>(joint_packed.data, groupOffset, jointEnd);
+        }
     }
 
     {
@@ -158,6 +166,8 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
         for (int iterationIndex = 0; iterationIndex < configuration.contactIterationsCount; iterationIndex++)
         {
+            MICROPROFILE_SCOPEI("Physics", "ImpulseIteration", -1);
+
             std::vector<char> productivew(queue.getWorkerCount() + 1);
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
@@ -180,6 +190,8 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
         for (int iterationIndex = 0; iterationIndex < configuration.penetrationIterationsCount; iterationIndex++)
         {
+            MICROPROFILE_SCOPEI("Physics", "DisplacementIteration", -1);
+
             std::vector<char> productivew(queue.getWorkerCount() + 1);
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
@@ -197,7 +209,7 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
         }
     }
 
-    FinishJoints(joint_packed, jointBegin, jointEnd);
+    FinishJoints(queue, joint_packed, jointBegin, jointEnd);
 }
 
 NOINLINE int Solver::PrepareIndices(int jointBegin, int jointEnd, int groupSizeTarget)
@@ -480,7 +492,7 @@ NOINLINE void Solver::FinishBodies(RigidBody* bodies, int bodiesCount)
 }
 
 template <int N>
-NOINLINE int Solver::PrepareJoints(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, int groupSizeTarget)
+NOINLINE int Solver::PrepareJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, int groupSizeTarget)
 {
     MICROPROFILE_SCOPEI("Physics", "PrepareJoints", -1);
 
@@ -492,8 +504,7 @@ NOINLINE int Solver::PrepareJoints(AlignedArray<ContactJointPacked<N>>& joint_pa
     {
         MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
 
-        for (int i = jointBegin; i < jointEnd; ++i)
-        {
+        parallelFor(queue, jointBegin, jointEnd, 128, [&](int i, int) {
             ContactJoint& joint = contactJoints[joint_index[i]];
 
             ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
@@ -505,28 +516,31 @@ NOINLINE int Solver::PrepareJoints(AlignedArray<ContactJointPacked<N>>& joint_pa
 
             jointP.normalLimiter_accumulatedImpulse[iP] = joint.normalLimiter_accumulatedImpulse;
             jointP.frictionLimiter_accumulatedImpulse[iP] = joint.frictionLimiter_accumulatedImpulse;
-        }
+        });
     }
 
     return groupOffset;
 }
 
 template <int N>
-NOINLINE void Solver::FinishJoints(AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd)
+NOINLINE void Solver::FinishJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd)
 {
     MICROPROFILE_SCOPEI("Physics", "FinishJoints", -1);
 
     assert(jointBegin % N == 0);
 
-    for (int i = jointBegin; i < jointEnd; ++i)
     {
-        ContactJoint& joint = contactJoints[joint_index[i]];
+        MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
 
-        ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
-        int iP = i & (N - 1);
+        parallelFor(queue, jointBegin, jointEnd, 128, [&](int i, int) {
+            ContactJoint& joint = contactJoints[joint_index[i]];
 
-        joint.normalLimiter_accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
-        joint.frictionLimiter_accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
+            ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+            int iP = i & (N - 1);
+
+            joint.normalLimiter_accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
+            joint.frictionLimiter_accumulatedImpulse = jointP.frictionLimiter_accumulatedImpulse[iP];
+        });
     }
 }
 
@@ -576,8 +590,6 @@ static void RefreshLimiter(
 template <int VN, int N>
 NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints)
 {
-    MICROPROFILE_SCOPEI("Physics", "RefreshJoints", -1);
-
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
@@ -685,8 +697,6 @@ NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int joi
 template <int VN, int N>
 NOINLINE void Solver::PreStepJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd)
 {
-    MICROPROFILE_SCOPEI("Physics", "PreStepJoints", -1);
-
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
@@ -752,8 +762,6 @@ NOINLINE void Solver::PreStepJoints(ContactJointPacked<N>* joint_packed, int joi
 template <int VN, int N>
 NOINLINE bool Solver::SolveJointsImpulses(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsImpulses", -1);
-
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
@@ -910,8 +918,6 @@ NOINLINE bool Solver::SolveJointsImpulses(ContactJointPacked<N>* joint_packed, i
 template <int VN, int N>
 NOINLINE bool Solver::SolveJointsDisplacement(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, int iterationIndex)
 {
-    MICROPROFILE_SCOPEI("Physics", "SolveJointsDisplacement", -1);
-
     typedef simd::VNf<VN> Vf;
     typedef simd::VNi<VN> Vi;
     typedef simd::VNb<VN> Vb;
