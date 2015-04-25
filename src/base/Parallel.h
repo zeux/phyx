@@ -20,8 +20,6 @@ inline unsigned int parallelForIndex(unsigned int data, unsigned int index)
 template <typename T, typename F>
 inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned int groupSize, F func)
 {
-    MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
-
     if (queue.getWorkerCount() == 0 || count <= groupSize)
     {
         for (unsigned int i = 0; i < count; ++i)
@@ -29,6 +27,8 @@ inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned i
 
         return;
     }
+
+    MICROPROFILE_SCOPEI("WorkQueue", "ParallelFor", 0x808080);
 
     struct State
     {

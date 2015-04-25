@@ -112,6 +112,15 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
     FinishBodies(bodies, bodiesCount);
 }
 
+static bool any(const std::vector<char>& v)
+{
+    for (auto& e: v)
+        if (e)
+            return true;
+
+    return false;
+}
+
 template <int N>
 NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints, const Configuration& configuration)
 {
@@ -119,13 +128,28 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
     int groupOffset = PrepareJoints(joint_packed, jointBegin, jointEnd, N);
 
+    int batchSize = (configuration.islandMode == Configuration::Island_Sloppy) ? 512 : jointEnd - jointBegin;
+    int batchCount = ((groupOffset - jointBegin) + batchSize - 1) / batchSize;
+
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
 
-        RefreshJoints<N>(joint_packed.data, jointBegin, groupOffset, contactPoints);
+        parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
+            int batchBegin = jointBegin + batchIndex * batchSize;
+            int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+
+            RefreshJoints<N>(joint_packed.data, batchBegin, batchEnd, contactPoints);
+        });
+
         RefreshJoints<1>(joint_packed.data, groupOffset, jointEnd, contactPoints);
 
-        PreStepJoints<N>(joint_packed.data, jointBegin, groupOffset);
+        parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
+            int batchBegin = jointBegin + batchIndex * batchSize;
+            int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+
+            PreStepJoints<N>(joint_packed.data, batchBegin, batchEnd);
+        });
+
         PreStepJoints<1>(joint_packed.data, groupOffset, jointEnd);
     }
 
@@ -134,9 +158,17 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
         for (int iterationIndex = 0; iterationIndex < configuration.contactIterationsCount; iterationIndex++)
         {
-            bool productive = false;
+            std::vector<char> productivew(queue.getWorkerCount() + 1);
 
-            productive |= SolveJointsImpulses<N>(joint_packed.data, jointBegin, groupOffset, iterationIndex);
+            parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
+                int batchBegin = jointBegin + batchIndex * batchSize;
+                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+
+                productivew[worker] |= SolveJointsImpulses<N>(joint_packed.data, batchBegin, batchEnd, iterationIndex);
+            });
+
+            bool productive = any(productivew);
+
             productive |= SolveJointsImpulses<1>(joint_packed.data, groupOffset, jointEnd, iterationIndex);
 
             if (!productive) break;
@@ -148,9 +180,17 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
         for (int iterationIndex = 0; iterationIndex < configuration.penetrationIterationsCount; iterationIndex++)
         {
-            bool productive = false;
+            std::vector<char> productivew(queue.getWorkerCount() + 1);
 
-            productive |= SolveJointsDisplacement<N>(joint_packed.data, jointBegin, groupOffset, iterationIndex);
+            parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
+                int batchBegin = jointBegin + batchIndex * batchSize;
+                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+
+                productivew[worker] |= SolveJointsDisplacement<N>(joint_packed.data, batchBegin, batchEnd, iterationIndex);
+            });
+
+            bool productive = any(productivew);
+
             productive |= SolveJointsDisplacement<1>(joint_packed.data, groupOffset, jointEnd, iterationIndex);
 
             if (!productive) break;
