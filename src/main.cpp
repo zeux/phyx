@@ -7,6 +7,7 @@
 
 #include "microprofile/microprofile.h"
 #include "microprofile/microprofileui.h"
+#include "microprofile/microprofiledraw.h"
 
 struct Vertex
 {
@@ -240,10 +241,6 @@ static void scrollCallback(GLFWwindow* window, double x, double y)
     mouseScrollDelta = y;
 }
 
-void MicroProfileDrawInit();
-void MicroProfileBeginDraw();
-void MicroProfileEndDraw();
-
 int main(int argc, char** argv)
 {
     MicroProfileStartContextSwitchTrace();
@@ -278,7 +275,7 @@ int main(int argc, char** argv)
     glfwSetKeyCallback(window, keyCallback);
     glfwSetScrollCallback(window, scrollCallback);
 
-    MicroProfileDrawInit();
+    MicroProfileDrawInitGL();
 
     bool paused = false;
 
@@ -295,7 +292,6 @@ int main(int argc, char** argv)
         MicroProfileFlip();
 
         MICROPROFILE_SCOPEI("MAIN", "Frame", 0xffee00);
-        MICROPROFILE_SCOPEGPUI("Frame", -1);
 
         int width, height;
         glfwGetWindowSize(window, &width, &height);
@@ -427,22 +423,12 @@ int main(int argc, char** argv)
                 MICROPROFILE_SCOPEI("Render", "Profile", -1);
                 MICROPROFILE_SCOPEGPUI("Profile", -1);
 
-                glMatrixMode(GL_PROJECTION);
-                glLoadIdentity();
-                glOrtho(0, width, height, 0, 1.f, -1.f);
-
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                glDisable(GL_DEPTH_TEST);
-
-                MicroProfileBeginDraw();
+                MicroProfileBeginDraw(width, height, 1.f);
 
                 MicroProfileDraw(width, height);
                 MicroProfileDrawText(2, height - 12, 0xffffffff, stats, strlen(stats));
 
                 MicroProfileEndDraw();
-
-                glDisable(GL_BLEND);
             }
         }
 
