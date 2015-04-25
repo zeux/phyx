@@ -60,7 +60,7 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
     }
     else
     {
-        int jointCount = contactJoints.size();
+        int jointCount = contactJoints.size;
 
         joint_index.resize(jointCount);
         joint_packed.resize(jointCount);
@@ -202,7 +202,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
 {
     MICROPROFILE_SCOPEI("Physics", "GatherIslands", -1);
 
-    int jointCount = contactJoints.size();
+    int jointCount = contactJoints.size;
     int jointCountAligned = jointCount;
 
     island_remap.resize(bodiesCount);

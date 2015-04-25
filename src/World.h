@@ -4,8 +4,6 @@
 #include "Collider.h"
 #include "Solver.h"
 
-#include <vector>
-
 struct World
 {
     enum SolveMode
@@ -29,7 +27,7 @@ struct World
     float mergeTime;
     float solveTime;
 
-    std::vector<RigidBody> bodies;
+    AlignedArray<RigidBody> bodies;
     Collider collider;
     Solver solver;
 

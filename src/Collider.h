@@ -39,7 +39,7 @@ struct Collider
 
     struct ManifoldDeferredBuffer
     {
-        std::vector<std::pair<int, int>> pairs;
+        AlignedArray<std::pair<int, int>> pairs;
     };
 
     struct BroadphaseEntry
@@ -57,11 +57,11 @@ struct Collider
 
     DenseHashSet<std::pair<unsigned int, unsigned int>> manifoldMap;
 
-    std::vector<Manifold> manifolds;
+    AlignedArray<Manifold> manifolds;
     AlignedArray<ContactPoint> contactPoints;
 
     std::vector<ManifoldDeferredBuffer> manifoldBuffers;
 
-    std::vector<BroadphaseEntry> broadphase;
-    std::vector<BroadphaseSortEntry> broadphaseSort[2];
+    AlignedArray<BroadphaseEntry> broadphase;
+    AlignedArray<BroadphaseSortEntry> broadphaseSort[2];
 };

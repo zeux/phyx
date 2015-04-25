@@ -184,22 +184,22 @@ const char* resetWorld(World& world, int scene)
 
     case 7:
     {
-        for (int group = -2; group <= 2; ++group)
+        for (int group = -5; group <= 5; ++group)
         {
-            RigidBody* splitter = world.AddBody(Coords2f(Vector2f(group * 700, 500.f), 0.f), Vector2f(20.f, 1000.f));
+            RigidBody* splitter = world.AddBody(Coords2f(Vector2f(group * 300, 500.f), 0.f), Vector2f(20.f, 1000.f));
             splitter->invMass = 0.f;
             splitter->invInertia = 0.f;
 
-            for (int bodyIndex = 0; bodyIndex < 10000; bodyIndex++)
+            for (int bodyIndex = 0; bodyIndex < 4500; bodyIndex++)
             {
-                Vector2f pos = Vector2f(group * 700 + random(50.f, 650.0f), random(50.f, 1500.0f));
+                Vector2f pos = Vector2f(group * 300 + random(50.f, 250.0f), random(50.f, 1500.0f));
                 Vector2f size(4.f, 4.f);
 
                 world.AddBody(Coords2f(pos, 0.f), size);
             }
         }
 
-        return "Falling";
+        return "Islands";
     }
     }
 
@@ -241,7 +241,7 @@ int main(int argc, char** argv)
 
     bool useIslands = true;
     int currentMode = sizeof(kModes) / sizeof(kModes[0]) - 1;
-    int currentScene = 0;
+    int currentScene = 7;
 
     const char* currentSceneName = resetWorld(world, currentScene);
 
@@ -326,9 +326,9 @@ int main(int argc, char** argv)
         char stats[256];
         sprintf(stats, "Scene: %s | Bodies: %d Manifolds: %d Contacts: %d Islands: %d (biggest: %d) | Cores: %d; Mode: %s; Iterations: %.2f",
             currentSceneName,
-            int(world.bodies.size()),
-            int(world.collider.manifolds.size()),
-            int(world.solver.contactJoints.size()),
+            int(world.bodies.size),
+            int(world.collider.manifolds.size),
+            int(world.solver.contactJoints.size),
             int(world.solver.islandCount),
             int(world.solver.islandMaxSize),
             int(queue->getWorkerCount() + 1),
@@ -341,13 +341,13 @@ int main(int argc, char** argv)
             {
                 MICROPROFILE_SCOPEI("Render", "Prepare", -1);
 
-                for (size_t bodyIndex = 0; bodyIndex < world.bodies.size(); bodyIndex++)
+                for (int bodyIndex = 0; bodyIndex < world.bodies.size; bodyIndex++)
                 {
                     RigidBody* body = &world.bodies[bodyIndex];
                     Coords2f bodyCoords = body->coords;
                     Vector2f size = body->geom.size;
 
-                    float colorMult = float(bodyIndex) / float(world.bodies.size()) * 0.5f + 0.5f;
+                    float colorMult = float(bodyIndex) / float(world.bodies.size) * 0.5f + 0.5f;
                     int r = 50 * colorMult;
                     int g = 125 * colorMult;
                     int b = 218 * colorMult;
@@ -364,7 +364,7 @@ int main(int argc, char** argv)
 
                 if (glfwGetKey(window, GLFW_KEY_V))
                 {
-                    for (size_t manifoldIndex = 0; manifoldIndex < world.collider.manifolds.size(); manifoldIndex++)
+                    for (int manifoldIndex = 0; manifoldIndex < world.collider.manifolds.size; manifoldIndex++)
                     {
                         Manifold& man = world.collider.manifolds[manifoldIndex];
 

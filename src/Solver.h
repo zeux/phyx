@@ -106,7 +106,7 @@ struct Solver
     AlignedArray<SolveBody> solveBodiesImpulse;
     AlignedArray<SolveBody> solveBodiesDisplacement;
 
-    std::vector<ContactJoint> contactJoints;
+    AlignedArray<ContactJoint> contactJoints;
 
     AlignedArray<int> jointGroup_bodies;
     AlignedArray<int> jointGroup_joints;

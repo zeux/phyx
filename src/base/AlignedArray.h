@@ -53,10 +53,36 @@ struct AlignedArray
         other.capacity = 0;
     }
 
+    T* begin()
+    {
+        return data;
+    }
+
+    T* end()
+    {
+        return data + size;
+    }
+
     T& operator[](int i)
     {
         assert(i >= 0 && i < size);
         return data[i];
+    }
+
+    void push_back(const T& value)
+    {
+        if (size == capacity)
+        {
+            T copy = value;
+
+            realloc(size + 1, true);
+
+            data[size++] = copy;
+        }
+        else
+        {
+            data[size++] = value;
+        }
     }
 
     void truncate(int newsize)
@@ -100,5 +126,10 @@ struct AlignedArray
 
         data = newdata;
         capacity = newcapacity;
+    }
+
+    void clear()
+    {
+        size = 0;
     }
 };

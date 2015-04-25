@@ -265,7 +265,7 @@ NOINLINE void Collider::UpdateBroadphase(RigidBody* bodies, size_t bodiesCount)
         broadphaseSort[0][bodyIndex].index = bodyIndex;
     }
 
-    radixSort3(broadphaseSort[0].data(), broadphaseSort[1].data(), bodiesCount, [](const BroadphaseSortEntry& e) { return e.value; });
+    radixSort3(broadphaseSort[0].data, broadphaseSort[1].data, bodiesCount, [](const BroadphaseSortEntry& e) { return e.value; });
 
     for (size_t i = 0; i < bodiesCount; ++i)
     {
@@ -313,7 +313,7 @@ NOINLINE void Collider::UpdatePairsSerial(RigidBody* bodies, size_t bodiesCount)
             {
                 if (manifoldMap.insert(std::make_pair(be1.index, be2.index)))
                 {
-                    manifolds.push_back(Manifold(be1.index, be2.index, manifolds.size() * 2));
+                    manifolds.push_back(Manifold(be1.index, be2.index, manifolds.size * kMaxContactPoints));
                 }
             }
         }
@@ -326,7 +326,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
 
     manifoldBuffers.resize(queue.getWorkerCount() + 1);
 
-    for (auto& buf : manifoldBuffers)
+    for (auto& buf: manifoldBuffers)
         buf.pairs.clear();
 
     parallelFor(queue, 0, bodiesCount, 128, [this, bodies, bodiesCount](int bodyIndex1, int worker) {
@@ -340,7 +340,7 @@ NOINLINE void Collider::UpdatePairsParallel(WorkQueue& queue, RigidBody* bodies,
         for (auto& pair : buf.pairs)
         {
             manifoldMap.insert(pair);
-            manifolds.push_back(Manifold(pair.first, pair.second, manifolds.size() * kMaxContactPoints));
+            manifolds.push_back(Manifold(pair.first, pair.second, manifolds.size * kMaxContactPoints));
         }
     }
 }
@@ -370,9 +370,9 @@ NOINLINE void Collider::UpdateManifolds(WorkQueue& queue, RigidBody* bodies)
 {
     MICROPROFILE_SCOPEI("Physics", "UpdateManifolds", -1);
 
-    contactPoints.resize_copy(manifolds.size() * kMaxContactPoints);
+    contactPoints.resize_copy(manifolds.size * kMaxContactPoints);
 
-    parallelFor(queue, manifolds.data(), manifolds.size(), 16, [&](Manifold& m, int) {
+    parallelFor(queue, manifolds.data, manifolds.size, 16, [&](Manifold& m, int) {
         UpdateManifold(m, bodies, contactPoints.data + m.pointIndex);
     });
 }
@@ -381,7 +381,7 @@ NOINLINE void Collider::PackManifolds(RigidBody* bodies)
 {
     MICROPROFILE_SCOPEI("Physics", "PackManifolds", -1);
 
-    for (size_t manifoldIndex = 0; manifoldIndex < manifolds.size();)
+    for (int manifoldIndex = 0; manifoldIndex < manifolds.size;)
     {
         Manifold& m = manifolds[manifoldIndex];
 
@@ -392,9 +392,9 @@ NOINLINE void Collider::PackManifolds(RigidBody* bodies)
         {
             manifoldMap.erase(std::make_pair(m.body1Index, m.body2Index));
 
-            if (manifoldIndex < manifolds.size())
+            if (manifoldIndex < manifolds.size)
             {
-                Manifold& me = manifolds.back();
+                Manifold& me = manifolds[manifolds.size - 1];
 
                 unsigned int pointIndex = m.pointIndex;
 
@@ -405,13 +405,13 @@ NOINLINE void Collider::PackManifolds(RigidBody* bodies)
                 m.pointIndex = pointIndex;
             }
 
-            manifolds.pop_back();
+            manifolds.size--;
         }
         else
         {
-            ++manifoldIndex;
+            manifoldIndex++;
         }
     }
 
-    contactPoints.truncate(manifolds.size() * kMaxContactPoints);
+    contactPoints.truncate(manifolds.size * kMaxContactPoints);
 }
