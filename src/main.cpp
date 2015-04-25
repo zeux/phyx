@@ -50,15 +50,15 @@ const struct
     Configuration::SolveMode mode;
     const char* name;
 } kSolveModes[] =
-    {
-     {Configuration::Solve_Scalar, "Scalar"},
+{
+   {Configuration::Solve_Scalar, "Scalar"},
 
 #ifdef __SSE2__
-     {Configuration::Solve_SSE2, "SSE2"},
+   {Configuration::Solve_SSE2, "SSE2"},
 #endif
 
 #ifdef __AVX2__
-     {Configuration::Solve_AVX2, "AVX2"},
+   {Configuration::Solve_AVX2, "AVX2"},
 #endif
 };
 
@@ -67,10 +67,11 @@ const struct
     Configuration::IslandMode mode;
     const char* name;
 } kIslandModes[] =
-    {
-     {Configuration::Island_Single, "Single"},
-     {Configuration::Island_Multiple, "Multiple"},
-     {Configuration::Island_Sloppy, "Sloppy"},
+{
+   {Configuration::Island_Single, "Single"},
+   {Configuration::Island_Multiple, "Multiple"},
+   {Configuration::Island_SingleSloppy, "Single Sloppy"},
+   {Configuration::Island_MultipleSloppy, "Multiple Sloppy"},
 };
 
 const char* resetWorld(World& world, int scene)

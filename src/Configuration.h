@@ -13,7 +13,8 @@ struct Configuration
     {
     	Island_Single,
     	Island_Multiple,
-    	Island_Sloppy
+    	Island_SingleSloppy,
+    	Island_MultipleSloppy
     };
 
     SolveMode solveMode;

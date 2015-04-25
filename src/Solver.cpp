@@ -70,7 +70,9 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
 {
     PrepareBodies(bodies, bodiesCount);
 
-    if (configuration.islandMode != Configuration::Island_Single)
+    bool splitIslands = (configuration.islandMode == Configuration::Island_Multiple || configuration.islandMode == Configuration::Island_MultipleSloppy);
+
+    if (splitIslands)
     {
         int jointCountAligned = GatherIslands(bodies, bodiesCount, N);
 
@@ -128,7 +130,8 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
     int groupOffset = PrepareJoints(queue, joint_packed, jointBegin, jointEnd, N);
 
-    int batchSize = (configuration.islandMode == Configuration::Island_Sloppy) ? 512 : jointEnd - jointBegin;
+    bool sloppy = (configuration.islandMode == Configuration::Island_SingleSloppy || configuration.islandMode == Configuration::Island_MultipleSloppy);
+    int batchSize = sloppy ? 512 : jointEnd - jointBegin;
     int batchCount = ((groupOffset - jointBegin) + batchSize - 1) / batchSize;
 
     {
