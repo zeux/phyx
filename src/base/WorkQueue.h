@@ -57,7 +57,6 @@ class WorkQueue
             items.push(std::move(i));
 
         lock.unlock();
-
         itemsCondition.notify_all();
     }
 

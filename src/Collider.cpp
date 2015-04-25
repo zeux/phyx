@@ -286,7 +286,7 @@ NOINLINE void Collider::UpdateBroadphase(RigidBody* bodies, size_t bodiesCount)
 
 NOINLINE void Collider::UpdatePairs(WorkQueue& queue, RigidBody* bodies, size_t bodiesCount)
 {
-    assert(bodiesCount == broadphase.size());
+    assert(bodiesCount == broadphase.size);
 
     if (queue.getWorkerCount() == 1)
         UpdatePairsSerial(bodies, bodiesCount);

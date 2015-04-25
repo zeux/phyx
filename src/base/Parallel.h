@@ -18,6 +18,13 @@ inline unsigned int parallelForIndex(unsigned int data, unsigned int index)
 }
 
 template <typename T, typename F>
+inline void serialFor(WorkQueue& queue, T data, unsigned int count, unsigned int groupSize, F func)
+{
+    for (unsigned int i = 0; i < count; ++i)
+        func(parallelForIndex(data, i), 0);
+}
+
+template <typename T, typename F>
 inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned int groupSize, F func)
 {
     if (queue.getWorkerCount() == 0 || count <= groupSize)

@@ -130,7 +130,7 @@ NOINLINE void World::RefreshContactJoints()
 
             if (joint.contactPointIndex < 0)
             {
-                joint = solver.contactJoints[solver.contactJoints.size];
+                joint = solver.contactJoints[solver.contactJoints.size - 1];
                 solver.contactJoints.size--;
 
                 deleted++;

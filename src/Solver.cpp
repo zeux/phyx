@@ -507,10 +507,10 @@ NOINLINE int Solver::PrepareJoints(WorkQueue& queue, AlignedArray<ContactJointPa
     {
         MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
 
-        parallelFor(queue, jointBegin, jointEnd, 128, [&](int i, int) {
-            ContactJoint& joint = contactJoints[joint_index[i]];
+        parallelFor(queue, 0, jointEnd - jointBegin, 128, [&](int i, int) {
+            ContactJoint& joint = contactJoints[joint_index[jointBegin + i]];
 
-            ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+            ContactJointPacked<N>& jointP = joint_packed[unsigned(jointBegin + i) / N];
             int iP = i & (N - 1);
 
             jointP.body1Index[iP] = joint.body1Index;
@@ -535,10 +535,10 @@ NOINLINE void Solver::FinishJoints(WorkQueue& queue, AlignedArray<ContactJointPa
     {
         MICROPROFILE_SCOPEI("Physics", "CopyJoints", -1);
 
-        parallelFor(queue, jointBegin, jointEnd, 128, [&](int i, int) {
-            ContactJoint& joint = contactJoints[joint_index[i]];
+        parallelFor(queue, 0, jointEnd - jointBegin, 128, [&](int i, int) {
+            ContactJoint& joint = contactJoints[joint_index[jointBegin + i]];
 
-            ContactJointPacked<N>& jointP = joint_packed[unsigned(i) / N];
+            ContactJointPacked<N>& jointP = joint_packed[unsigned(jointBegin + i) / N];
             int iP = i & (N - 1);
 
             joint.normalLimiter_accumulatedImpulse = jointP.normalLimiter_accumulatedImpulse[iP];
