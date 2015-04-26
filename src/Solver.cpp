@@ -132,7 +132,7 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
     bool sloppy = (configuration.islandMode == Configuration::Island_SingleSloppy || configuration.islandMode == Configuration::Island_MultipleSloppy);
     int batchSize = sloppy ? 512 : jointEnd - jointBegin;
-    int batchCount = ((groupOffset - jointBegin) + batchSize - 1) / batchSize;
+    int batchCount = ((jointEnd - jointBegin) + batchSize - 1) / batchSize;
 
     {
         MICROPROFILE_SCOPEI("Physics", "Prepare", -1);
@@ -142,12 +142,11 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
                 int batchBegin = jointBegin + batchIndex * batchSize;
-                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+                int batchEnd = std::min(batchBegin + batchSize, jointEnd);
 
-                RefreshJoints<N>(joint_packed.data, batchBegin, batchEnd, contactPoints);
+                RefreshJoints<N>(joint_packed.data, batchBegin, std::min(groupOffset, batchEnd), contactPoints);
+                RefreshJoints<1>(joint_packed.data, std::max(groupOffset, batchBegin), batchEnd, contactPoints);
             });
-
-            RefreshJoints<1>(joint_packed.data, groupOffset, jointEnd, contactPoints);
         }
 
         {
@@ -155,12 +154,11 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
                 int batchBegin = jointBegin + batchIndex * batchSize;
-                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+                int batchEnd = std::min(batchBegin + batchSize, jointEnd);
 
-                PreStepJoints<N>(joint_packed.data, batchBegin, batchEnd);
+                PreStepJoints<N>(joint_packed.data, batchBegin, std::min(groupOffset, batchEnd));
+                PreStepJoints<1>(joint_packed.data, std::max(groupOffset, batchBegin), batchEnd);
             });
-
-            PreStepJoints<1>(joint_packed.data, groupOffset, jointEnd);
         }
     }
 
@@ -175,16 +173,13 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
                 int batchBegin = jointBegin + batchIndex * batchSize;
-                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+                int batchEnd = std::min(batchBegin + batchSize, jointEnd);
 
-                productivew[worker] |= SolveJointsImpulses<N>(joint_packed.data, batchBegin, batchEnd, iterationIndex);
+                productivew[worker] |= SolveJointsImpulses<N>(joint_packed.data, batchBegin, std::min(groupOffset, batchEnd), iterationIndex);
+                productivew[worker] |= SolveJointsImpulses<1>(joint_packed.data, std::max(groupOffset, batchBegin), batchEnd, iterationIndex);
             });
 
-            bool productive = any(productivew);
-
-            productive |= SolveJointsImpulses<1>(joint_packed.data, groupOffset, jointEnd, iterationIndex);
-
-            if (!productive) break;
+            if (!any(productivew)) break;
         }
     }
 
@@ -199,16 +194,13 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
                 int batchBegin = jointBegin + batchIndex * batchSize;
-                int batchEnd = std::min(batchBegin + batchSize, groupOffset);
+                int batchEnd = std::min(batchBegin + batchSize, jointEnd);
 
-                productivew[worker] |= SolveJointsDisplacement<N>(joint_packed.data, batchBegin, batchEnd, iterationIndex);
+                productivew[worker] |= SolveJointsDisplacement<N>(joint_packed.data, batchBegin, std::min(groupOffset, batchEnd), iterationIndex);
+                productivew[worker] |= SolveJointsDisplacement<1>(joint_packed.data, std::max(groupOffset, batchBegin), batchEnd, iterationIndex);
             });
 
-            bool productive = any(productivew);
-
-            productive |= SolveJointsDisplacement<1>(joint_packed.data, groupOffset, jointEnd, iterationIndex);
-
-            if (!productive) break;
+            if (!any(productivew)) break;
         }
     }
 
