@@ -89,13 +89,7 @@ inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned i
 
     int optimalWorkerCount = std::min(unsigned(queue.getWorkerCount()), item->groupCount - 1);
 
-    {
-        MICROPROFILE_SCOPEI("WorkQueue", "Push", 0x00ff00);
-
-        queue.pushItem(item, optimalWorkerCount);
-        //for (int i = 0; i < optimalWorkerCount; ++i)
-            //queue.pushItem(item);
-    }
+    queue.pushItem(item, optimalWorkerCount);
 
     item->run(queue.getWorkerCount());
 

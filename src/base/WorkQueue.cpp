@@ -23,11 +23,15 @@ WorkQueue::~WorkQueue()
 
 void WorkQueue::pushItem(std::shared_ptr<Item> item, int count)
 {
+    MICROPROFILE_SCOPEI("WorkQueue", "Push", -1);
+
     std::unique_lock<std::mutex> lock(itemsMutex);
 
     items.push(std::make_pair(std::move(item), count));
 
     lock.unlock();
+
+    MICROPROFILE_SCOPEI("WorkQueue", "Notify", -1);
 
     if (count > 1)
         itemsCondition.notify_all();
