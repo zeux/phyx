@@ -175,7 +175,7 @@ namespace simd
 		return _mm_cmpneq_ps(l.v, r.v);
 	}
 
-	SIMD_INLINE V4b operator!=(V4i l, V4f r)
+	SIMD_INLINE V4b operator!=(V4i l, V4i r)
 	{
 		return _mm_xor_si128(_mm_setzero_si128(), _mm_cmpeq_epi32(l.v, r.v));
 	}

@@ -95,12 +95,16 @@ namespace simd
 
 	SIMD_INLINE V1f bitcast(const V1i& v)
 	{
-		return *reinterpret_cast<const float*>(&v.v);
+		union { float f; int i; } u;
+		u.i = v.v;
+		return u.f;
 	}
 
 	SIMD_INLINE V1i bitcast(const V1f& v)
 	{
-		return *reinterpret_cast<const int*>(&v.v);
+		union { float f; int i; } u;
+		u.f = v.v;
+		return u.i;
 	}
 
 	SIMD_INLINE V1f operator+(V1f v)
@@ -168,7 +172,7 @@ namespace simd
 		return l.v != r.v;
 	}
 
-	SIMD_INLINE V1b operator!=(V1i l, V1f r)
+	SIMD_INLINE V1b operator!=(V1i l, V1i r)
 	{
 		return l.v != r.v;
 	}
