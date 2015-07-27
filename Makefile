@@ -8,11 +8,19 @@ OBJECTS=$(SOURCES:%=$(BUILD)/%.o)
 
 EXECUTABLE=$(BUILD)/phyx
 
-CXXFLAGS=-g -Wall -std=c++11 -O3 -DNDEBUG -mavx2 -mfma -ffast-math -Isrc/microprofile
+CXXFLAGS=-g -Wall -std=c++11 -O3 -DNDEBUG -ffast-math -Isrc/microprofile
 
 ifeq ($(shell uname),Darwin)
+CXXFLAGS+=-mavx2 -mfma
 LDFLAGS=-lglfw3 -framework OpenGL
 else
+CPUINFO=$(shell cat /proc/cpuinfo)
+ifneq ($(findstring avx2,$(CPUINFO)),)
+CXXFLAGS+=-mavx2
+endif
+ifneq ($(findstring fma,$(CPUINFO)),)
+CXXFLAGS+=-mfma
+endif
 LDFLAGS=-lglfw -lGL -lpthread
 endif
 
