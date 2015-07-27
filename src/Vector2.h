@@ -301,7 +301,6 @@ void ProjectPointToLine_noreturn(const Vector2<T>& t1, const Vector2<T>& t2, con
 template <typename GeomSpace>
 bool IsPointInCellEx(const typename GeomSpace::Vector2 points[3], typename GeomSpace::Vector2 testPoint, typename GeomSpace::Scalar eps = 0)
 {
-    typedef typename GeomSpace::Vector2 Vector2;
     typedef typename GeomSpace::Scalar Scalar;
 
     Scalar side0 = ((points[1] - points[0]) ^ (testPoint - points[0]));
@@ -316,7 +315,6 @@ bool IsPointInCellEx(const typename GeomSpace::Vector2 points[3], typename GeomS
 template <typename GeomSpace>
 bool IsPointInCell(const typename GeomSpace::Vector2 points[3], typename GeomSpace::Vector2 testPoint)
 {
-    typedef typename GeomSpace::Vector2 Vector2;
     typedef typename GeomSpace::Scalar Scalar;
     //Scalar //eps = 0;//-1e-4;//std::numeric_limits<float>::epsilon();//Scalar(1e-9);
     Scalar eps = std::numeric_limits<Scalar>::epsilon();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <xmmintrin.h>
+#include <string.h>
 
 #ifdef _MSC_VER
 #define _mm_malloc _aligned_malloc
