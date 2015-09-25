@@ -10,6 +10,9 @@
 #else
 #endif
 
+#define MICROPROFILE_WEBSERVER 1
+#define MICROPROFILE_GPU_TIMERS_GL 1
+
 #define MICROPROFILE_IMPL
 #include "microprofile.h"
 

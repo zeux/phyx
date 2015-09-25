@@ -112,6 +112,10 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
     }
 
     FinishBodies(bodies, bodiesCount);
+
+    MICROPROFILE_COUNTER_SET("physics/islands", islandCount);
+    MICROPROFILE_COUNTER_SET("physics/bodies", bodiesCount);
+    MICROPROFILE_COUNTER_SET("physics/joints", contactJoints.size);
 }
 
 static bool any(const std::vector<char>& v)
@@ -586,8 +590,6 @@ template <int VN, int N>
 NOINLINE void Solver::RefreshJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd, ContactPoint* contactPoints)
 {
     typedef simd::VNf<VN> Vf;
-    typedef simd::VNi<VN> Vi;
-    typedef simd::VNb<VN> Vb;
 
     assert(jointBegin % VN == 0 && jointEnd % VN == 0);
 
@@ -693,8 +695,6 @@ template <int VN, int N>
 NOINLINE void Solver::PreStepJoints(ContactJointPacked<N>* joint_packed, int jointBegin, int jointEnd)
 {
     typedef simd::VNf<VN> Vf;
-    typedef simd::VNi<VN> Vi;
-    typedef simd::VNb<VN> Vb;
 
     assert(jointBegin % VN == 0 && jointEnd % VN == 0);
 

@@ -77,6 +77,8 @@ const struct
 
 const char* resetWorld(World& world, int scene)
 {
+    MICROPROFILE_SCOPEI("Init", "resetWorld", -1);
+
     world.bodies.clear();
     world.collider.manifolds.clear();
     world.collider.manifoldMap.clear();
@@ -245,6 +247,8 @@ int main(int argc, char** argv)
 {
     MicroProfileStartContextSwitchTrace();
     MicroProfileOnThreadCreate("Main");
+    MicroProfileSetEnableAllGroups(true);
+    MicroProfileSetForceMetaCounters(true);
 
     int windowWidth = 1280, windowHeight = 1024;
 
@@ -276,6 +280,7 @@ int main(int argc, char** argv)
     glfwSetScrollCallback(window, scrollCallback);
 
     MicroProfileDrawInitGL();
+    MicroProfileGpuInit(0);
 
     bool paused = false;
 
@@ -287,11 +292,15 @@ int main(int argc, char** argv)
     float viewOffsetY = -40;
     float viewScale = 0.5f;
 
+    int frameIndex = 0;
+
     while (!glfwWindowShouldClose(window))
     {
         MicroProfileFlip();
 
         MICROPROFILE_SCOPEI("MAIN", "Frame", 0xffee00);
+
+        MICROPROFILE_LABELF("MAIN", "Index %d", frameIndex++);
 
         int width, height;
         glfwGetWindowSize(window, &width, &height);
@@ -432,6 +441,8 @@ int main(int argc, char** argv)
             }
         }
 
+        MICROPROFILE_COUNTER_ADD("frame/count", 1);
+
         {
             MICROPROFILE_SCOPEI("MAIN", "Flip", 0xffee00);
 
@@ -505,4 +516,6 @@ int main(int argc, char** argv)
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    MicroProfileShutdown();
 }
