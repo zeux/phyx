@@ -21,3 +21,14 @@
 
 #define MICROPROFILEDRAW_IMPL
 #include "microprofiledraw.h"
+
+#ifdef __linux__
+#define GL_PROC(ret, name, args, argcall) \
+	ret name args { \
+		static ret (*ptr) args = reinterpret_cast<ret (*) args>(glfwGetProcAddress(#name)); \
+		return ptr argcall; \
+	}
+
+GL_PROC(void, glQueryCounter, (GLuint id, GLenum target), (id, target))
+GL_PROC(void, glGetQueryObjectui64v, (GLuint id, GLenum pname, GLuint64 *params), (id, pname, params))
+#endif

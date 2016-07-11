@@ -279,7 +279,7 @@ int main(int argc, char** argv)
     glfwSetScrollCallback(window, scrollCallback);
 
     MicroProfileDrawInitGL();
-    MicroProfileGpuInit(0);
+    MicroProfileGpuInitGL();
 
     bool paused = false;
 
