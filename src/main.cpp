@@ -245,7 +245,6 @@ static void scrollCallback(GLFWwindow* window, double x, double y)
 
 int main(int argc, char** argv)
 {
-    MicroProfileStartContextSwitchTrace();
     MicroProfileOnThreadCreate("Main");
     MicroProfileSetEnableAllGroups(true);
     MicroProfileSetForceMetaCounters(true);
