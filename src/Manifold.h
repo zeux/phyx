@@ -52,7 +52,7 @@ struct Manifold
         pointIndex = 0;
     }
 
-    Manifold(int body1Index, int body2Index, unsigned int pointIndex)
+    Manifold(int body1Index, int body2Index, int pointIndex)
     {
         this->body1Index = body1Index;
         this->body2Index = body2Index;
@@ -63,6 +63,6 @@ struct Manifold
     int body1Index;
     int body2Index;
 
-    unsigned int pointCount;
-    unsigned int pointIndex;
+    int pointCount;
+    int pointIndex;
 };
