@@ -245,7 +245,6 @@ static void UpdateManifold(Manifold& m, RigidBody* bodies, ContactPoint* points)
 }
 
 Collider::Collider()
-    : manifoldMap(std::make_pair(~0u, 0), std::make_pair(~0u, 1))
 {
 }
 

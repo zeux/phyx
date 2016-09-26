@@ -8,441 +8,249 @@
 // Internal implementation of DenseHashSet and DenseHashMap
 namespace detail
 {
-    template <typename Key>
-    struct DenseHashSetItem
-    {
-        Key key;
-
-        DenseHashSetItem(const Key& key)
-            : key(key)
-        {
-        }
-    };
-
-    template <typename Key, typename Value>
-    struct DenseHashMapItem
-    {
-        Key key;
-        Value value;
-
-        DenseHashMapItem(const Key& key)
-            : key(key)
-            , value()
-        {
-        }
-    };
-
     template <typename Key, typename Item, typename Hash, typename Eq>
     class DenseHashTable
     {
     public:
-        class const_iterator;
+        typedef typename std::vector<Item>::const_iterator const_iterator;
 
-        DenseHashTable(const Key& empty_key, const Key& dead_key, size_t buckets)
-            : data(buckets, Item(empty_key))
-            , count(0)
-            , tombstones(0)
-            , empty_key(empty_key)
-            , dead_key(dead_key)
+        DenseHashTable(size_t capacity, const Hash& hash, const Eq& eq)
+            : filled(0)
+            , hash(hash)
+            , eq(eq)
         {
-            // buckets has to be power-of-two or zero
-            assert((buckets & (buckets - 1)) == 0);
+            if (capacity)
+            {
+                items.reserve(capacity);
+                rehash(capacity);
+            }
         }
 
         void clear()
         {
-            data.clear();
-            count = 0;
-        }
-
-        std::pair<Item*, bool> insert(const Key& key)
-        {
-            // It is invalid to insert empty_key into the table since it acts as a "entry does not exist" marker
-            assert(!eq(key, empty_key) && !eq(key, dead_key));
-
-            if (count >= data.size() * 3 / 4)
-            {
-                rehash();
-            }
-
-            size_t hashmod = data.size() - 1;
-            size_t bucket = hasher(key) & hashmod;
-
-            for (size_t probe = 0; probe <= hashmod; ++probe)
-            {
-                Item& probe_item = data[bucket];
-
-                // Element does not exist, insert here
-                if (eq(probe_item.key, empty_key))
-                {
-                    probe_item.key = key;
-                    count++;
-                    return std::make_pair(&probe_item, true);
-                }
-
-                // Element has a tombstone, insert here
-                if (eq(probe_item.key, dead_key))
-                {
-                    probe_item.key = key;
-                    count++;
-                    tombstones--;
-                    return std::make_pair(&probe_item, true);
-                }
-
-                // Element already exists
-                if (eq(probe_item.key, key))
-                {
-                    return std::make_pair(&probe_item, false);
-                }
-
-                // Hash collision, quadratic probing
-                bucket = (bucket + probe + 1) & hashmod;
-            }
-
-            // Hash table is full - this should not happen
-            assert(false);
-            return std::make_pair(nullptr, false);
-        }
-
-        void erase(const Key& key)
-        {
-            if (tombstones > data.size() / 4)
-            {
-                rehash();
-            }
-
-            // It is invalid to erase from the table that can't differentiate between empty and dead keys
-            assert(!eq(empty_key, dead_key));
-
-            if (data.empty()) return;
-            if (eq(key, empty_key) || eq(key, dead_key)) return;
-
-            size_t hashmod = data.size() - 1;
-            size_t bucket = hasher(key) & hashmod;
-
-            for (size_t probe = 0; probe <= hashmod; ++probe)
-            {
-                Item& probe_item = data[bucket];
-
-                // Element exists
-                if (eq(probe_item.key, key))
-                {
-                    probe_item = dead_key;
-
-                    assert(count > 0);
-                    count--;
-                    tombstones++;
-
-                    return;
-                }
-
-                // Element does not exist
-                if (eq(probe_item.key, empty_key))
-                    return;
-
-                // Hash collision, quadratic probing
-                bucket = (bucket + probe + 1) & hashmod;
-            }
-
-            // Hash table is full - this should not happen
-            assert(false);
-        }
-
-        const Item* find(const Key& key) const
-        {
-            if (data.empty()) return 0;
-            if (eq(key, empty_key) || eq(key, dead_key)) return 0;
-
-            size_t hashmod = data.size() - 1;
-            size_t bucket = hasher(key) & hashmod;
-
-            for (size_t probe = 0; probe <= hashmod; ++probe)
-            {
-                const Item& probe_item = data[bucket];
-
-                // Element exists
-                if (eq(probe_item.key, key))
-                    return &probe_item;
-
-                // Element does not exist
-                if (eq(probe_item.key, empty_key))
-                    return nullptr;
-
-                // Hash collision, quadratic probing
-                bucket = (bucket + probe + 1) & hashmod;
-            }
-
-            // Hash table is full - this should not happen
-            assert(false);
-            return nullptr;
+            items.clear();
+            buckets.clear();
+            filled = 0;
         }
 
         const_iterator begin() const
         {
-            size_t start = 0;
-
-            while (start < data.size() && (eq(data[start].key, empty_key) || eq(data[start].key, dead_key)))
-                start++;
-
-            return const_iterator(this, start);
+            return items.begin();
         }
 
         const_iterator end() const
         {
-            return const_iterator(this, data.size());
+            return items.end();
         }
 
         size_t size() const
         {
-            return count;
+            return items.size();
         }
 
         size_t bucket_count() const
         {
-            return data.size();
+            return buckets.size();
         }
 
-        class const_iterator
-        {
-        public:
-            const_iterator()
-                : set(0)
-                , index(0)
-            {
-            }
+    protected:
+        std::vector<Item> items;
+        std::vector<int32_t> buckets;
+        size_t filled; // number of non-empty buckets
 
-            const_iterator(const DenseHashTable<Key, Item, Hash, Eq>* set, size_t index)
-                : set(set)
-                , index(index)
-            {
-            }
-
-            const Item& getItem() const
-            {
-                return set->data[index];
-            }
-
-            const Key& operator*() const
-            {
-                return set->data[index].key;
-            }
-
-            const Key* operator->() const
-            {
-                return &set->data[index].key;
-            }
-
-            bool operator==(const const_iterator& other) const
-            {
-                return set == other.set && index == other.index;
-            }
-
-            bool operator!=(const const_iterator& other) const
-            {
-                return set != other.set || index != other.index;
-            }
-
-            const_iterator& operator++()
-            {
-                size_t size = set->data.size();
-
-                do
-                {
-                    index++;
-                } while (index < size && (set->eq(set->data[index].key, set->empty_key) || set->eq(set->data[index].key, set->dead_key)));
-
-                return *this;
-            }
-
-            const_iterator operator++(int)
-            {
-                const_iterator res = *this;
-                ++*this;
-                return res;
-            }
-
-        private:
-            const DenseHashTable<Key, Item, Hash, Eq>* set;
-            size_t index;
-        };
-
-    private:
-        std::vector<Item> data;
-        size_t count;
-        size_t tombstones;
-        Key empty_key;
-        Key dead_key;
-        Hash hasher;
+        Hash hash;
         Eq eq;
 
         void rehash()
         {
-            size_t newsize = 16;
-            while (newsize < count * 2) newsize *= 2;
-
-            DenseHashTable newtable(empty_key, dead_key, newsize);
-
-            for (size_t i = 0; i < data.size(); ++i)
+            if (filled >= buckets.size() * 3 / 4)
             {
-                const Item& item = data[i];
+                rehash(items.size() * 2);
+            }
+        }
 
-                if (!eq(item.key, empty_key) && !eq(item.key, dead_key))
-                    *newtable.insert(item.key).first = item;
+        void rehash(size_t capacity)
+        {
+            size_t newbuckets = 16;
+            while (newbuckets < capacity) newbuckets *= 2;
+
+            size_t hashmod = newbuckets - 1;
+
+            std::vector<int32_t>(newbuckets, -1).swap(buckets);
+
+            for (size_t i = 0; i < items.size(); ++i)
+            {
+                size_t bucket = hash(getKey(items[i])) & hashmod;
+
+                for (size_t probe = 0; probe <= hashmod; ++probe)
+                {
+                    if (buckets[bucket] < 0)
+                    {
+                        buckets[bucket] = i;
+                        break;
+                    }
+
+                    // Hash collision, quadratic probing
+                    bucket = (bucket + probe + 1) & hashmod;
+                }
             }
 
-            assert(count == newtable.count);
-            tombstones = 0;
-
-            data.swap(newtable.data);
+            filled = items.size();
         }
+
+        int find_bucket(const Key& key) const
+        {
+            if (buckets.empty())
+                return -1;
+
+            size_t hashmod = buckets.size() - 1;
+            size_t bucket = hash(key) & hashmod;
+
+            for (size_t probe = 0; probe <= hashmod; ++probe)
+            {
+                int32_t probe_index = buckets[bucket];
+
+                // Element does not exist, insert here
+                if (probe_index == -1)
+                    return -1;
+
+                // Not a tombstone and key matches
+                if (probe_index >= 0 && eq(getKey(items[probe_index]), key))
+                    return bucket;
+
+                // Hash collision, quadratic probing
+                bucket = (bucket + probe + 1) & hashmod;
+            }
+
+            // Hash table is full - this should not happen
+            assert(false);
+            return -1;
+        }
+
+        std::pair<Item*, bool> insert_item(const Key& key)
+        {
+            assert(!buckets.empty());
+
+            size_t hashmod = buckets.size() - 1;
+            size_t bucket = hash(key) & hashmod;
+
+            for (size_t probe = 0; probe <= hashmod; ++probe)
+            {
+                int32_t probe_index = buckets[bucket];
+
+                // Element does not exist or a tombstone, insert here
+                if (probe_index < 0)
+                {
+                    buckets[bucket] = items.size();
+                    filled++;
+
+                    items.push_back(Item());
+                    getKey(items.back()) = key;
+
+                    return std::make_pair(&items.back(), true);
+                }
+
+                // Key matches, insert here
+                if (eq(getKey(items[probe_index]), key))
+                    return std::make_pair(&items[probe_index], false);
+
+                // Hash collision, quadratic probing
+                bucket = (bucket + probe + 1) & hashmod;
+            }
+
+            // Hash table is full - this should not happen
+            assert(false);
+            return std::make_pair(static_cast<Item*>(0), false);
+        }
+
+        void erase_bucket(int bucket)
+        {
+            assert(bucket >= 0);
+
+            int32_t probe_index = buckets[bucket];
+            assert(probe_index >= 0);
+
+            // move last key
+            int probe_bucket = find_bucket(getKey(items.back()));
+            assert(probe_bucket >= 0);
+
+            items[probe_index] = items.back();
+            buckets[probe_bucket] = probe_index;
+
+            items.pop_back();
+
+            // mark bucket as tombstone
+            buckets[bucket] = -2;
+        }
+
+    private:
+        // Interface to support both key and pair<key, value>
+        static const Key& getKey(const Key& item) { return item; }
+        static Key& getKey(Key& item) { return item; }
+        template <typename Value> static const Key& getKey(const std::pair<Key, Value>& item) { return item.first; }
+        template <typename Value> static Key& getKey(std::pair<Key, Value>& item) { return item.first; }
     };
 }
 
-// This is a faster alternative of std::unordered_set, but it does not implement the same interface (i.e. it does not support erasing and has contains() instead of find())
 template <typename Key, typename Hash = std::hash<Key>, typename Eq = std::equal_to<Key>>
-class DenseHashSet
+class DenseHashSet: public detail::DenseHashTable<Key, Key, Hash, Eq>
 {
-    typedef detail::DenseHashTable<Key, detail::DenseHashSetItem<Key>, Hash, Eq> Impl;
-    Impl impl;
-
 public:
-    typedef typename Impl::const_iterator const_iterator;
-
-    explicit DenseHashSet(const Key& empty_key)
-        : impl(empty_key, empty_key, 0)
+    explicit DenseHashSet(size_t capacity = 0, const Hash& hash = Hash(), const Eq& eq = Eq())
+        : detail::DenseHashTable<Key, Key, Hash, Eq>(capacity, hash, eq)
     {
-    }
-
-    DenseHashSet(const Key& empty_key, const Key& dead_key, size_t buckets = 0)
-        : impl(empty_key, dead_key, buckets)
-    {
-    }
-
-    void clear()
-    {
-        impl.clear();
-    }
-
-    bool insert(const Key& key)
-    {
-        return impl.insert(key).second;
-    }
-
-    void erase(const Key& key)
-    {
-        impl.erase(key);
     }
 
     bool contains(const Key& key) const
     {
-        return impl.find(key) != 0;
+        return this->find_bucket(key) >= 0;
     }
 
-    size_t size() const
+    bool insert(const Key& key)
     {
-        return impl.size();
+        this->rehash();
+
+        return this->insert_item(key).second;
     }
 
-    bool empty() const
+    void erase(const Key& key)
     {
-        return impl.size() == 0;
-    }
+        int bucket = this->find_bucket(key);
 
-    size_t bucket_count() const
-    {
-        return impl.bucket_count();
-    }
-
-    const_iterator begin() const
-    {
-        return impl.begin();
-    }
-
-    const_iterator end() const
-    {
-        return impl.end();
+        if (bucket >= 0)
+            this->erase_bucket(bucket);
     }
 };
 
 // This is a faster alternative of std::unordered_map, but it does not implement the same interface (i.e. it does not support erasing and has contains() instead of find())
 template <typename Key, typename Value, typename Hash = std::hash<Key>, typename Eq = std::equal_to<Key>>
-class DenseHashMap
+class DenseHashMap: public detail::DenseHashTable<Key, std::pair<Key, Value>, Hash, Eq>
 {
-    typedef detail::DenseHashTable<Key, detail::DenseHashMapItem<Key, Value>, Hash, Eq> Impl;
-    Impl impl;
-
 public:
-    typedef typename Impl::const_iterator const_iterator;
-
-    explicit DenseHashMap(const Key& empty_key)
-        : impl(empty_key, empty_key, 0)
+    explicit DenseHashMap(size_t capacity = 0, const Hash& hash = Hash(), const Eq& eq = Eq())
+        : detail::DenseHashTable<Key, std::pair<Key, Value>, Hash, Eq>(capacity, hash, eq)
     {
     }
 
-    DenseHashMap(const Key& empty_key, const Key& dead_key, size_t buckets = 0)
-        : impl(empty_key, dead_key, buckets)
+    const Value* find(const Key& key) const
     {
+        int bucket = this->find_bucket(key);
+
+        return bucket < 0 ? NULL : &this->items[this->buckets[bucket]].second;
     }
 
-    void clear()
-    {
-        impl.clear();
-    }
-
-    // Note: this reference is invalidated by any insert operation (i.e. operator[])
     Value& operator[](const Key& key)
     {
-        return impl.insert(key).first->value;
+        this->rehash();
+
+        return this->insert_item(key).first->second;
     }
 
     void erase(const Key& key)
     {
-        impl.erase(key);
-    }
+        int bucket = this->find_bucket(key);
 
-    // Note: this pointer is invalidated by any insert operation (i.e. operator[])
-    const Value* find(const Key& key) const
-    {
-        const detail::DenseHashMapItem<Key, Value>* result = impl.find(key);
-
-        return result ? &result->value : nullptr;
-    }
-
-    // Note: this pointer is invalidated by any insert operation (i.e. operator[])
-    Value* find(const Key& key)
-    {
-        const detail::DenseHashMapItem<Key, Value>* result = impl.find(key);
-
-        return result ? const_cast<Value*>(&result->value) : nullptr;
-    }
-
-    bool contains(const Key& key) const
-    {
-        return impl.find(key) != 0;
-    }
-
-    size_t size() const
-    {
-        return impl.size();
-    }
-
-    bool empty() const
-    {
-        return impl.size() == 0;
-    }
-
-    size_t bucket_count() const
-    {
-        return impl.bucket_count();
-    }
-
-    const_iterator begin() const
-    {
-        return impl.begin();
-    }
-
-    const_iterator end() const
-    {
-        return impl.end();
+        if (bucket >= 0)
+            this->erase_bucket(bucket);
     }
 };
