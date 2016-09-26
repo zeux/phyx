@@ -53,6 +53,11 @@ namespace detail
             return buckets.size();
         }
 
+        float load_factor() const
+        {
+            return buckets.empty() ? 0 : float(filled) / float(buckets.size());
+        }
+
     protected:
         std::vector<Item> items;
         std::vector<int32_t> buckets;
@@ -142,7 +147,7 @@ namespace detail
                 if (probe_index < 0)
                 {
                     buckets[bucket] = items.size();
-                    filled++;
+                    filled += probe_index == -1;
 
                     items.push_back(Item());
                     getKey(items.back()) = key;
