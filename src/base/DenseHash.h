@@ -26,13 +26,6 @@ namespace detail
             }
         }
 
-        void clear()
-        {
-            items.clear();
-            buckets.clear();
-            filled = 0;
-        }
-
         const_iterator begin() const
         {
             return items.begin();
@@ -41,6 +34,11 @@ namespace detail
         const_iterator end() const
         {
             return items.end();
+        }
+
+        bool empty() const
+        {
+            return items.empty();
         }
 
         size_t size() const
@@ -56,6 +54,13 @@ namespace detail
         float load_factor() const
         {
             return buckets.empty() ? 0 : float(filled) / float(buckets.size());
+        }
+
+        void clear()
+        {
+            items.clear();
+            buckets.clear();
+            filled = 0;
         }
 
     protected:
