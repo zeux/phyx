@@ -52,6 +52,8 @@ struct AlignedArray
         other.data = 0;
         other.size = 0;
         other.capacity = 0;
+
+        return *this;
     }
 
     T* begin()
