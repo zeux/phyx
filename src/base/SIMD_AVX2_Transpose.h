@@ -8,10 +8,10 @@
 		__t1 = _mm256_unpackhi_ps(row0, row1); \
 		__t2 = _mm256_unpacklo_ps(row2, row3); \
 		__t3 = _mm256_unpackhi_ps(row2, row3); \
-		row0 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(5, 4, 1, 0)); \
-		row1 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(7, 6, 3, 2)); \
-		row2 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(5, 4, 1, 0)); \
-		row3 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(7, 6, 3, 2)); \
+		row0 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(1, 0, 1, 0)); \
+		row1 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(3, 2, 3, 2)); \
+		row2 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(1, 0, 1, 0)); \
+		row3 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(3, 2, 3, 2)); \
 	} while (0)
 
 // http://stackoverflow.com/questions/25622745/transpose-an-8x8-float-using-avx-avx2
