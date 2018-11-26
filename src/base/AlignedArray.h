@@ -3,11 +3,6 @@
 #include <xmmintrin.h>
 #include <string.h>
 
-#ifdef _MSC_VER
-#define _mm_malloc _aligned_malloc
-#define _mm_free _aligned_free
-#endif
-
 template <typename T>
 struct AlignedArray
 {

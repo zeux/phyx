@@ -1,3 +1,7 @@
+#ifdef _WIN32
+#include "glad/glad.h"
+#endif
+
 #include <GLFW/glfw3.h>
 
 #include "World.h"
@@ -274,9 +278,13 @@ int main(int argc, char** argv)
     if (!window) return 1;
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
     glfwSetKeyCallback(window, keyCallback);
     glfwSetScrollCallback(window, scrollCallback);
+
+#ifdef _WIN32
+	if (!gladLoadGL()) return 2;
+#endif
 
     MicroProfileDrawInitGL();
     MicroProfileGpuInitGL();

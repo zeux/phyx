@@ -1,0 +1,124 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="src\microprofile">
+      <UniqueIdentifier>{cc5792bf-4514-426c-b977-98bb3782e085}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\base">
+      <UniqueIdentifier>{40ef955c-c1c2-4774-ad98-2e48043cd809}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\glad">
+      <UniqueIdentifier>{c55d19a8-61f0-42bf-a230-4f8179c9f303}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\AABB2.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Collider.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Configuration.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Coords2.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Geom.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Joints.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Manifold.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RigidBody.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Solver.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Vector2.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\microprofile\microprofile.h">
+      <Filter>src\microprofile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\microprofile\microprofiledraw.h">
+      <Filter>src\microprofile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\microprofile\microprofilehtml.h">
+      <Filter>src\microprofile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\microprofile\microprofileui.h">
+      <Filter>src\microprofile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\AlignedArray.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\DenseHash.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\Parallel.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\RadixSort.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\SIMD.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\SIMD_AVX2.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\SIMD_AVX2_Transpose.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\SIMD_Scalar.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\SIMD_SSE2.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\base\WorkQueue.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\glad\glad.h">
+      <Filter>src\glad</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Collider.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Solver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\base\microprofile.cpp">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="src\base\WorkQueue.cpp">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="src\glad\glad.c">
+      <Filter>src\glad</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+</Project>
