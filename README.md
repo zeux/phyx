@@ -2,10 +2,9 @@
 
 ## Overview
 
-This is a 2D physics engine with SoA/SIMD/multicore optimizations.
+This is a 2D physics engine with SoA/SIMD/multicore optimizations. The primary purpose of this project is to experiment with various multi-threading and SIMD algorithms - it is not meant to be a production-ready 2D physics engine.
 
-The engine is based on SusliX by Alexander Sannikov aka Suslik &lt;i.make.physics at gmail.com&gt;
-
+The engine is based on SusliX by Alexander Sannikov aka Suslik &lt;i.make.physics at gmail.com&gt; \
 The optimizations are implemented by Arseny Kapoulkine &lt;arseny.kapoulkine@gmail.com&gt;
 
 The code is licensed under the MIT license.
@@ -13,6 +12,12 @@ The code is licensed under the MIT license.
 ## Video
 
 [![Massive Rigid Body Simulation](https://img.youtube.com/vi/2-UZkEjnBu4/0.jpg)](https://www.youtube.com/watch?v=2-UZkEjnBu4)
+
+## Building
+
+On Linux/Mac, use `make` to build the project, and `make run` to run the demo. Makefile automatically picks the optimal compilation settings for the host system, using AVX2/FMA as appropriate.
+
+On Windows, open `phyx.sln` in Visual Studio 2017 and build & run from there. Note that the project file is configured to assume AVX2 support; if your system doesn't have AVX2, you will need to disable it by removing `__AVX2__` from preprocessor defines and switching the code generation instruction set to "Streaming SIMD Extensions 2 (/arch:SSE2)" - both modifications can be done in project properties.
 
 ## Features
 
