@@ -19,6 +19,7 @@ The code is licensed under the MIT license.
 The engine implements a traditional physics pipeline - broadphase, narrowphase, contact pairing/caching, island splitting, solve (using sequential impulses).
 
 There is only one collision primitive - box. It should be straightforward to add support for more primitives, as long as each manifold has a small number of contact points.
+
 There is only one constraint type - contact. It should be possible to add support for more constraint types, although that might require extensive changes to some algorithms, in particular SIMD.
 
 The broadphase algorithm is single-axis sweep&prune, using non-incremental 3-pass radix sort. Incremental algorithms tend to be expensive when a lot of updates are performed, and sweep&prune is a good fit for 2D assuming the worlds are mostly horizontal.
@@ -51,6 +52,16 @@ You can switch between different island construction modes by using I key:
 The code is using a custom SIMD library and templated code that enables SIMD computations with both SSE2 (4-wide) and AVX2 (8-wide) with the same codebase. You can switch between different SIMD widths - 1, 4, 8 - using M key.
 
 The library interface is structured to make it easy to write complex algebraic code, including conditions:
-https://github.com/zeux/phyx/blob/003370778cdd0b6d457df5754a864c0f7c1e1836/src/Solver.cpp#L670-L677
+
+```c++
+Vf dv = -bounce * (relativeVelocityX * collision_normalX + relativeVelocityY * collision_normalY);
+Vf depth = (point2X - point1X) * collision_normalX + (point2Y - point1Y) * collision_normalY;
+
+Vf dstVelocity = max(dv - deltaVelocity, Vf::zero());
+
+Vf j_normalLimiter_dstVelocity = select(dstVelocity, dstVelocity - maxPenetrationVelocity, depth < deltaDepth);
+Vf j_normalLimiter_dstDisplacingVelocity = errorReduction * max(Vf::zero(), depth - Vf::one(2.0f) * deltaDepth);
+Vf j_normalLimiter_accumulatedDisplacingImpulse = Vf::zero();
+```
 
 To be able to efficiently use SIMD, we split islands into groups of N independent constraints (that affect 2\*N bodies), where N is the SIMD width. The constraint data is packed into AoSoA arrays (array of structure of arrays), otherwise known as block SoA where the block size matches SIMD width and each field of each vector is scalarized so that we can efficiently load and store them without a need to transpose. This structure is maintained throughout all internal iterations of the solver.
