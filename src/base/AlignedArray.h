@@ -67,6 +67,12 @@ struct AlignedArray
         return data[i];
     }
 
+    const T& operator[](int i) const
+    {
+        assert(i >= 0 && i < size);
+        return data[i];
+    }
+
     void push_back(const T& value)
     {
         if (size == capacity)

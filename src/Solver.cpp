@@ -118,10 +118,10 @@ void Solver::SolveJoints(WorkQueue& queue, AlignedArray<ContactJointPacked<N>>& 
     MICROPROFILE_COUNTER_SET("physics/joints", contactJoints.size);
 }
 
-static bool any(const std::vector<char>& v)
+static bool any(const AlignedArray<bool>& v)
 {
-    for (auto& e: v)
-        if (e)
+    for (int i = 0; i < v.size; ++i)
+        if (v[i])
             return true;
 
     return false;
@@ -166,6 +166,9 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
         }
     }
 
+    AlignedArray<bool> productivew;
+    productivew.resize(queue.getWorkerCount() + 1);
+
     {
         MICROPROFILE_SCOPEI("Physics", "Impulse", -1);
 
@@ -173,7 +176,7 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
         {
             MICROPROFILE_SCOPEI("Physics", "ImpulseIteration", -1);
 
-            std::vector<char> productivew(queue.getWorkerCount() + 1);
+            memset(productivew.data, 0, productivew.size * sizeof(bool));
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
                 int batchBegin = jointBegin + batchIndex * batchSize;
@@ -194,7 +197,7 @@ NOINLINE void Solver::SolveJointIsland(WorkQueue& queue, AlignedArray<ContactJoi
         {
             MICROPROFILE_SCOPEI("Physics", "DisplacementIteration", -1);
 
-            std::vector<char> productivew(queue.getWorkerCount() + 1);
+            memset(productivew.data, 0, productivew.size * sizeof(bool));
 
             parallelFor(queue, 0, batchCount, 1, [&](int batchIndex, int worker) {
                 int batchBegin = jointBegin + batchIndex * batchSize;

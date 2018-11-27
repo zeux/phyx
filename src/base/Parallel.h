@@ -62,7 +62,7 @@ inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned i
 
             for (;;)
             {
-                unsigned int groupIndex = counter++;
+                unsigned int groupIndex = counter.fetch_add(1);
                 if (groupIndex >= groupCount) break;
 
                 unsigned int begin = groupIndex * groupSize;
@@ -74,7 +74,7 @@ inline void parallelFor(WorkQueue& queue, T data, unsigned int count, unsigned i
                 groups++;
             }
 
-            ready += groups;
+            ready.fetch_add(groups);
         }
     };
 
