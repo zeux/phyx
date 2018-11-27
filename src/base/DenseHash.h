@@ -149,6 +149,7 @@ namespace detail
                 int32_t probe_index = buckets[bucket];
 
                 // Element does not exist or a tombstone, insert here
+                // TODO: this is incorrect! we have to follow the chain of tombstones to the end just in case our element does exist :(
                 if (probe_index < 0)
                 {
                     buckets[bucket] = items.size();
@@ -181,6 +182,7 @@ namespace detail
             assert(probe_index >= 0);
 
             // move last key
+            // TODO: this is suboptimal! we don't need to compare keys when searching for this, it's enough to find a bucket that points to items.size()-1
             int probe_bucket = find_bucket(getKey(items.back()));
             assert(probe_bucket >= 0);
             assert(buckets[probe_bucket] == int32_t(items.size() - 1));
