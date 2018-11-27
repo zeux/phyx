@@ -183,6 +183,7 @@ namespace detail
             // move last key
             int probe_bucket = find_bucket(getKey(items.back()));
             assert(probe_bucket >= 0);
+            assert(buckets[probe_bucket] == int32_t(items.size() - 1));
 
             items[probe_index] = items.back();
             buckets[probe_bucket] = probe_index;
