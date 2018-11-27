@@ -397,7 +397,7 @@ NOINLINE int Solver::GatherIslands(RigidBody* bodies, int bodiesCount, int group
 
             island_indexremap[i] = runningIndex;
 
-            if (runningCount >= kIslandMinSize || i == islandCount - 1)
+            if (runningCount >= kIslandMinSize || (runningCount > 0 && i == islandCount - 1))
             {
                 int runningCountAligned = (runningCount + groupSizeTarget - 1) & ~(groupSizeTarget - 1);
 
